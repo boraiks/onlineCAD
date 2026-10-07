@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f5f7fa" />
-    <meta name="description" content="webCAD — tarayıcıda çalışan CAD çalışma alanı taslağı." />
-    <title>webCAD — Çalışma Alanı</title>
+    <meta name="theme-color" content="#f7f9fb" />
+    <meta name="description" content="webCAD — tarayıcıda çalışan 3D CAD çalışma alanı taslağı." />
+    <title>webCAD — 3D Çalışma Alanı</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="app.js" defer></script>
   </head>
@@ -16,60 +16,75 @@
           <div class="brand-mark"><span>W</span><i></i></div>
           <div class="brand-copy"><strong>webCAD</strong><small>DESIGN WORKSPACE</small></div>
         </div>
-        <div class="header-project"><span class="header-rule"></span><span>ADSIZ TASARIM</span><span class="header-separator">/</span><b>Çalışma alanı</b><span class="header-rule"></span></div>
+        <div class="document-name"><span class="document-icon">◇</span><strong>Adsız Tasarım 01</strong><span class="document-state">Yerel taslak</span></div>
         <div class="header-right"><span class="online-dot"></span><span>Tarayıcıda hazır</span><span class="header-divider"></span><span class="avatar" aria-label="Kullanıcı">W</span></div>
       </header>
 
+      <nav class="ribbon" aria-label="Üst araç şeridi">
+        <div class="ribbon-workspace"><span class="workspace-symbol">⬡</span><span>TASARIM</span><span class="workspace-chevron">⌄</span></div>
+        <div class="ribbon-group ribbon-create">
+          <div class="ribbon-tools">
+            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 7h21v18H5zM9 21l13-10M20 6v5h6"/></svg><span>Sketch</span></button>
+            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m16 4 11 6v13l-11 6-11-6V10zM5 10l11 6 11-6M16 16v13"/></svg><span>Prizma</span></button>
+            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="8" rx="10" ry="4"/><path d="M6 8v16c0 2 4.5 4 10 4s10-2 10-4V8"/></svg><span>Silindir</span></button>
+          </div>
+          <div class="ribbon-group-label">OLUŞTUR <span>⌄</span></div>
+        </div>
+        <div class="ribbon-group ribbon-modify">
+          <div class="ribbon-tools">
+            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3v26M3 16h26M16 3l-4 4m4-4 4 4M29 16l-4-4m4 4-4 4M16 29l-4-4m4 4 4-4M3 16l4-4m-4 4 4 4"/></svg><span>Taşı</span></button>
+            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M25 12a10 10 0 1 0 1 8M25 12V5m0 7h-7"/><circle cx="16" cy="16" r="2"/></svg><span>Döndür</span></button>
+          </div>
+          <div class="ribbon-group-label">DÜZENLE <span>⌄</span></div>
+        </div>
+        <div class="ribbon-group ribbon-inspect">
+          <div class="ribbon-tools">
+            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24 25 5l3 3L8 27zM11 21l-3-3m8-2-3-3m8-2-3-3"/></svg><span>Ölç</span></button>
+          </div>
+          <div class="ribbon-group-label">İNCELE <span>⌄</span></div>
+        </div>
+        <div class="ribbon-group ribbon-view">
+          <div class="ribbon-tools">
+            <button class="tool-tile active" type="button" id="isoView" aria-pressed="true"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m16 3 11 6v14l-11 6-11-6V9zM5 9l11 7 11-7M16 16v13"/></svg><span>İzometrik</span></button>
+            <button class="tool-tile" type="button" id="topView" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 5h22v22H5zM16 5v22M5 16h22"/><circle cx="16" cy="16" r="3"/></svg><span>Üstten</span></button>
+            <button class="tool-tile" type="button" id="reset3d"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 12a11 11 0 1 1 0 9M6 12V5m0 7h7"/></svg><span>Sıfırla</span></button>
+          </div>
+          <div class="ribbon-group-label">GÖRÜNÜM</div>
+        </div>
+        <div class="ribbon-spacer"></div>
+        <div class="ribbon-badge"><span class="badge-dot"></span>3D MODEL</div>
+      </nav>
+
       <div class="workspace-layout">
-        <aside class="project-sidebar" aria-label="Proje paneli">
-          <div class="sidebar-title"><span class="eyebrow">01 / PROJE</span><h1>Çalışma alanı</h1><p>İlk taslak</p></div>
-          <div class="sidebar-content">
-            <div class="project-card">
-              <div class="project-card-top"><span class="project-symbol">◇</span><span class="project-kicker">AKTİF PROJE</span></div>
-              <strong>Adsız Tasarım 01</strong>
-              <p>Yeni bir tasarım için boş çalışma alanı.</p>
-              <div class="project-meta"><span>BİRİM</span><b>Milimetre (mm)</b></div>
-            </div>
-
-            <div class="section-label"><span>ÇALIŞMA ALANLARI</span><span>02</span></div>
-            <div class="tree-list">
-              <div class="tree-row active"><span class="tree-icon cube-icon">⬡</span><span>3D Görünüm</span><span class="tree-eye" aria-hidden="true">◉</span></div>
-              <div class="tree-row"><span class="tree-icon sketch-icon">▤</span><span>Sketch 01</span><span class="tree-eye" aria-hidden="true">◉</span></div>
-            </div>
-
-            <div class="sidebar-note"><span class="note-spark">✦</span><div><b>Başlangıç noktası</b><p>Çizim ve modelleme araçlarını sonraki adımlarda birlikte ekleyeceğiz.</p></div></div>
+        <aside class="browser-panel" aria-label="Proje ağacı">
+          <div class="browser-heading"><span>TARAYICI</span><span class="browser-menu" aria-hidden="true">•••</span></div>
+          <div class="browser-tree">
+            <div class="browser-row root"><span class="disclosure">⌄</span><span class="browser-icon root-icon">⬡</span><strong>Adsız Tasarım 01</strong><span class="browser-visibility" aria-hidden="true">◉</span></div>
+            <div class="browser-row child"><span class="disclosure">›</span><span class="browser-icon">⚙</span><span>Belge ayarları</span></div>
+            <div class="browser-row child"><span class="disclosure">›</span><span class="browser-icon">▧</span><span>Orijin</span></div>
+            <div class="browser-row child"><span class="disclosure">⌄</span><span class="browser-icon">▣</span><span>Gövde</span><span class="browser-count">1</span></div>
+            <div class="browser-row grandchild selected"><span class="browser-icon body-icon">⬡</span><span>Örnek Gövde 01</span><span class="browser-visibility" aria-hidden="true">◉</span></div>
           </div>
-          <div class="sidebar-footer"><span class="tiny-dot"></span><span>Yerel çalışma alanı</span><span class="footer-version">v0.1</span></div>
+          <div class="browser-footer"><span class="tiny-dot"></span><span>Yerel çalışma alanı</span><span class="version">v0.2</span></div>
         </aside>
 
-        <main class="main-area" aria-label="CAD çalışma alanı">
-          <div class="work-heading"><div><span class="eyebrow">02 / ÇALIŞMA ALANI</span><h2>Adsız Tasarım 01</h2></div><span class="work-heading-unit">BİRİM / MM</span></div>
-
-          <div class="viewport-stack" id="viewportStack">
-            <section class="viewport-panel model-panel" aria-label="3D model görünümü">
-              <div class="panel-toolbar"><div class="panel-ident"><span class="panel-dot orange"></span><span>3D GÖRÜNÜM</span><span class="panel-subtitle">Örnek model</span></div><div class="toolbar-actions"><button type="button" class="view-button selected" id="isoView">İzometrik</button><button type="button" class="view-button" id="topView">Üstten</button><span class="tool-divider"></span><button type="button" class="icon-button" id="reset3d" aria-label="3D görünümü sıfırla" title="Görünümü sıfırla"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 9A8 8 0 1 1 4 14m.5-5V4.5M4.5 9H9"/></svg></button></div></div>
-              <div class="canvas-wrap model-canvas-wrap"><canvas id="modelCanvas" aria-label="Sürükleyerek döndürülebilen örnek 3D model"></canvas><span class="canvas-hint">Sürükle: döndür · Kaydır: yakınlaştır</span><div class="axis-gizmo" aria-hidden="true"><span class="axis-z">Z</span><span class="axis-y">Y</span><span class="axis-x">X</span><i></i></div><div class="canvas-watermark">ÖRNEK MODEL · DÜZENLENEMEZ</div></div>
-            </section>
-
-            <div class="resize-divider" id="resizeDivider" role="separator" aria-label="3D ve sketch alanlarının yüksekliğini ayarla" aria-orientation="horizontal" tabindex="0"><span></span></div>
-
-            <section class="viewport-panel sketch-panel" aria-label="Sketch görünümü">
-              <div class="panel-toolbar"><div class="panel-ident"><span class="panel-dot blue"></span><span>SKETCH 01</span><span class="panel-subtitle">XY düzlemi</span></div><div class="toolbar-actions"><span class="plane-tag">XY DÜZLEMİ</span><span class="tool-divider"></span><button type="button" class="icon-button" id="resetSketch" aria-label="Sketch görünümünü sıfırla" title="Görünümü sıfırla"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 9A8 8 0 1 1 4 14m.5-5V4.5M4.5 9H9"/></svg></button></div></div>
-              <div class="canvas-wrap sketch-canvas-wrap"><canvas id="sketchCanvas" aria-label="Kaydırılıp yakınlaştırılabilen örnek sketch"></canvas><span class="sketch-corner top-left">+Y</span><span class="sketch-corner bottom-right">+X</span><span class="canvas-hint sketch-hint">Sürükle: kaydır · Kaydır: yakınlaştır</span><div class="canvas-watermark sketch-watermark">ÖRNEK SKETCH · DÜZENLENEMEZ</div></div>
-            </section>
+        <main class="main-area" aria-label="3D çalışma alanı">
+          <div class="viewport" id="viewport">
+            <canvas id="modelCanvas" aria-label="Sürükleyerek döndürülebilen örnek 3D model"></canvas>
+            <div class="viewport-label"><span class="viewport-label-dot"></span>3D GÖRÜNÜM <span class="viewport-label-divider">/</span> ÖRNEK MODEL</div>
+            <div class="view-cube" aria-hidden="true"><div class="cube-top">ÜST</div><div class="cube-front">ÖN</div><div class="cube-side">SAĞ</div></div>
+            <div class="navigation-bar" aria-label="Görünüm gezinme">
+              <button type="button" id="zoomOut" aria-label="Uzaklaştır" title="Uzaklaştır">−</button>
+              <span class="nav-separator"></span>
+              <button type="button" id="zoomIn" aria-label="Yakınlaştır" title="Yakınlaştır">+</button>
+              <span class="nav-separator"></span>
+              <button type="button" id="fitView" aria-label="Görünümü sığdır" title="Görünümü sığdır"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5M9 20H4v-5"/></svg></button>
+            </div>
+            <div class="axis-gizmo" aria-hidden="true"><span class="axis-z">Z</span><span class="axis-y">Y</span><span class="axis-x">X</span><i></i></div>
+            <div class="canvas-hint">Sürükle: döndür · Shift + sürükle: kaydır · Kaydır: yakınlaştır</div>
           </div>
-          <div class="status-bar"><span><i></i> GÖRÜNÜM: İZOMETRİK</span><span>Hazır</span><span>1 BİRİM = 1 MM</span></div>
+          <div class="status-bar"><span><i></i> GÖRÜNÜM: İZOMETRİK</span><span>Örnek geometri · Düzenleme kapalı</span><span>1 BİRİM = 1 MM</span></div>
         </main>
-
-        <aside class="inspector" aria-label="Bilgi paneli">
-          <div class="inspector-heading"><span class="eyebrow">03 / GENEL BAKIŞ</span><h2>Tasarım bilgileri</h2></div>
-          <div class="inspector-scroll">
-            <div class="inspector-section"><span class="section-label plain">ÇALIŞMA ALANI</span><div class="info-row"><span>Proje adı</span><b>Adsız Tasarım 01</b></div><div class="info-row"><span>Ölçü birimi</span><b>mm</b></div><div class="info-row"><span>Görünüm</span><b>3D + Sketch</b></div></div>
-            <div class="inspector-section"><span class="section-label plain">AKTİF DÜZLEM</span><div class="plane-preview"><div class="plane-illustration"><span>X</span><span>Y</span></div><div><b>XY Düzlemi</b><small>Sketch 01 için temel düzlem</small></div></div></div>
-            <div class="inspector-section"><span class="section-label plain">YOL HARİTASI</span><div class="roadmap-row"><span class="roadmap-index current">01</span><div><b>Çalışma alanı</b><small>3D ve sketch görünümü</small></div><span class="roadmap-state">ŞİMDİ</span></div><div class="roadmap-row"><span class="roadmap-index">02</span><div><b>Çizim araçları</b><small>İhtiyaca göre eklenecek</small></div></div><div class="roadmap-row"><span class="roadmap-index">03</span><div><b>DXF dışa aktarma</b><small>R12 ve R2000 seçeneği</small></div></div></div>
-            <div class="future-card"><span>DXF ÇIKTISI</span><strong>R12 / R2000</strong><p>Format seçimi ve dışa aktarma ilerleyen aşamada eklenecek.</p></div>
-          </div>
-        </aside>
       </div>
     </div>
   </body>

@@ -4,13 +4,13 @@ Tarayıcıda çalışan CAD uygulaması için ilk çalışma alanı taslağı.
 
 ## Bu sürüm
 
-- Üstte döndürülebilen ve yakınlaştırılabilen 3D örnek görünüm
-- Altta kaydırılabilen ve yakınlaştırılabilen sketch örnek görünümü
-- İki alan arasında sürüklenebilen ayırıcı
+- Tek ve geniş 3D örnek görünüm
+- Fusion tarzı üst araç şeridi ve solda proje ağacı
+- 3D görünümü döndürme, kaydırma, yakınlaştırma ve sıfırlama
 - Mobil ekranlara uyarlanan arayüz
 - Harici paket veya hesap gerektirmeyen statik dosyalar
 
-Örnek geometri yalnızca çalışma alanını göstermek içindir; henüz çizim aracı, dosya kaydetme veya DXF çıktısı yoktur. DXF dışa aktarımı eklendiğinde arayüzden R12 ve R2000 seçimi yapılması planlanmıştır.
+Örnek geometri yalnızca çalışma alanını göstermek içindir. Üst şeritteki çizim ve modelleme komutları henüz etkin değildir. Dosya kaydetme ve DXF çıktısı bu sürümde yoktur; sonraki aşamada DXF R12 ve R2000 seçeneği eklenecektir.
 
 ## Çalıştırma
 
