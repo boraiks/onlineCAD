@@ -1,0 +1,70 @@
+.app-tooltip {
+  position: fixed;
+  z-index: 100000;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 12px 15px 14px;
+  border: 1px solid #c7d8e8;
+  border-radius: 8px;
+  background: #e9f2fa;
+  box-shadow: 0 8px 24px rgba(20, 45, 70, 0.16), 0 2px 6px rgba(20, 45, 70, 0.08);
+  color: #243b4c;
+  font: 12px/1.45 Inter, "Segoe UI", Arial, sans-serif;
+  pointer-events: none;
+  overflow-wrap: anywhere;
+}
+
+.app-tooltip[hidden] {
+  display: none;
+}
+
+.app-tooltip-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.app-tooltip-title {
+  color: #163e59;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.app-tooltip-shortcut {
+  color: #416279;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-tooltip-summary {
+  color: #1e3545;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-bottom: 8px;
+}
+
+.app-tooltip-details {
+  color: #436379;
+  font-size: 11.5px;
+  line-height: 1.45;
+  padding-top: 6px;
+  border-top: 1px solid #d4e2ed;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-tooltip:not([hidden]) {
+    animation: app-tooltip-fade .12s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes app-tooltip-fade {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

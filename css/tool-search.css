@@ -1,0 +1,223 @@
+/* Tool Search Bar (Light Theme matching WebCAD interface) */
+.tool-search-popup {
+  position: fixed;
+  z-index: 100010;
+  width: 284px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.tool-search-popup[hidden] {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tool-search-popup:not([hidden]) {
+    animation: toolSearchFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@keyframes toolSearchFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.tool-search-bar {
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: #f8fafc;
+  border-radius: 6px;
+  margin: 7px;
+  border: 1px solid #cbd5e1;
+  border-bottom: 2px solid #0284c7;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.tool-search-bar:focus-within {
+  background: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.tool-search-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 32px;
+  color: #64748b;
+  flex-shrink: 0;
+  padding-left: 6px;
+}
+
+.tool-search-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tool-search-input {
+  flex: 1;
+  height: 32px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #0f172a;
+  font-size: 13px;
+  padding: 0 6px 0 4px;
+  font-family: inherit;
+  caret-color: #0284c7;
+}
+
+.tool-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.tool-search-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  transition: color 0.1s, background 0.1s;
+}
+
+.tool-search-close:hover {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+.tool-search-dropdown {
+  max-height: 250px;
+  overflow-y: auto;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.tool-search-dropdown[hidden] {
+  display: none !important;
+}
+
+.tool-search-dropdown::-webkit-scrollbar {
+  width: 5px;
+}
+.tool-search-dropdown::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.tool-search-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tool-search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: #1e293b;
+  font-size: 13px;
+  transition: background 0.08s ease, color 0.08s ease;
+  border-left: 3px solid transparent;
+}
+
+.tool-search-item:hover,
+.tool-search-item.is-selected {
+  background: #f0f9ff;
+  color: #0284c7;
+  border-left-color: #0284c7;
+}
+
+.tool-search-item-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.tool-search-item-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.tool-search-item:hover .tool-search-item-icon,
+.tool-search-item.is-selected .tool-search-item-icon {
+  color: #0284c7;
+}
+
+.tool-search-item-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-search-item-name {
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.tool-search-item-category {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.tool-search-item:hover .tool-search-item-category,
+.tool-search-item.is-selected .tool-search-item-category {
+  color: #0369a1;
+}
+
+.tool-search-item-shortcut {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #0284c7;
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tool-search-item:hover .tool-search-item-shortcut,
+.tool-search-item.is-selected .tool-search-item-shortcut {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+}
+
+.tool-search-empty {
+  padding: 16px 12px;
+  text-align: center;
+  color: #64748b;
+  font-size: 12.5px;
+  font-style: italic;
+}

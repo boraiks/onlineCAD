@@ -1,0 +1,74 @@
+.view-toolbar {
+  position: absolute;
+  z-index: 16;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 5px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(15, 34, 51, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.view-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.view-toolbar button:hover {
+  background: #f1f5f9;
+  color: #0288d1;
+}
+.view-toolbar button[aria-pressed="true"],
+.view-toolbar button[aria-expanded="true"] {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+.view-toolbar svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.view-toolbar-divider {
+  width: 1px;
+  height: 19px;
+  margin: 0 3px;
+  background: #e2e8f0;
+}
+.display-settings-menu[hidden] { display: none; }
+.display-settings-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 7px);
+  width: 210px;
+  padding: 8px;
+  border: 1px solid #aabfcc;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 6px 18px #243d5038;
+  color: #344d5e;
+  font: 12px Arial, sans-serif;
+}
+.display-settings-menu strong { display: block; padding: 4px 6px 7px; font-size: 11px; }
+.display-settings-menu label { display: flex; align-items: center; gap: 7px; padding: 7px 6px; border-radius: 3px; cursor: pointer; white-space: nowrap; }
+.display-settings-menu label:hover { background: #edf4f8; }
+.display-settings-menu input { margin: 0; accent-color: #2585b5; }
+@media (max-width: 700px) { .view-hint { display: none; } }
+.model-pane .view-hint { bottom: 52px; max-width: 300px; line-height: 1.35; }

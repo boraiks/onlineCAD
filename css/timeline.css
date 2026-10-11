@@ -1,0 +1,67 @@
+.design-timeline {
+  flex: none;
+  min-width: 0;
+  height: 40px;
+  border-top: 1px solid #d7e1e8;
+  background: #f8fbfd;
+}
+
+.timeline-main { height: 100%; display: flex; align-items: center; min-width: 0; }
+.timeline-track {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #bdcfd9 transparent;
+}
+
+.timeline-step {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 1px solid #d7e4eb;
+  border-radius: 5px;
+  background: #fff;
+  color: #466172;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.timeline-step:hover {
+  border-color: #2189bf;
+  background: #f0f7fb;
+  transform: translateY(-1px);
+}
+.timeline-step[aria-current="step"] {
+  border-color: #2189bf;
+  background: #e8f5fc;
+  box-shadow: 0 0 0 1px rgba(33, 137, 191, .13);
+}
+.timeline-step.is-partial { border-style: dashed; }
+.timeline-step.is-future { opacity: .42; }
+.timeline-step svg { display: block; width: 20px; height: 20px; }
+.timeline-step svg.cad-icon { width: 20px; height: 20px; }
+
+.timeline-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 620px) {
+  .timeline-track { gap: 4px; padding: 0 5px; }
+}

@@ -1,0 +1,330 @@
+/* Settings Toolbar Button */
+.settings-button {
+    flex: none;
+    align-self: center;
+    width: auto;
+    min-width: 54px;
+    height: 38px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 2px 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: #557487;
+    font-size: 9px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.settings-button:hover,
+.settings-button:focus-visible,
+.settings-button.selected {
+    outline: none;
+    border-color: #cbe4f0;
+    background: #edf8fc;
+    color: #1576a8;
+}
+
+.settings-icon {
+    font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 18px;
+    color: #248dbd;
+}
+
+/* Modal Window Backdrop */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(18, 32, 45, 0.48);
+    backdrop-filter: blur(2.5px);
+    -webkit-backdrop-filter: blur(2.5px);
+    animation: fadeInModal 0.15s ease-out;
+}
+
+.modal-backdrop[hidden] {
+    display: none !important;
+}
+
+@keyframes fadeInModal {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Modal Window Container */
+.modal-window {
+    width: min(640px, calc(100vw - 32px));
+    height: min(700px, calc(100vh - 48px));
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid #b8d2e2;
+    border-radius: 8px;
+    box-shadow: 0 20px 48px rgba(15, 34, 51, 0.28), 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    animation: scaleInModal 0.15s ease-out;
+}
+
+@keyframes scaleInModal {
+    from {
+        transform: scale(0.97);
+        opacity: 0.8;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Modal Header */
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: #f2f6f9;
+    border-bottom: 1px solid #d9e5ec;
+    color: #334d5c;
+    user-select: none;
+}
+
+.modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #254050;
+}
+
+.modal-title-icon {
+    font-size: 15px;
+    color: #1e83b4;
+}
+
+.modal-close {
+    border: 0;
+    background: transparent;
+    color: #7b94a3;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.12s ease;
+}
+
+.modal-close:hover,
+.modal-close:focus-visible {
+    color: #bf2a2a;
+    background: #faebeb;
+    outline: none;
+}
+
+/* Modal Body: Sidebar + Main Content */
+.modal-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    background: #ffffff;
+}
+
+/* Sidebar Categories */
+.modal-sidebar {
+    width: 175px;
+    flex-shrink: 0;
+    background: #f8fafc;
+    border-right: 1px solid #dbe6ec;
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.category-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: #4b6777;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.12s ease;
+}
+
+.category-item:hover {
+    background: #edf4f8;
+    color: #186f99;
+}
+
+.category-item.is-active {
+    background: #e2eef5;
+    border-color: #b3d4e6;
+    color: #0e638f;
+    font-weight: 700;
+}
+
+.category-icon {
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0.85;
+}
+
+/* Content Area */
+.modal-content {
+    flex: 1;
+    padding: 18px 24px;
+    overflow-y: auto;
+    background: #ffffff;
+}
+
+.settings-section[hidden] {
+    display: none !important;
+}
+
+.section-title {
+    margin: 0 0 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #243e4e;
+    border-bottom: 1px solid #eef3f6;
+    padding-bottom: 8px;
+}
+
+.settings-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f4f7;
+}
+
+.setting-row:last-child {
+    border-bottom: none;
+}
+
+.setting-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.setting-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #2a4555;
+}
+
+.setting-desc {
+    font-size: 9.5px;
+    color: #7b92a0;
+}
+
+.setting-control {
+    flex-shrink: 0;
+}
+
+.setting-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border: 1px solid #d4e4ed;
+    border-radius: 4px;
+    background: #f4f8fb;
+    color: #1d698e;
+    font-family: Consolas, monospace;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.settings-select {
+    padding: 4px 8px;
+    border: 1px solid #c2dae8;
+    border-radius: 4px;
+    background: #f7fafc;
+    color: #1b6388;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.15s ease;
+}
+
+.settings-select:hover,
+.settings-select:focus-visible {
+    border-color: #218cb8;
+    background: #ffffff;
+    color: #0f5578;
+}
+
+/* Modal Footer */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 16px;
+    background: #f5f8fa;
+    border-top: 1px solid #dbe6ec;
+}
+
+.modal-btn {
+    padding: 5px 18px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.modal-btn-primary {
+    background: #1e83b4;
+    border: 1px solid #166e99;
+    color: #ffffff;
+}
+
+.modal-btn-primary:hover,
+.modal-btn-primary:focus-visible {
+    background: #17719c;
+    border-color: #12597d;
+    outline: none;
+}
+
+.shortcut-row { padding: 6px 0; }
+.shortcut-input {
+    width: 44px;
+    padding: 4px;
+    border: 1px solid #c2dae8;
+    border-radius: 4px;
+    background: #f7fafc;
+    color: #1b6388;
+    text-align: center;
+    font: 700 11px Consolas, monospace;
+    cursor: pointer;
+}
+.shortcut-input:focus { outline: 2px solid #55a6c9; background: #fff; }
+.shortcut-message { min-height: 16px; margin: 8px 0; font-size: 10px; color: #2d718e; }
+.shortcut-reset { border: 1px solid #c2dae8; background: #f7fafc; color: #1b6388; }

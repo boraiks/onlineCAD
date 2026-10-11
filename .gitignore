@@ -1,4 +1,7 @@
-node_modules/
-dist/
-preview-*.png
 .DS_Store
+Thumbs.db
+node_modules/
+data/
+dist/
+scratch/
+*.png

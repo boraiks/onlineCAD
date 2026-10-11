@@ -1,0 +1,70 @@
+.solid-bevel-panel[hidden] { display: none !important; }
+.solid-bevel-panel {
+  position: absolute;
+  z-index: 15;
+  top: 58px;
+  right: 22px;
+  width: min(280px, calc(100% - 32px));
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid #9bb9c9;
+  border-radius: 6px;
+  background: #f7fafc;
+  box-shadow: 0 9px 25px #18374736;
+  color: #263e4c;
+  font: 12px Arial, sans-serif;
+}
+.solid-bevel-panel h2 { margin: 0; font: 700 13px Arial, sans-serif; letter-spacing: .06em; }
+.solid-bevel-panel p { margin: 8px 0 14px; color: #607986; line-height: 1.4; }
+.solid-bevel-field { display: grid; grid-template-columns: 76px 1fr; gap: 8px; align-items: center; margin: 9px 0; }
+.solid-bevel-field output, .solid-bevel-number, .solid-bevel-field select {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: 29px;
+  padding: 0 8px;
+  border: 1px solid #adc5d1;
+  border-radius: 3px;
+  background: #fff;
+  color: #254d62;
+  font: inherit;
+}
+.solid-bevel-field select {
+  width: 100%;
+  cursor: pointer;
+  outline: 0;
+}
+.solid-bevel-field output { background: #e5f3fb; }
+.solid-bevel-number input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; }
+.solid-bevel-number small { color: #718d9c; }
+.solid-bevel-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 17px; }
+.solid-bevel-actions button { min-width: 68px; padding: 6px 8px; border: 1px solid #8bafc0; border-radius: 4px; background: white; color: #274b5d; cursor: pointer; }
+.solid-bevel-actions #solidBevelOk, .solid-bevel-actions #solidHoleOk { background: #177fa9; border-color: #177fa9; color: white; }
+.solid-bevel-actions #solidBevelOk:disabled, .solid-bevel-actions #solidHoleOk:disabled { opacity: .5; cursor: default; }
+.model-pane canvas.is-solid-bevel, .model-pane canvas.is-solid-hole { cursor: crosshair; }
+#solidHoleCboreFields[hidden], #solidHoleCsinkFields[hidden], #solidHoleDepthRow[hidden] { display: none !important; }
+
+.solid-hole-hud[hidden], .solid-hole-hud [hidden] { display: none !important; }
+.solid-hole-hud {
+  min-width: 175px;
+  border-color: #f1aeb5;
+  background: #fff8f8f2;
+  box-shadow: 0 4px 14px rgba(220, 53, 69, 0.22);
+}
+.solid-hole-hud #solidHoleHudOperation {
+  color: #dc3545;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.solid-hole-hud output {
+  color: #1a4f72;
+  font-weight: 700;
+}
+.solid-hole-hud .extrude-hud-number {
+  color: #c82333;
+}
+.solid-hole-hud .extrude-hud-number input:hover,
+.solid-hole-hud .extrude-hud-number input:focus {
+  border-color: #ea868f;
+  background: #ffffff;
+}

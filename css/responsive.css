@@ -1,0 +1,84 @@
+@media (max-width: 1280px) {
+  .toolbar-stage { display: none; }
+}
+
+@media (max-width: 800px) {
+
+  .tool-button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    padding: 2px;
+  }
+
+  .tool-button > span { display: none; }
+
+  .toolbar-fill {
+    display: none;
+  }
+
+  .brand,
+  .titlebar-right {
+    min-width: 0;
+  }
+
+  .toolbar-stage {
+    display: none;
+  }
+
+  .model-pane .pane-heading {
+    left: 17px;
+    top: 12px;
+  }
+
+  .browser-panel {
+    top: 34px;
+  }
+}
+
+@media (max-width: 620px) {
+  .titlebar {
+    padding: 0 10px;
+  }
+
+  .brand-name {
+    font-size: 14px;
+  }
+
+  .document-title {
+    gap: 5px;
+    font-size: 10px;
+  }
+
+  .document-title>span:last-child,
+  .document-separator,
+  .titlebar-right {
+    display: none;
+  }
+
+  .browser-panel {
+    display: none;
+  }
+
+  .workspace-switch {
+    width: 44px;
+    justify-content: center;
+    padding: 0 5px;
+  }
+
+  .workspace-switch > span:not(.workspace-icon) { display: none; }
+
+  .view-cube {
+    right: 4px;
+  }
+
+  .editor.has-sketch .model-pane {
+    flex-basis: 49%;
+  }
+
+  .view-hint {
+    bottom: 12px;
+    max-width: 220px;
+    line-height: 1.4;
+  }
+}

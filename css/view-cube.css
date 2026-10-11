@@ -1,0 +1,24 @@
+.view-cube { position: absolute; z-index: 3; top: 28px; right: 17px; width: 128px; height: 128px; display: grid; place-items: center; perspective: 420px; perspective-origin: center; touch-action: none; cursor: grab; }
+.view-cube:active { cursor: grabbing; }
+.cube-rotator { position: relative; width: 56px; height: 56px; transform-style: preserve-3d; }
+.cube-face { position: absolute; inset: 0; width: 56px; height: 56px; display: grid; place-items: center; padding: 0; border: 1px solid #8b989e; background: #fafbfc; color: #87939a; font-family: Consolas, monospace; font-size: 12px; font-weight: 700; letter-spacing: 0; backface-visibility: hidden; user-select: none; cursor: pointer; }
+.cube-face:hover { background: #ecf6fb; color: #287aa5; }
+.cube-face:focus-visible { outline: 2px solid #238bbc; outline-offset: 2px; }
+.cube-front { transform: translateZ(28px); }
+.cube-back { transform: rotateY(180deg) translateZ(28px); }
+.cube-right { transform: rotateY(90deg) translateZ(28px); }
+.cube-left { transform: rotateY(-90deg) translateZ(28px); }
+.cube-top { transform: rotateX(90deg) translateZ(28px); }
+.cube-bottom { transform: rotateX(-90deg) translateZ(28px); }
+.cube-axis-overlay, .cube-pick-overlay { position: absolute; inset: 0; width: 128px; height: 128px; overflow: visible; }
+.cube-axis-overlay { z-index: -1; pointer-events: none; }
+.cube-axis-line { fill: none; stroke-width: 1.25; stroke-linecap: round; }
+.cube-axis-label { font-family: Consolas, monospace; font-size: 14px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; }
+.cube-axis-x { stroke: #e54444; fill: #e54444; }
+.cube-axis-y { stroke: #38a169; fill: #38a169; }
+.cube-axis-z { stroke: #2b6cb0; fill: #2b6cb0; }
+.cube-pick-overlay { z-index: 2; pointer-events: none; }
+.cube-edge-target { fill: none; stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: pointer; }
+.cube-corner-target { fill: transparent; pointer-events: all; cursor: pointer; }
+.cube-edge-target:hover, .cube-edge-target:focus-visible { stroke: #59a8ce65; outline: none; }
+.cube-corner-target:hover, .cube-corner-target:focus-visible { fill: #59a8ce99; outline: none; }

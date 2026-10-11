@@ -1,91 +1,2079 @@
 <!doctype html>
-<html lang="tr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f7f9fb" />
-    <meta name="description" content="webCAD — tarayıcıda çalışan 3D CAD çalışma alanı taslağı." />
-    <title>webCAD — 3D Çalışma Alanı</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="app.js" defer></script>
-  </head>
-  <body>
-    <div class="app-shell">
-      <header class="app-header">
-        <div class="brand" aria-label="webCAD">
-          <div class="brand-mark"><span>W</span><i></i></div>
-          <div class="brand-copy"><strong>webCAD</strong><small>DESIGN WORKSPACE</small></div>
-        </div>
-        <div class="document-name"><span class="document-icon">◇</span><strong>Adsız Tasarım 01</strong><span class="document-state">Yerel taslak</span></div>
-        <div class="header-right"><span class="online-dot"></span><span>Tarayıcıda hazır</span><span class="header-divider"></span><span class="avatar" aria-label="Kullanıcı">W</span></div>
-      </header>
+<html lang="en">
 
-      <nav class="ribbon" aria-label="Üst araç şeridi">
-        <div class="ribbon-workspace"><span class="workspace-symbol">⬡</span><span>TASARIM</span><span class="workspace-chevron">⌄</span></div>
-        <div class="ribbon-group ribbon-create">
-          <div class="ribbon-tools">
-            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 7h21v18H5zM9 21l13-10M20 6v5h6"/></svg><span>Sketch</span></button>
-            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m16 4 11 6v13l-11 6-11-6V10zM5 10l11 6 11-6M16 16v13"/></svg><span>Prizma</span></button>
-            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="8" rx="10" ry="4"/><path d="M6 8v16c0 2 4.5 4 10 4s10-2 10-4V8"/></svg><span>Silindir</span></button>
-          </div>
-          <div class="ribbon-group-label">OLUŞTUR <span>⌄</span></div>
-        </div>
-        <div class="ribbon-group ribbon-modify">
-          <div class="ribbon-tools">
-            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3v26M3 16h26M16 3l-4 4m4-4 4 4M29 16l-4-4m4 4-4 4M16 29l-4-4m4 4 4-4M3 16l4-4m-4 4 4 4"/></svg><span>Taşı</span></button>
-            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M25 12a10 10 0 1 0 1 8M25 12V5m0 7h-7"/><circle cx="16" cy="16" r="2"/></svg><span>Döndür</span></button>
-          </div>
-          <div class="ribbon-group-label">DÜZENLE <span>⌄</span></div>
-        </div>
-        <div class="ribbon-group ribbon-inspect">
-          <div class="ribbon-tools">
-            <button class="tool-tile" type="button" disabled title="Sonraki aşamada eklenecek"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24 25 5l3 3L8 27zM11 21l-3-3m8-2-3-3m8-2-3-3"/></svg><span>Ölç</span></button>
-          </div>
-          <div class="ribbon-group-label">İNCELE <span>⌄</span></div>
-        </div>
-        <div class="ribbon-group ribbon-view">
-          <div class="ribbon-tools">
-            <button class="tool-tile active" type="button" id="isoView" aria-pressed="true"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m16 3 11 6v14l-11 6-11-6V9zM5 9l11 7 11-7M16 16v13"/></svg><span>İzometrik</span></button>
-            <button class="tool-tile" type="button" id="topView" aria-pressed="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 5h22v22H5zM16 5v22M5 16h22"/><circle cx="16" cy="16" r="3"/></svg><span>Üstten</span></button>
-            <button class="tool-tile" type="button" id="reset3d"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 12a11 11 0 1 1 0 9M6 12V5m0 7h7"/></svg><span>Sıfırla</span></button>
-          </div>
-          <div class="ribbon-group-label">GÖRÜNÜM</div>
-        </div>
-        <div class="ribbon-spacer"></div>
-        <div class="ribbon-badge"><span class="badge-dot"></span>3D MODEL</div>
-      </nav>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f5f7f9" />
+  <meta name="description" content="onlineCAD — a browser-based CAD workspace." />
+  <title>onlineCAD — Workspace</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path fill='%231674ab' d='M5 8.5 16 3l11 5.5v15L16 29 5 23.5z'/></svg>" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/chrome.css" />
+  <link rel="stylesheet" href="css/browser.css" />
+  <link rel="stylesheet" href="css/workspace.css" />
+  <link rel="stylesheet" href="css/view-cube.css" />
+  <link rel="stylesheet" href="css/settings.css" />
+  <link rel="stylesheet" href="css/sketch-tools.css" />
+  <link rel="stylesheet" href="css/sketch-wheel.css?v=20261008-3" />
+  <link rel="stylesheet" href="css/extrude.css" />
+  <link rel="stylesheet" href="css/solid-bevel.css" />
+  <link rel="stylesheet" href="css/body-move.css" />
+  <link rel="stylesheet" href="css/view-toolbar.css" />
+  <link rel="stylesheet" href="css/error-notifications.css" />
+  <link rel="stylesheet" href="css/timeline.css" />
+  <link rel="stylesheet" href="css/tooltips.css" />
+  <link rel="stylesheet" href="css/tool-search.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <script src="js/math.js" defer></script>
+  <script src="js/orientation.js" defer></script>
+  <script src="js/planes.js" defer></script>
+  <script src="js/shortcuts.js" defer></script>
+  <script src="js/settings.js" defer></script>
+  <script src="js/history.js" defer></script>
+  <script src="js/timeline.js" defer></script>
+  <script src="js/sketch-grid.js" defer></script>
+  <script src="js/sketch-geometry.js" defer></script>
+  <script src="js/sketch-constraints.js?v=20261008-2" defer></script>
+  <script src="js/sketch-model.js" defer></script>
+  <script src="js/sketch-hit-test.js" defer></script>
+  <script src="js/sketch-snap.js?v=20261008-9" defer></script>
+  <script src="js/sketch-chain.js" defer></script>
+  <script src="js/canvas.js" defer></script>
+  <script src="js/sketch-profiles.js" defer></script>
+  <script src="js/sketch-render.js" defer></script>
+  <script src="js/sketch-dimensions.js" defer></script>
+  <script src="js/sketch-angle.js" defer></script>
+  <script src="js/sketch-distance.js" defer></script>
+  <script src="js/camera.js" defer></script>
+  <script src="js/model-view.js" defer></script>
+  <script src="js/sketch-view.js" defer></script>
+  <script src="js/sketch-fillet.js?v=20261008-2" defer></script>
+  <script src="js/sketch-trim.js" defer></script>
+  <script src="js/sketch-mirror.js?v=20261008-2" defer></script>
+  <script src="js/sketch-pattern.js?v=20261008-3" defer></script>
+  <script src="js/sketch-wheel.js?v=20261008-2" defer></script>
+  <script src="js/toolbar-menu.js" defer></script>
+  <script src="js/sketch-cursor.js" defer></script>
+  <script src="js/sketch-tool.js?v=20261008-9" defer></script>
+  <script src="js/sketch-annotation-interaction.js" defer></script>
+  <script src="js/sketch-profile-selection.js" defer></script>
+  <script src="js/solid-kernel.js" defer></script>
+  <script src="js/body-renderer.js" defer></script>
+  <script src="js/body-faces.js" defer></script>
+  <script src="js/extrude.js" defer></script>
+  <script src="js/solid-bevel.js" defer></script>
+  <script src="js/solid-revolve.js" defer></script>
+  <script src="js/solid-hole.js" defer></script>
+  <script src="js/body-move.js"></script>
+  <script src="js/body-pattern.js" defer></script>
+  <script src="js/interference-check.js" defer></script>
+  <script src="js/zebra-analysis.js" defer></script>
+  <script src="js/mesh-decimator.js" defer></script>
+  <script src="js/mesh-feature-fit-core.js" defer></script>
+  <script src="js/mesh-solid-core.js" defer></script>
+  <script src="js/mesh-rebuild-core.js" defer></script>
+  <script src="js/mesh-voxel-core.js" defer></script>
+  <script src="js/surface-finish-core.js" defer></script>
+  <script src="js/mesh-to-solid.js" defer></script>
+  <script src="js/view-cube.js" defer></script>
+  <script src="js/project-io.js" defer></script>
+  <script src="js/importers.js" defer></script>
+  <script src="js/tooltips.js" defer></script>
+  <script src="js/tool-search.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
 
-      <div class="workspace-layout">
-        <aside class="browser-panel" aria-label="Proje ağacı">
-          <div class="browser-heading"><span>TARAYICI</span><span class="browser-menu" aria-hidden="true">•••</span></div>
-          <div class="browser-tree">
-            <div class="browser-row root"><span class="disclosure">⌄</span><span class="browser-icon root-icon">⬡</span><strong>Adsız Tasarım 01</strong><span class="browser-visibility" aria-hidden="true">◉</span></div>
-            <div class="browser-row child"><span class="disclosure">›</span><span class="browser-icon">⚙</span><span>Belge ayarları</span></div>
-            <div class="browser-row child"><span class="disclosure">›</span><span class="browser-icon">▧</span><span>Orijin</span></div>
-            <div class="browser-row child"><span class="disclosure">⌄</span><span class="browser-icon">▣</span><span>Gövde</span><span class="browser-count">1</span></div>
-            <div class="browser-row grandchild selected"><span class="browser-icon body-icon">⬡</span><span>Örnek Gövde 01</span><span class="browser-visibility" aria-hidden="true">◉</span></div>
-          </div>
-          <div class="browser-footer"><span class="tiny-dot"></span><span>Yerel çalışma alanı</span><span class="version">v0.2</span></div>
-        </aside>
+<body>
+  <div class="app-shell">
+    <header class="titlebar">
+      <div class="brand" aria-label="webCAD">
+        <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32">
+            <path d="M5 8.5 16 3l11 5.5v15L16 29 5 23.5z" />
+            <path d="m5 8.5 11 6 11-6M16 14.5V29" />
+          </svg></span>
+        <span class="brand-name">online<span>CAD</span></span>
+      </div>
+      <div class="document-title" id="documentTitleContainer" title="Click to rename design"><span
+          class="document-glyph" aria-hidden="true">◇</span><strong id="documentTitleText" contenteditable="true"
+          spellcheck="false" title="Click to rename design">Untitled Design</strong><span
+          class="document-separator"></span><span id="documentSaveStatus">Unsaved workspace</span></div>
+      <div class="titlebar-right"></div>
+    </header>
 
-        <main class="main-area" aria-label="3D çalışma alanı">
-          <div class="viewport" id="viewport">
-            <canvas id="modelCanvas" aria-label="Sürükleyerek döndürülebilen örnek 3D model"></canvas>
-            <div class="viewport-label"><span class="viewport-label-dot"></span>3D GÖRÜNÜM <span class="viewport-label-divider">/</span> ÖRNEK MODEL</div>
-            <div class="view-cube" aria-hidden="true"><div class="cube-top">ÜST</div><div class="cube-front">ÖN</div><div class="cube-side">SAĞ</div></div>
-            <div class="navigation-bar" aria-label="Görünüm gezinme">
-              <button type="button" id="zoomOut" aria-label="Uzaklaştır" title="Uzaklaştır">−</button>
-              <span class="nav-separator"></span>
-              <button type="button" id="zoomIn" aria-label="Yakınlaştır" title="Yakınlaştır">+</button>
-              <span class="nav-separator"></span>
-              <button type="button" id="fitView" aria-label="Görünümü sığdır" title="Görünümü sığdır"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5M9 20H4v-5"/></svg></button>
+    <div class="tabbar" aria-label="Workspace">
+      <div class="ribbon-tabs" id="ribbonTabs" role="tablist">
+        <button type="button" class="ribbon-tab tab-active" id="ribbonTabSolid" role="tab" aria-selected="true"
+          title="Solid 3D Modeling Workspace">SOLID</button>
+        <button type="button" class="ribbon-tab" id="ribbonTabMesh" role="tab" aria-selected="false"
+          title="Mesh Editing & Preparation Workspace">MESH</button>
+        <button type="button" class="ribbon-tab" id="ribbonTabUtilities" role="tab" aria-selected="false"
+          title="Utilities & Inspection">UTILITIES</button>
+        <button type="button" class="ribbon-tab ribbon-tab-sketch" id="ribbonTabSketch" role="tab" aria-selected="false"
+          title="Active 2D Sketch" hidden>SKETCH</button>
+      </div>
+      <div class="tabbar-right">
+        <div class="tab-menu" id="fileMenuContainer">
+          <button class="tab-menu-button" id="fileMenuButton" type="button" aria-haspopup="true" aria-expanded="false"
+            title="Project file operations">
+            <span>FILE</span>
+            <span class="chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="tab-dropdown" id="fileDropdown" hidden>
+            <div class="dropdown-header">PROJECT</div>
+            <button class="dropdown-item" id="newDesignBtn" type="button" title="Start a fresh workspace (Ctrl+Alt+N)">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M5 3h7l4 4v10H5z" />
+                <path d="M12 3v4h4M7 11h6M10 8v6" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>New Design</strong>
+                <small>Start clean workspace</small>
+              </span>
+              <span class="dropdown-badge">Ctrl+Alt+N</span>
+            </button>
+            <button class="dropdown-item" id="openProjectBtn" type="button" title="Open an onlineCAD project (.ocad)">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 6a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v1H3V6z" />
+                <path d="M3 9h14l-1.5 8H4.5L3 9z" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Open Project...</strong>
+                <small>.ocad project</small>
+              </span>
+              <span class="dropdown-badge">Ctrl+O</span>
+            </button>
+            <button class="dropdown-item" id="saveProjectBtn" type="button" title="Save project to .ocad file">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 3h9l3 3v11H4z" />
+                <path d="M7 3v4h6V3M7 17v-6h6v6" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Save Project</strong>
+                <small>Download .ocad file</small>
+              </span>
+              <span class="dropdown-badge">Ctrl+S</span>
+            </button>
+            <div class="dropdown-separator"></div>
+            <div class="dropdown-header">QUICK EXPORT</div>
+            <button class="dropdown-item" id="fileExportStlBtn" type="button"
+              title="Export 3D bodies as binary STL mesh for 3D printing">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M10 2 3 6v8l7 4 7-4V6l-7-4z" />
+                <path d="M3 6l7 4 7-4M10 10v8" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Export STL</strong>
+                <small>3D Print Mesh (.stl)</small>
+              </span>
+              <span class="dropdown-badge">STL</span>
+            </button>
+          </div>
+        </div>
+        <div class="tab-menu" id="exportMenuContainer">
+          <button class="tab-menu-button" id="exportMenuButton" type="button" aria-haspopup="true" aria-expanded="false"
+            title="Export 3D models and drawings">
+            <span>EXPORT</span>
+            <span class="chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="tab-dropdown" id="exportDropdown" hidden>
+            <div class="dropdown-header">3D EXPORT</div>
+            <button class="dropdown-item" id="exportStlBtn" type="button"
+              title="Export visible 3D bodies to binary STL for slicers">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M10 2 3 6v8l7 4 7-4V6l-7-4z" />
+                <path d="M3 6l7 4 7-4M10 10v8" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Export STL (.stl)</strong>
+                <small>Binary mesh for 3D printing</small>
+              </span>
+              <span class="dropdown-badge">STL</span>
+            </button>
+            <button class="dropdown-item" id="exportOcadBtn" type="button" title="Export current project (.ocad)">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 3h9l3 3v11H4z" />
+                <path d="M7 3v4h6V3M7 17v-6h6v6" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Export Project (.ocad)</strong>
+                <small>onlineCAD project file</small>
+              </span>
+              <span class="dropdown-badge">.OCAD</span>
+            </button>
+            <div class="dropdown-separator"></div>
+            <div class="dropdown-header">2D DRAWING</div>
+            <button class="dropdown-item is-todo" type="button" data-export="dxf"
+              title="Export 2D DXF Drawing (Planned)">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 3h8l4 4v10H4z" />
+                <path d="M12 3v4h4" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Export DXF</strong>
+                <small>.dxf (2D Drawing)</small>
+              </span>
+              <span class="dropdown-badge">TO-DO</span>
+            </button>
+          </div>
+        </div>
+        <div class="tab-menu" id="importMenuContainer">
+          <button class="tab-menu-button" id="importMenuButton" type="button" aria-haspopup="true" aria-expanded="false"
+            title="Import 3D models and drawings">
+            <span>IMPORT</span>
+            <span class="chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="tab-dropdown" id="importDropdown" hidden>
+            <div class="dropdown-header">3D & 2D IMPORT</div>
+            <button class="dropdown-item" id="importStlBtn" type="button" data-import="stl"
+              title="Import STL 3D Mesh (.stl)">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M10 2 3 6v8l7 4 7-4V6l-7-4z" />
+                <path d="M3 6l7 4 7-4M10 10v8" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Import STL</strong>
+                <small>.stl (Binary & ASCII mesh)</small>
+              </span>
+              <span class="dropdown-badge">STL</span>
+            </button>
+            <button class="dropdown-item" id="importStepBtn" type="button" data-import="step"
+              title="Import STEP CAD Model (.step, .stp)">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 3h8l4 4v10H4z" />
+                <path d="M12 3v4h4M7 11h6M7 14h4" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Import .STEP</strong>
+                <small>.step, .stp (Solid B-Rep / Facet)</small>
+              </span>
+              <span class="dropdown-badge">STEP</span>
+            </button>
+            <button class="dropdown-item" id="importObjBtn" type="button" data-import="obj"
+              title="Import OBJ 3D Model (.obj)">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2 5l8-3 8 3v10l-8 3-8-3V5z" />
+                <path d="M10 2v16M2 5l16 10M18 5L2 15" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Import OBJ</strong>
+                <small>.obj (Wavefront 3D mesh)</small>
+              </span>
+              <span class="dropdown-badge">OBJ</span>
+            </button>
+            <div class="dropdown-separator"></div>
+            <div class="dropdown-header">2D DRAWING</div>
+            <button class="dropdown-item" id="importDxfBtn" type="button" data-import="dxf"
+              title="Import DXF 2D Drawing (.dxf)">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 4h14v12H3z" />
+                <circle cx="8" cy="10" r="3" />
+                <path d="M11 13l3-3" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Import DXF</strong>
+                <small>.dxf (AutoCAD / 2D sketch)</small>
+              </span>
+              <span class="dropdown-badge">DXF</span>
+            </button>
+          </div>
+        </div>
+        <button class="tab-menu-button settings-tab-button" id="settingsButton" type="button"
+          aria-controls="settingsPanel" aria-expanded="false" title="Application Preferences & Settings">
+          <span>SETTINGS</span>
+        </button>
+      </div>
+      <input type="file" id="projectFileInput" accept=".ocad" hidden />
+      <input type="file" id="importFileInput" hidden />
+    </div>
+
+    <nav class="toolbar" aria-label="Toolbar">
+      <div class="workspace-switch-container" id="workspaceSwitchContainer">
+        <button class="workspace-switch" id="workspaceSwitch" type="button" aria-haspopup="menu" aria-expanded="false"
+          title="Switch CAD Workspace">
+          <span class="workspace-icon" id="workspaceSwitchIcon" aria-hidden="true">⬡</span>
+          <span id="workspaceSwitchText">SOLID</span>
+          <span class="chevron" aria-hidden="true">⌄</span>
+        </button>
+        <div class="workspace-switch-dropdown" id="workspaceSwitchDropdown" role="menu" hidden>
+          <button class="workspace-switch-item selected" id="switchItemSolid" type="button" role="menuitem">
+            <span class="switch-item-icon">⬡</span>
+            <div class="switch-item-text">
+              <strong>SOLID</strong>
+              <small>Parametric 3D solid modeling</small>
             </div>
-            <div class="axis-gizmo" aria-hidden="true"><span class="axis-z">Z</span><span class="axis-y">Y</span><span class="axis-x">X</span><i></i></div>
-            <div class="canvas-hint">Sürükle: döndür · Shift + sürükle: kaydır · Kaydır: yakınlaştır</div>
+            <span class="switch-item-check" id="switchCheckSolid">✓</span>
+          </button>
+          <button class="workspace-switch-item" id="switchItemMesh" type="button" role="menuitem">
+            <span class="switch-item-icon">⬢</span>
+            <div class="switch-item-text">
+              <strong>MESH</strong>
+              <small>Mesh repair, decimation & solid convert</small>
+            </div>
+            <span class="switch-item-check" id="switchCheckMesh">✓</span>
+          </button>
+          <button class="workspace-switch-item" id="switchItemUtilities" type="button" role="menuitem">
+            <span class="switch-item-icon">⚙</span>
+            <div class="switch-item-text">
+              <strong>UTILITIES</strong>
+              <small>Interference clash &amp; inspection</small>
+            </div>
+            <span class="switch-item-check" id="switchCheckUtilities" style="opacity: 0;">✓</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- SOLID WORKSPACE TOOLBAR -->
+      <div class="ribbon-workspace" id="solidWorkspaceToolbar">
+        <!-- CREATE GROUP -->
+        <div class="toolbar-group">
+          <div class="toolbar-group-tools">
+            <button class="tool-button" id="openSketch" type="button" aria-pressed="false"
+              title="Create 2D sketch on a plane or planar face">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <polygon points="16,4 29,11 16,18 3,11" fill="#e1f5fe" stroke="#37474f" stroke-width="1.4"
+                  stroke-linejoin="round" />
+                <path d="M9.5,7.5 L22.5,14.5 M22.5,7.5 L9.5,14.5" stroke="#81d4fa" stroke-width="1.2"
+                  stroke-dasharray="2 1.5" />
+                <line x1="3" y1="11" x2="3" y2="15" stroke="#90a4ae" stroke-width="1.2" />
+                <line x1="29" y1="11" x2="29" y2="15" stroke="#90a4ae" stroke-width="1.2" />
+                <line x1="16" y1="18" x2="16" y2="22" stroke="#90a4ae" stroke-width="1.2" />
+                <circle cx="23" cy="22" r="6.5" fill="#43a047" stroke="#ffffff" stroke-width="1.5" />
+                <path d="M23,19 v6 M20,22 h6" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+              <span>SKETCH</span>
+            </button>
+
+            <button class="tool-button" id="extrudeBtn" type="button"
+              title="Extrude closed sketch profiles or planar faces (E)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <polygon points="14,6 23,11 14,16 5,11" fill="#64b5f6" stroke="#263238" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <polygon points="5,11 14,16 14,27 5,22" fill="#1e88e5" stroke="#263238" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <polygon points="14,16 23,11 23,22 14,27" fill="#1565c0" stroke="#263238" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <g transform="translate(19, 3)">
+                  <path d="M6,19 V6" stroke="#00e5ff" stroke-width="2.6" stroke-linecap="round" />
+                  <path d="M2.5,9.5 L6,4 L9.5,9.5" fill="none" stroke="#00e5ff" stroke-width="2.6"
+                    stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M6,19 V6" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" />
+                  <path d="M3.2,9 L6,4.8 L8.8,9" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </g>
+              </svg>
+              <span>EXTRUDE</span>
+            </button>
+
+            <button class="tool-button" id="revolveBtn" type="button" aria-pressed="false"
+              title="Revolve closed sketch profiles around an axis (V)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <line x1="8" y1="3" x2="8" y2="29" stroke="#f59e0b" stroke-width="1.8" stroke-dasharray="2.5,2.5" stroke-linecap="round" />
+                <path d="M12,7 L24,7 A4,1.8 0 0 1 24,10.6 L12,10.6 Z" fill="#64b5f6" stroke="#263238" stroke-width="1.1" />
+                <path d="M12,7 L24,7 L24,23 L12,23 Z" fill="#1e88e5" stroke="#263238" stroke-width="1.2" stroke-linejoin="round" />
+                <path d="M26,11 A9,6 0 1 1 17,26" fill="none" stroke="#00e5ff" stroke-width="2.2" stroke-linecap="round" />
+                <polygon points="17,23.5 13.5,26.5 18,28.8" fill="#00e5ff" />
+                <polygon points="12,10 18,10 18,20 12,20" fill="rgba(255,255,255,0.4)" stroke="#fff" stroke-width="1" />
+              </svg>
+              <span>REVOLVE</span>
+            </button>
+
+            <button class="tool-button" id="holeBtn" type="button" aria-pressed="false"
+              title="Create holes on solid bodies (H)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <!-- 3D Isometric Machined Block with Center Bored Hole -->
+                <polygon points="16,4 27,9.5 16,15 5,9.5" fill="#cfd8dc" stroke="#37474f" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <polygon points="5,9.5 16,15 16,26 5,20.5" fill="#90a4ae" stroke="#37474f" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <polygon points="16,15 27,9.5 27,20.5 16,26" fill="#78909c" stroke="#37474f" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <!-- Cylindrical Hole Cavity Bored Down -->
+                <path d="M11,9.5 v6.5 c0,1.38 2.24,2.5 5,2.5 s5,-1.12 5,-2.5 v-6.5" fill="#0f172a" stroke="#263238"
+                  stroke-width="1" />
+                <ellipse cx="16" cy="16" rx="5" ry="2.5" fill="#020617" />
+                <ellipse cx="16" cy="9.5" rx="5" ry="2.5" fill="#1e293b" stroke="#37474f" stroke-width="1.2" />
+                <path d="M12.5,10.5 v5 c0,0.6 1.5,1.2 3.5,1.2" fill="none" stroke="#38bdf8" stroke-width="0.9"
+                  opacity="0.8" />
+                <!-- Drill Center Axis Indicator -->
+                <line x1="16" y1="2" x2="16" y2="6.5" stroke="#00e5ff" stroke-width="1.4" stroke-linecap="round" />
+                <polygon points="16,7.8 14.2,5.2 17.8,5.2" fill="#00e5ff" />
+              </svg>
+              <span>HOLE</span>
+            </button>
+
+            <div class="toolbar-menu" id="solidPatternMenuContainer">
+              <button class="tool-button toolbar-menu-trigger" id="solidPatternMenuButton" type="button"
+                aria-haspopup="menu" aria-controls="solidPatternDropdown" aria-expanded="false"
+                title="Pattern solid bodies">
+                <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                  <polygon points="8,4 13,7 8,10 3,7" fill="#64b5f6" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="3,7 8,10 8,14 3,11" fill="#1e88e5" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="8,10 13,7 13,11 8,14" fill="#1565c0" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="20,4 25,7 20,10 15,7" fill="#90caf9" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="15,7 20,10 20,14 15,11" fill="#42a5f5" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="20,10 25,7 25,11 20,14" fill="#1e88e5" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="8,15 13,18 8,21 3,18" fill="#90caf9" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="3,18 8,21 8,25 3,22" fill="#42a5f5" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="8,21 13,18 13,22 8,25" fill="#1e88e5" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="20,15 25,18 20,21 15,18" fill="#90caf9" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="15,18 20,21 20,25 15,22" fill="#42a5f5" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="20,21 25,18 25,22 20,25" fill="#1e88e5" stroke="#263238" stroke-width="1"
+                    stroke-linejoin="round" />
+                </svg>
+                <span>PATTERN <span class="toolbar-menu-chevron" aria-hidden="true">⌄</span></span>
+              </button>
+              <div class="toolbar-dropdown" id="solidPatternDropdown" role="menu" aria-label="Pattern solid bodies"
+                hidden>
+                <button class="toolbar-dropdown-item" id="solidRectPatternBtn" type="button" role="menuitem"
+                  aria-pressed="false" title="Duplicate solid bodies in rows and columns">
+                  <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                    <rect x="4" y="4" width="9" height="9" fill="#1e88e5" rx="1" />
+                    <rect x="19" y="4" width="9" height="9" fill="#64b5f6" rx="1" />
+                    <rect x="4" y="19" width="9" height="9" fill="#64b5f6" rx="1" />
+                    <rect x="19" y="19" width="9" height="9" fill="#64b5f6" rx="1" />
+                  </svg>
+                  <span>Rectangular Pattern</span>
+                </button>
+                <button class="toolbar-dropdown-item" id="solidCircPatternBtn" type="button" role="menuitem"
+                  aria-pressed="false" title="Duplicate solid bodies around an axis">
+                  <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                    <circle cx="16" cy="16" r="10" fill="none" stroke="#1e88e5" stroke-width="1.8"
+                      stroke-dasharray="4 3" />
+                    <circle cx="16" cy="16" r="2.5" fill="#ffb300" />
+                    <circle cx="16" cy="6" r="3.5" fill="#1e88e5" />
+                    <circle cx="26" cy="16" r="3" fill="#64b5f6" />
+                    <circle cx="16" cy="26" r="3" fill="#64b5f6" />
+                    <circle cx="6" cy="16" r="3" fill="#64b5f6" />
+                  </svg>
+                  <span>Circular Pattern</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <div class="status-bar"><span><i></i> GÖRÜNÜM: İZOMETRİK</span><span>Örnek geometri · Düzenleme kapalı</span><span>1 BİRİM = 1 MM</span></div>
+          <span class="group-label">CREATE <span class="group-chevron">▾</span></span>
+        </div>
+
+        <!-- MODIFY GROUP -->
+        <div class="toolbar-group">
+          <div class="toolbar-group-tools">
+            <button class="tool-button" id="solidFilletBtn" type="button" aria-pressed="false"
+              title="Round an edge of a solid body (F)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <!-- Top Face -->
+                <polygon points="16,4 26,9 18,13 14,13 6,9" fill="#cfd8dc" stroke="#37474f" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <!-- Left Face -->
+                <polygon points="6,9 14,13 14,23 6,19" fill="#90a4ae" stroke="#37474f" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <!-- Right Face -->
+                <polygon points="18,13 26,9 26,19 18,23" fill="#78909c" stroke="#37474f" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <!-- Rounded Cyan Fillet Corner Face -->
+                <path d="M14,13 Q16,15 18,13 L18,23 Q16,25 14,23 Z" fill="#00e5ff" stroke="#00acc1" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <path d="M16,14.2 v10" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" opacity="0.9" />
+                <!-- Radius Indicator Arc -->
+                <path d="M10,8.5 Q16,11.5 16,14" fill="none" stroke="#00b4d8" stroke-width="1.3"
+                  stroke-linecap="round" />
+                <circle cx="10" cy="8.5" r="1.3" fill="#00b4d8" />
+              </svg>
+              <span>FILLET</span>
+            </button>
+
+            <button class="tool-button" id="solidChamferBtn" type="button" aria-pressed="false"
+              title="Bevel an edge of a solid body">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <!-- Top Face with 45-degree flat bevel cutoff -->
+                <polygon points="16,4 26,9 19,12.5 13,12.5 6,9" fill="#cfd8dc" stroke="#37474f" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <!-- Left Face -->
+                <polygon points="6,9 13,12.5 13,22.5 6,19" fill="#90a4ae" stroke="#37474f" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <!-- Right Face -->
+                <polygon points="19,12.5 26,9 26,19 19,22.5" fill="#78909c" stroke="#37474f" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <!-- Flat 45-degree Angled Orange Bevel Face -->
+                <polygon points="13,12.5 19,12.5 19,22.5 13,22.5" fill="#ffb74d" stroke="#f57c00" stroke-width="1.3"
+                  stroke-linejoin="round" />
+                <line x1="16" y1="12.5" x2="16" y2="22.5" stroke="#ffe082" stroke-width="1.1" />
+                <!-- 45-degree Chamfer Angle Guide Lines -->
+                <path d="M10.5,9.5 L13,12.5 L19,12.5 L21.5,9.5" fill="none" stroke="#e65100" stroke-width="1.2"
+                  stroke-dasharray="2 1" />
+              </svg>
+              <span>CHAMFER</span>
+            </button>
+
+            <button class="tool-button" id="bodyMoveBtn" type="button" aria-pressed="false"
+              title="Move or rotate a solid body (M)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <ellipse cx="16" cy="18" rx="10" ry="5.5" fill="none" stroke="#26c6da" stroke-width="1.6"
+                  stroke-dasharray="14 8" />
+                <polygon points="26,18 24,15 28,15" fill="#26c6da" />
+                <line x1="16" y1="18" x2="16" y2="4" stroke="#1e88e5" stroke-width="2.2" stroke-linecap="round" />
+                <polygon points="16,2 13.5,6.5 18.5,6.5" fill="#1e88e5" />
+                <line x1="16" y1="18" x2="26" y2="24" stroke="#e53935" stroke-width="2.2" stroke-linecap="round" />
+                <polygon points="28,25 24,22 25,26.5" fill="#e53935" />
+                <line x1="16" y1="18" x2="6" y2="24" stroke="#43a047" stroke-width="2.2" stroke-linecap="round" />
+                <polygon points="4,25 7,26.5 8,22" fill="#43a047" />
+                <circle cx="16" cy="18" r="2.8" fill="#ffca28" stroke="#263238" stroke-width="1" />
+              </svg>
+              <span>MOVE/ROTATE</span>
+            </button>
+          </div>
+          <span class="group-label">MODIFY <span class="group-chevron">▾</span></span>
+        </div>
+
+        <!-- INSPECT GROUP -->
+        <div class="toolbar-group">
+          <div class="toolbar-group-tools">
+            <div class="toolbar-menu" id="inspectMenuContainer">
+              <button class="tool-button toolbar-menu-trigger" id="inspectMenuButton" type="button" aria-haspopup="menu"
+                aria-controls="inspectDropdown" aria-expanded="false" title="Inspect the model and display settings">
+                <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                  <circle cx="14" cy="14" r="8.5" fill="#e1f5fe" stroke="#0288d1" stroke-width="1.6" />
+                  <path d="M20,20 L28,28" stroke="#0288d1" stroke-width="2.8" stroke-linecap="round" />
+                  <path d="M10,14 h8 M14,10 v8" stroke="#0288d1" stroke-width="1.3" stroke-linecap="round" />
+                </svg>
+                <span>INSPECT <span class="toolbar-menu-chevron" aria-hidden="true">⌄</span></span>
+              </button>
+              <div class="toolbar-dropdown" id="inspectDropdown" role="menu" aria-label="Inspect tools" hidden>
+                <button class="toolbar-dropdown-item" id="showMeshOption" type="button" role="menuitemcheckbox"
+                  aria-checked="false" title="Show the triangle edges of finished bodies">
+                  <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                    <polygon points="16,4 27,24 5,24" fill="none" stroke="#f57f17" stroke-width="1.6" />
+                    <line x1="5" y1="24" x2="21" y2="14" stroke="#f57f17" stroke-width="1.2" />
+                    <line x1="16" y1="4" x2="21" y2="24" stroke="#f57f17" stroke-width="1.2" />
+                  </svg>
+                  <span>Show Mesh</span><span class="toolbar-menu-check" aria-hidden="true">✓</span>
+                </button>
+                <div class="dropdown-separator" style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;">
+                </div>
+                <button class="toolbar-dropdown-item" id="inspectInterferenceBtn" type="button" role="menuitem"
+                  title="Detect collisions and overlapping volume between two bodies">
+                  <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                    <rect x="4" y="6" width="13" height="13" fill="#64b5f6" rx="1" />
+                    <rect x="13" y="11" width="13" height="13" fill="#ce93d8" rx="1" />
+                    <rect x="13" y="11" width="4" height="8" fill="#ef4444" rx="1" />
+                  </svg>
+                  <span>Interference Detection</span>
+                </button>
+                <button class="toolbar-dropdown-item" id="inspectZebraBtn" type="button" role="menuitem"
+                  title="Evaluate surface curvature and continuity with zebra reflection stripes">
+                  <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                    <path d="M4,22 C9,13 16,8 26,7 L26,11 C18,12 12,16 6,24 Z" fill="#ffffff" />
+                    <path d="M6,24 C12,16 18,12 26,11 L26,15 C19,16 14,20 8,26 Z" fill="#0f172a" />
+                    <path d="M8,26 C14,20 19,16 26,15 L26,19 C20,20 16,23 10,27 Z" fill="#ffffff" />
+                    <path d="M4,22 C9,13 16,8 26,7" fill="none" stroke="#00acc1" stroke-width="1.4" />
+                  </svg>
+                  <span>Zebra Analysis</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <span class="group-label">INSPECT <span class="group-chevron">▾</span></span>
+        </div>
+      </div>
+
+      <!-- MESH WORKSPACE TOOLBAR -->
+      <div class="ribbon-workspace" id="meshWorkspaceToolbar" hidden>
+        <!-- PREPARE GROUP -->
+        <div class="toolbar-group">
+          <div class="toolbar-group-tools">
+            <button class="tool-button" id="surfaceFinishBtn" type="button" aria-pressed="false"
+              title="CAD surface finish: adjust smooth shading and sharp crease angle for mesh bodies">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <path d="M4,18 C10,9 22,9 28,18 L28,22 C22,13 10,13 4,22 Z" fill="#4fc3f7" stroke="#0288d1"
+                  stroke-width="1.3" stroke-linejoin="round" />
+                <path d="M4,22 C10,13 22,13 28,22 L28,25 C22,16 10,16 4,25 Z" fill="#0288d1" opacity="0.6" />
+                <path d="M6,16.5 C12,11 20,11 26,16.5" fill="none" stroke="#ffffff" stroke-width="1.4"
+                  stroke-linecap="round" />
+                <path d="M24,5 L25,8 L28,9 L25,10 L24,13 L23,10 L20,9 L23,8 Z" fill="#ffb300" stroke="#ffe082"
+                  stroke-width="0.8" />
+              </svg>
+              <span>CAD SURFACE</span>
+            </button>
+
+            <button class="tool-button" id="meshShowMeshBtn" type="button" aria-pressed="false"
+              title="Show or hide triangle mesh wireframe edges">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <polygon points="16,5 27,11 16,17 5,11" fill="#fff9c4" fill-opacity="0.6" stroke="#f57f17"
+                  stroke-width="1.3" stroke-linejoin="round" />
+                <polygon points="5,11 16,17 16,27 5,21" fill="#fff59d" fill-opacity="0.5" stroke="#f57f17"
+                  stroke-width="1.3" stroke-linejoin="round" />
+                <polygon points="16,17 27,11 27,21 16,27" fill="#ffe082" fill-opacity="0.5" stroke="#f57f17"
+                  stroke-width="1.3" stroke-linejoin="round" />
+                <line x1="5" y1="11" x2="27" y2="11" stroke="#e65100" stroke-width="1.1" stroke-dasharray="2 1" />
+                <line x1="16" y1="5" x2="16" y2="27" stroke="#e65100" stroke-width="1.1" />
+                <line x1="5" y1="21" x2="16" y2="17" stroke="#e65100" stroke-width="1.1" />
+                <line x1="27" y1="21" x2="16" y2="17" stroke="#e65100" stroke-width="1.1" />
+                <circle cx="16" cy="5" r="1.5" fill="#e65100" />
+                <circle cx="27" cy="11" r="1.5" fill="#e65100" />
+                <circle cx="5" cy="11" r="1.5" fill="#e65100" />
+                <circle cx="16" cy="17" r="1.8" fill="#ff3d00" />
+                <circle cx="16" cy="27" r="1.5" fill="#e65100" />
+              </svg>
+              <span>SHOW MESH</span>
+            </button>
+          </div>
+          <span class="group-label">PREPARE <span class="group-chevron">▾</span></span>
+        </div>
+
+        <!-- MODIFY GROUP -->
+        <div class="toolbar-group">
+          <div class="toolbar-group-tools">
+            <button class="tool-button" id="meshDecimateBtn" type="button" aria-pressed="false"
+              title="Decimate: reduce polygons on screen while preserving original CAD geometry">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <polygon points="16,4 7,10 16,14" fill="#fff59d" stroke="#e65100" stroke-width="1.1"
+                  stroke-linejoin="round" />
+                <polygon points="16,4 25,10 16,14" fill="#ffe082" stroke="#e65100" stroke-width="1.1"
+                  stroke-linejoin="round" />
+                <polygon points="7,10 16,14 11,24 5,18" fill="#ffca28" stroke="#e65100" stroke-width="1.1"
+                  stroke-linejoin="round" />
+                <polygon points="16,14 25,10 27,18 21,24" fill="#ffb300" stroke="#e65100" stroke-width="1.1"
+                  stroke-linejoin="round" />
+                <polygon points="16,14 11,24 16,28 21,24" fill="#f57f17" stroke="#e65100" stroke-width="1.1"
+                  stroke-linejoin="round" />
+                <line x1="16" y1="4" x2="16" y2="14" stroke="#bf360c" stroke-width="1" />
+                <line x1="7" y1="10" x2="25" y2="10" stroke="#bf360c" stroke-width="1" />
+                <line x1="11" y1="24" x2="21" y2="24" stroke="#bf360c" stroke-width="1" />
+                <circle cx="23" cy="22" r="6" fill="#1e88e5" stroke="#ffffff" stroke-width="1.4" />
+                <path d="M21,22 L25,22 M22.5,19.5 L25,22 L22.5,24.5" fill="none" stroke="#ffffff" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>DECIMATE</span>
+            </button>
+
+            <button class="tool-button" id="meshToSolidBtn" type="button" aria-pressed="false"
+              title="Convert imported mesh into an editable solid with CAD feature reconstruction">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <g transform="translate(-1, 0)">
+                  <polygon points="9,6 14,9 9,12 4,9" fill="#fff59d" stroke="#f57f17" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="4,9 9,12 9,17 4,14" fill="#ffca28" stroke="#f57f17" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="9,12 14,9 14,14 9,17" fill="#f57f17" stroke="#f57f17" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <line x1="4" y1="9" x2="14" y2="9" stroke="#bf360c" stroke-width="0.8" />
+                  <line x1="4" y1="14" x2="9" y2="12" stroke="#bf360c" stroke-width="0.8" />
+                </g>
+                <path d="M14,14.5 L18,14.5 M16.5,12.5 L18.5,14.5 L16.5,16.5" fill="none" stroke="#43a047"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                <g transform="translate(9, 4)">
+                  <polygon points="9,6 14,9 9,12 4,9" fill="#64b5f6" stroke="#1565c0" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="4,9 9,12 9,17 4,14" fill="#1e88e5" stroke="#1565c0" stroke-width="1"
+                    stroke-linejoin="round" />
+                  <polygon points="9,12 14,9 14,14 9,17" fill="#0d47a1" stroke="#1565c0" stroke-width="1"
+                    stroke-linejoin="round" />
+                </g>
+              </svg>
+              <span>MESH TO SOLID</span>
+            </button>
+
+            <button class="tool-button" id="meshMoveBtn" type="button" aria-pressed="false"
+              title="Move or rotate a mesh body (M)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <ellipse cx="16" cy="18" rx="10" ry="5.5" fill="none" stroke="#26c6da" stroke-width="1.6"
+                  stroke-dasharray="14 8" />
+                <polygon points="26,18 24,15 28,15" fill="#26c6da" />
+                <line x1="16" y1="18" x2="16" y2="4" stroke="#1e88e5" stroke-width="2.2" stroke-linecap="round" />
+                <polygon points="16,2 13.5,6.5 18.5,6.5" fill="#1e88e5" />
+                <line x1="16" y1="18" x2="26" y2="24" stroke="#e53935" stroke-width="2.2" stroke-linecap="round" />
+                <polygon points="28,25 24,22 25,26.5" fill="#e53935" />
+                <line x1="16" y1="18" x2="6" y2="24" stroke="#43a047" stroke-width="2.2" stroke-linecap="round" />
+                <polygon points="4,25 7,26.5 8,22" fill="#43a047" />
+                <circle cx="16" cy="18" r="2.8" fill="#ffca28" stroke="#263238" stroke-width="1" />
+              </svg>
+              <span>MOVE/ROTATE</span>
+            </button>
+          </div>
+          <span class="group-label">MODIFY <span class="group-chevron">▾</span></span>
+        </div>
+      </div>
+
+      <!-- UTILITIES WORKSPACE TOOLBAR -->
+      <div class="ribbon-workspace" id="utilitiesWorkspaceToolbar" hidden>
+        <!-- INSPECT & ANALYZE GROUP -->
+        <div class="toolbar-group">
+          <div class="toolbar-group-tools">
+            <button class="tool-button" id="interferenceBtn" type="button" aria-pressed="false"
+              title="Interference Detection: detect and highlight 3D volume collisions between bodies">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <!-- Two intersecting cubes with glowing red collision intersection -->
+                <polygon points="6,6 14,3 20,7 12,10" fill="#90caf9" stroke="#1565c0" stroke-width="1.2"
+                  stroke-linejoin="round" />
+                <polygon points="6,6 12,10 12,20 6,16" fill="#42a5f5" stroke="#1565c0" stroke-width="1.2"
+                  stroke-linejoin="round" />
+                <polygon points="12,10 20,7 20,17 12,20" fill="#1e88e5" stroke="#1565c0" stroke-width="1.2"
+                  stroke-linejoin="round" />
+                <!-- Second overlapping cube -->
+                <polygon points="15,11 23,8 29,12 21,15" fill="#ce93d8" stroke="#6a1b9a" stroke-width="1.2"
+                  stroke-linejoin="round" />
+                <polygon points="15,11 21,15 21,25 15,21" fill="#ab47bc" stroke="#6a1b9a" stroke-width="1.2"
+                  stroke-linejoin="round" />
+                <polygon points="21,15 29,12 29,22 21,25" fill="#8e24aa" stroke="#6a1b9a" stroke-width="1.2"
+                  stroke-linejoin="round" />
+                <!-- Glowing Red Clash Intersection Zone -->
+                <polygon points="15,11 19,8.5 21,10 17,12.5" fill="#ff1744" stroke="#d50000" stroke-width="1.4" />
+                <polygon points="15,11 17,12.5 17,19 15,17" fill="#d50000" stroke="#b71c1c" stroke-width="1.4" />
+                <polygon points="17,12.5 21,10 21,16.5 17,19" fill="#ff5252" stroke="#d50000" stroke-width="1.4" />
+                <circle cx="17" cy="15" r="1.5" fill="#ffffff" />
+              </svg>
+              <span>INTERFERENCE</span>
+            </button>
+
+            <button class="tool-button" id="zebraAnalysisBtn" type="button" aria-pressed="false"
+              title="Zebra Analysis: evaluate surface curvature and continuity with alternating reflection stripes">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <path d="M4,23 C9,13 17,8 27,6.5 L27,10.5 C18,11.5 12,16 6,25 Z" fill="#ffffff" stroke="#37474f"
+                  stroke-width="0.7" />
+                <path d="M6,25 C12,16 18,11.5 27,10.5 L27,14.5 C19,15.5 14,19.5 8,26.5 Z" fill="#0f172a" />
+                <path d="M8,26.5 C14,19.5 19,15.5 27,14.5 L27,18.5 C20,19.5 16,22.5 10.5,27.8 Z" fill="#ffffff" />
+                <path d="M10.5,27.8 C16,22.5 20,19.5 27,18.5 L27,22.5 C21,23.5 17.5,25.5 13,28.8 Z" fill="#0f172a" />
+                <path d="M13,28.8 C17.5,25.5 21,23.5 27,22.5 L27,26.5 C22.5,27.5 19.5,28.5 15.5,29.5 Z"
+                  fill="#ffffff" />
+                <path d="M4,23 C9,13 17,8 27,6.5" fill="none" stroke="#00acc1" stroke-width="1.6"
+                  stroke-linecap="round" />
+                <path d="M4,23 L15.5,29.5 L27,26.5 L27,6.5" fill="none" stroke="#37474f" stroke-width="1.2"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>ZEBRA</span>
+            </button>
+
+            <button class="tool-button" id="utilitiesShowMeshBtn" type="button" aria-pressed="false"
+              title="Show or hide triangle mesh wireframe edges">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <polygon points="16,5 27,11 16,17 5,11" fill="#fff9c4" fill-opacity="0.6" stroke="#f57f17"
+                  stroke-width="1.3" stroke-linejoin="round" />
+                <polygon points="5,11 16,17 16,27 5,21" fill="#fff59d" fill-opacity="0.5" stroke="#f57f17"
+                  stroke-width="1.3" stroke-linejoin="round" />
+                <polygon points="16,17 27,11 27,21 16,27" fill="#ffe082" fill-opacity="0.5" stroke="#f57f17"
+                  stroke-width="1.3" stroke-linejoin="round" />
+                <line x1="5" y1="11" x2="27" y2="11" stroke="#e65100" stroke-width="1.1" stroke-dasharray="2 1" />
+                <line x1="16" y1="5" x2="16" y2="27" stroke="#e65100" stroke-width="1.1" />
+                <circle cx="16" cy="17" r="1.8" fill="#ff3d00" />
+              </svg>
+              <span>SHOW MESH</span>
+            </button>
+          </div>
+          <span class="group-label">INSPECT <span class="group-chevron">▾</span></span>
+        </div>
+      </div>
+
+      <!-- SKETCH WORKSPACE TOOLBAR -->
+      <div class="ribbon-workspace" id="sketchWorkspaceToolbar" hidden>
+        <!-- DRAW GROUP -->
+        <div class="toolbar-group">
+          <div class="toolbar-group-tools">
+            <button class="tool-button" id="lineTool" type="button" aria-pressed="false"
+              title="Draw a line in the active sketch (L)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <line x1="6" y1="24" x2="26" y2="8" stroke="#1e88e5" stroke-width="2.4" stroke-linecap="round" />
+                <circle cx="6" cy="24" r="3.2" fill="#0288d1" stroke="#fff" stroke-width="1.5" />
+                <circle cx="26" cy="8" r="3.2" fill="#0288d1" stroke="#fff" stroke-width="1.5" />
+              </svg>
+              <span>LINE</span>
+            </button>
+            <button class="tool-button" id="rectangleTool" type="button" aria-pressed="false"
+              title="Draw a rectangle in the active sketch (R)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <rect x="5" y="7" width="22" height="18" rx="2" fill="#e1f5fe" stroke="#1e88e5" stroke-width="2" />
+                <circle cx="5" cy="7" r="2.5" fill="#0288d1" />
+                <circle cx="27" cy="25" r="2.5" fill="#0288d1" />
+              </svg>
+              <span>RECTANGLE</span>
+            </button>
+            <button class="tool-button" id="circleTool" type="button" aria-pressed="false"
+              title="Draw a center-point circle (C)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <circle cx="16" cy="16" r="11" fill="#e1f5fe" stroke="#1e88e5" stroke-width="2" />
+                <circle cx="16" cy="16" r="2.5" fill="#0288d1" />
+                <line x1="16" y1="16" x2="27" y2="16" stroke="#0288d1" stroke-width="1.5" stroke-dasharray="2 1.5" />
+              </svg>
+              <span>CIRCLE</span>
+            </button>
+            <button class="tool-button tool-button-construction" id="constructionTool" type="button"
+              aria-pressed="false" title="Draw construction geometry or convert curve (X)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <line x1="5" y1="24" x2="27" y2="8" stroke="#ff9800" stroke-width="2.2" stroke-dasharray="3.5 2.5"
+                  stroke-linecap="round" />
+                <circle cx="5" cy="24" r="2.5" fill="#ff9800" />
+                <circle cx="27" cy="8" r="2.5" fill="#ff9800" />
+              </svg>
+              <span>CONSTRUCTION</span>
+            </button>
+            <button class="tool-button" id="pointTool" type="button" aria-pressed="false"
+              title="Place a sketch point (P)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <circle cx="16" cy="16" r="3.5" fill="#1e88e5" stroke="#fff" stroke-width="1.2" />
+                <path d="M16,6 v5 M16,21 v5 M6,16 h5 M21,16 h5" stroke="#0288d1" stroke-width="1.6"
+                  stroke-linecap="round" />
+              </svg>
+              <span>POINT</span>
+            </button>
+            <button class="tool-button" id="filletTool" type="button" aria-pressed="false"
+              title="Create rounded fillet corner (F)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <path d="M7,7 v10 a8,8 0 0,0 8,8 h10" fill="none" stroke="#00acc1" stroke-width="2.2"
+                  stroke-linecap="round" />
+                <circle cx="15" cy="17" r="2" fill="#00acc1" />
+              </svg>
+              <span>FILLET</span>
+            </button>
+            <button class="tool-button" id="trimTool" type="button" aria-pressed="false"
+              title="Trim sketch edges at intersections (T)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <path d="M6,22 L24,8 M8,8 L24,22" stroke="#e53935" stroke-width="2" stroke-linecap="round" />
+                <circle cx="15" cy="15" r="2" fill="#e53935" />
+              </svg>
+              <span>TRIM</span>
+            </button>
+            <button class="tool-button" id="mirrorTool" type="button" aria-pressed="false"
+              title="Mirror sketch geometry across an axis (M)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <line x1="16" y1="5" x2="16" y2="27" stroke="#78909c" stroke-width="1.4" stroke-dasharray="3 2" />
+                <polygon points="12,10 12,22 5,22" fill="#e1f5fe" stroke="#1e88e5" stroke-width="1.5" />
+                <polygon points="20,10 20,22 27,22" fill="#e1f5fe" stroke="#1e88e5" stroke-width="1.5" />
+              </svg>
+              <span>MIRROR</span>
+            </button>
+            <div class="toolbar-menu" id="patternMenuContainer" hidden>
+              <button class="tool-button toolbar-menu-trigger" id="patternMenuButton" type="button" aria-haspopup="menu"
+                aria-controls="patternDropdown" aria-expanded="false" title="Sketch patterns">
+                <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                  <circle cx="8" cy="8" r="2.5" fill="#1e88e5" />
+                  <circle cx="24" cy="8" r="2.5" fill="#1e88e5" />
+                  <circle cx="8" cy="24" r="2.5" fill="#1e88e5" />
+                  <circle cx="24" cy="24" r="2.5" fill="#1e88e5" />
+                </svg>
+                <span>PATTERN <span class="toolbar-menu-chevron" aria-hidden="true">⌄</span></span>
+              </button>
+              <div class="toolbar-dropdown" id="patternDropdown" role="menu" aria-label="Pattern tools" hidden>
+                <button class="toolbar-dropdown-item" id="circularPatternTool" type="button" role="menuitem"
+                  aria-pressed="false" title="Duplicate sketch curves around a center"><span>Circular
+                    Pattern</span></button>
+                <button class="toolbar-dropdown-item" id="rectangularPatternTool" type="button" role="menuitem"
+                  aria-pressed="false" title="Duplicate sketch curves in rows and columns"><span>Rectangular
+                    Pattern</span></button>
+              </div>
+            </div>
+          </div>
+          <span class="group-label">DRAW <span class="group-chevron">▾</span></span>
+        </div>
+
+        <!-- CONSTRAIN GROUP -->
+        <div class="toolbar-group">
+          <div class="toolbar-group-tools">
+            <button class="tool-button tool-button-inspect" id="distanceTool" type="button" aria-pressed="false"
+              title="Measure distance (D)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <path d="M6,24 L24,8" stroke="#c62828" stroke-width="2" />
+                <circle cx="6" cy="24" r="2" fill="#c62828" />
+                <circle cx="24" cy="8" r="2" fill="#c62828" />
+                <path d="M4,21 v6 M22,5 v6" stroke="#c62828" stroke-width="1.5" />
+              </svg>
+              <span>DISTANCE</span>
+            </button>
+            <button class="tool-button tool-button-inspect" id="angleTool" type="button" aria-pressed="false"
+              title="Measure angle (A)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <path d="M6,25 H26 M6,25 L22,9" stroke="#c62828" stroke-width="1.8" />
+                <path d="M16,25 a10,10 0 0,0 -3,-7" fill="none" stroke="#c62828" stroke-width="1.4" />
+              </svg>
+              <span>ANGLE</span>
+            </button>
+            <button class="tool-button tool-button-inspect" id="midpointTool" type="button" aria-pressed="false"
+              title="Midpoint constraint">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <path d="M5,18 h22 M16,9 l6,11 H10 z" fill="#ffebee" stroke="#c62828" stroke-width="1.5" />
+              </svg>
+              <span>MIDPOINT</span>
+            </button>
+            <button class="tool-button tool-button-inspect" id="axisTool" type="button" aria-pressed="false"
+              title="Horizontal / Vertical align (H)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <path d="M6,16 h20 M16,6 v20" stroke="#1565c0" stroke-width="1.8" />
+                <path d="M7,12 v8 M25,12 v8 M12,7 h8 M12,25 h8" stroke="#1565c0" stroke-width="1.2" />
+              </svg>
+              <span>H / V</span>
+            </button>
+            <button class="tool-button tool-button-inspect" id="fixTool" type="button" aria-pressed="false"
+              title="Fix / Unfix geometry">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <path d="M10,14 v-4 a6,6 0 0,1 12,0 v4" fill="none" stroke="#546e7a" stroke-width="1.8" />
+                <rect x="8" y="14" width="16" height="13" rx="2" fill="#cfd8dc" stroke="#546e7a" stroke-width="1.6" />
+              </svg>
+              <span>FIX</span>
+            </button>
+            <button class="tool-button tool-button-inspect" id="tangentTool" type="button" aria-pressed="false"
+              title="Tangent constraint (G)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <circle cx="20" cy="20" r="7" fill="none" stroke="#1565c0" stroke-width="1.8" />
+                <line x1="5" y1="13" x2="27" y2="13" stroke="#1565c0" stroke-width="1.8" />
+              </svg>
+              <span>TANGENT</span>
+            </button>
+            <button class="tool-button tool-button-inspect" id="coincidentTool" type="button" aria-pressed="false"
+              title="Coincident constraint">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <circle cx="16" cy="16" r="4.5" fill="#e1f5fe" stroke="#1565c0" stroke-width="2" />
+                <circle cx="16" cy="16" r="2" fill="#1565c0" />
+              </svg>
+              <span>COINCIDENT</span>
+            </button>
+            <button class="tool-button tool-button-inspect" id="equalTool" type="button" aria-pressed="false"
+              title="Equal constraint">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <line x1="7" y1="13" x2="25" y2="13" stroke="#1565c0" stroke-width="2.5" stroke-linecap="round" />
+                <line x1="7" y1="19" x2="25" y2="19" stroke="#1565c0" stroke-width="2.5" stroke-linecap="round" />
+              </svg>
+              <span>EQUAL</span>
+            </button>
+            <button class="tool-button tool-button-inspect" id="offsetTool" type="button" aria-pressed="false"
+              title="Offset curve (O)">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <path d="M7,24 V13 h11 M13,27 V18 h12" fill="none" stroke="#1565c0" stroke-width="1.8"
+                  stroke-linecap="round" />
+              </svg>
+              <span>OFFSET</span>
+            </button>
+          </div>
+          <span class="group-label">CONSTRAIN <span class="group-chevron">▾</span></span>
+        </div>
+
+        <!-- FINISH GROUP -->
+        <div class="toolbar-group">
+          <div class="toolbar-group-tools">
+            <button class="tool-button" id="splitView" type="button" aria-pressed="false"
+              title="Show 2D sketch split view">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <rect x="5" y="6" width="22" height="20" rx="2" fill="none" stroke="#546e7a" stroke-width="1.8" />
+                <line x1="5" y1="16" x2="27" y2="16" stroke="#546e7a" stroke-width="1.8" />
+              </svg>
+              <span>SPLIT VIEW</span>
+            </button>
+            <button class="tool-button tool-button-finish" id="finishSketch" type="button"
+              title="Finish editing this sketch">
+              <svg viewBox="0 0 32 32" class="cad-icon" aria-hidden="true">
+                <circle cx="16" cy="16" r="11" fill="#43a047" stroke="#2e7d32" stroke-width="1.4" />
+                <path d="M10,16 L14,20 L22,12" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>FINISH SKETCH</span>
+            </button>
+          </div>
+          <span class="group-label">FINISH <span class="group-chevron">▾</span></span>
+        </div>
+      </div>
+      <div class="toolbar-fill"></div>
+    </nav>
+
+    <div class="workspace">
+      <aside class="browser-panel" aria-label="Project browser">
+        <div class="panel-heading"><span>BROWSER</span></div>
+        <div class="tree">
+          <div class="tree-row tree-root" id="projectTreeRow"><span class="tree-chevron" id="projectChevron"
+              aria-hidden="true">⌄</span><span class="tree-icon project-icon"
+              aria-hidden="true">⬡</span><strong>Untitled Design</strong></div>
+          <div class="root-children" id="rootChildren">
+            <div class="tree-row tree-child"><span class="tree-chevron" aria-hidden="true">›</span><span
+                class="tree-icon" aria-hidden="true">⚙</span><span>Document Settings</span></div>
+            <div class="tree-row tree-child" id="originTreeRow">
+              <span class="tree-chevron" id="originChevron" aria-hidden="true">›</span>
+              <button class="tree-eye" type="button" id="originEyeBtn" aria-label="Toggle Origin folder visibility"
+                title="Toggle Origin visibility">
+                <svg class="eye-icon eye-open" viewBox="0 0 16 16">
+                  <path
+                    d="M8 3C4 3 1.3 6 1 8c.3 2 3 5 7 5s6.7-3 7-5c-.3-2-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+                </svg>
+                <svg class="eye-icon eye-closed" viewBox="0 0 16 16">
+                  <path
+                    d="M2 2l12 12M5.5 5.5A7.4 7.4 0 0 0 1 8c.3 2 3 5 7 5 1.7 0 3.2-.6 4.5-1.5M7 3.1A7.6 7.6 0 0 1 8 3c4 0 6.7 3 7 5a8.2 8.2 0 0 1-2.5 3.5M6.6 6.6a2 2 0 0 0 2.8 2.8" />
+                </svg>
+              </button>
+              <span class="tree-icon" aria-hidden="true">▧</span>
+              <span>Origin</span>
+            </div>
+            <div class="origin-children" id="originChildren" hidden>
+              <div class="tree-row tree-grandchild origin-item-row" data-origin-item="O">
+                <button class="tree-eye" type="button" aria-label="Toggle Origin Point (O)"
+                  title="Toggle Origin Point visibility">
+                  <svg class="eye-icon eye-open" viewBox="0 0 16 16">
+                    <path
+                      d="M8 3C4 3 1.3 6 1 8c.3 2 3 5 7 5s6.7-3 7-5c-.3-2-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+                  </svg>
+                  <svg class="eye-icon eye-closed" viewBox="0 0 16 16">
+                    <path
+                      d="M2 2l12 12M5.5 5.5A7.4 7.4 0 0 0 1 8c.3 2 3 5 7 5 1.7 0 3.2-.6 4.5-1.5M7 3.1A7.6 7.6 0 0 1 8 3c4 0 6.7 3 7 5a8.2 8.2 0 0 1-2.5 3.5M6.6 6.6a2 2 0 0 0 2.8 2.8" />
+                  </svg>
+                </button>
+                <span class="tree-item-icon origin-icon-point" aria-hidden="true">
+                  <svg viewBox="0 0 14 14">
+                    <circle cx="7" cy="7" r="2.5" fill="none" stroke="#d97736" stroke-width="1.3" />
+                    <circle cx="7" cy="7" r="1" fill="#d97736" />
+                    <line x1="7" y1="1" x2="7" y2="4" stroke="#d97736" stroke-width="1.3" />
+                    <line x1="7" y1="10" x2="7" y2="13" stroke="#d97736" stroke-width="1.3" />
+                    <line x1="1" y1="7" x2="4" y2="7" stroke="#d97736" stroke-width="1.3" />
+                    <line x1="10" y1="7" x2="13" y2="7" stroke="#d97736" stroke-width="1.3" />
+                  </svg>
+                </span>
+                <span class="tree-item-label">O</span>
+              </div>
+              <div class="tree-row tree-grandchild origin-item-row" data-origin-item="X">
+                <button class="tree-eye" type="button" aria-label="Toggle X Axis" title="Toggle X Axis visibility">
+                  <svg class="eye-icon eye-open" viewBox="0 0 16 16">
+                    <path
+                      d="M8 3C4 3 1.3 6 1 8c.3 2 3 5 7 5s6.7-3 7-5c-.3-2-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+                  </svg>
+                  <svg class="eye-icon eye-closed" viewBox="0 0 16 16">
+                    <path
+                      d="M2 2l12 12M5.5 5.5A7.4 7.4 0 0 0 1 8c.3 2 3 5 7 5 1.7 0 3.2-.6 4.5-1.5M7 3.1A7.6 7.6 0 0 1 8 3c4 0 6.7 3 7 5a8.2 8.2 0 0 1-2.5 3.5M6.6 6.6a2 2 0 0 0 2.8 2.8" />
+                  </svg>
+                </button>
+                <span class="tree-item-icon origin-icon-axis" aria-hidden="true">
+                  <svg viewBox="0 0 14 14">
+                    <rect x="3" y="2" width="8" height="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.8" />
+                    <line x1="2" y1="12" x2="10" y2="4" stroke="#e54444" stroke-width="2" stroke-linecap="round" />
+                  </svg>
+                </span>
+                <span class="tree-item-label">X</span>
+              </div>
+              <div class="tree-row tree-grandchild origin-item-row" data-origin-item="Y">
+                <button class="tree-eye" type="button" aria-label="Toggle Y Axis" title="Toggle Y Axis visibility">
+                  <svg class="eye-icon eye-open" viewBox="0 0 16 16">
+                    <path
+                      d="M8 3C4 3 1.3 6 1 8c.3 2 3 5 7 5s6.7-3 7-5c-.3-2-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+                  </svg>
+                  <svg class="eye-icon eye-closed" viewBox="0 0 16 16">
+                    <path
+                      d="M2 2l12 12M5.5 5.5A7.4 7.4 0 0 0 1 8c.3 2 3 5 7 5 1.7 0 3.2-.6 4.5-1.5M7 3.1A7.6 7.6 0 0 1 8 3c4 0 6.7 3 7 5a8.2 8.2 0 0 1-2.5 3.5M6.6 6.6a2 2 0 0 0 2.8 2.8" />
+                  </svg>
+                </button>
+                <span class="tree-item-icon origin-icon-axis" aria-hidden="true">
+                  <svg viewBox="0 0 14 14">
+                    <rect x="3" y="2" width="8" height="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.8" />
+                    <line x1="2" y1="12" x2="10" y2="4" stroke="#38a169" stroke-width="2" stroke-linecap="round" />
+                  </svg>
+                </span>
+                <span class="tree-item-label">Y</span>
+              </div>
+              <div class="tree-row tree-grandchild origin-item-row" data-origin-item="Z">
+                <button class="tree-eye" type="button" aria-label="Toggle Z Axis" title="Toggle Z Axis visibility">
+                  <svg class="eye-icon eye-open" viewBox="0 0 16 16">
+                    <path
+                      d="M8 3C4 3 1.3 6 1 8c.3 2 3 5 7 5s6.7-3 7-5c-.3-2-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+                  </svg>
+                  <svg class="eye-icon eye-closed" viewBox="0 0 16 16">
+                    <path
+                      d="M2 2l12 12M5.5 5.5A7.4 7.4 0 0 0 1 8c.3 2 3 5 7 5 1.7 0 3.2-.6 4.5-1.5M7 3.1A7.6 7.6 0 0 1 8 3c4 0 6.7 3 7 5a8.2 8.2 0 0 1-2.5 3.5M6.6 6.6a2 2 0 0 0 2.8 2.8" />
+                  </svg>
+                </button>
+                <span class="tree-item-icon origin-icon-axis" aria-hidden="true">
+                  <svg viewBox="0 0 14 14">
+                    <rect x="3" y="2" width="8" height="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.8" />
+                    <line x1="2" y1="12" x2="10" y2="4" stroke="#2b6cb0" stroke-width="2" stroke-linecap="round" />
+                  </svg>
+                </span>
+                <span class="tree-item-label">Z</span>
+              </div>
+              <div class="tree-row tree-grandchild origin-item-row is-item-hidden" data-origin-item="XY">
+                <button class="tree-eye is-hidden" type="button" aria-label="Toggle XY Plane"
+                  title="Toggle XY Plane visibility">
+                  <svg class="eye-icon eye-open" viewBox="0 0 16 16">
+                    <path
+                      d="M8 3C4 3 1.3 6 1 8c.3 2 3 5 7 5s6.7-3 7-5c-.3-2-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+                  </svg>
+                  <svg class="eye-icon eye-closed" viewBox="0 0 16 16">
+                    <path
+                      d="M2 2l12 12M5.5 5.5A7.4 7.4 0 0 0 1 8c.3 2 3 5 7 5 1.7 0 3.2-.6 4.5-1.5M7 3.1A7.6 7.6 0 0 1 8 3c4 0 6.7 3 7 5a8.2 8.2 0 0 1-2.5 3.5M6.6 6.6a2 2 0 0 0 2.8 2.8" />
+                  </svg>
+                </button>
+                <span class="tree-item-icon origin-icon-plane" aria-hidden="true">
+                  <svg viewBox="0 0 14 14">
+                    <rect x="4" y="2" width="7" height="7" fill="none" stroke="#94a3b8" stroke-width="0.8" />
+                    <rect x="2" y="5" width="7" height="7" fill="rgba(229, 68, 68, 0.45)" stroke="#e54444"
+                      stroke-width="1" />
+                  </svg>
+                </span>
+                <span class="tree-item-label">XY</span>
+              </div>
+              <div class="tree-row tree-grandchild origin-item-row is-item-hidden" data-origin-item="XZ">
+                <button class="tree-eye is-hidden" type="button" aria-label="Toggle XZ Plane"
+                  title="Toggle XZ Plane visibility">
+                  <svg class="eye-icon eye-open" viewBox="0 0 16 16">
+                    <path
+                      d="M8 3C4 3 1.3 6 1 8c.3 2 3 5 7 5s6.7-3 7-5c-.3-2-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+                  </svg>
+                  <svg class="eye-icon eye-closed" viewBox="0 0 16 16">
+                    <path
+                      d="M2 2l12 12M5.5 5.5A7.4 7.4 0 0 0 1 8c.3 2 3 5 7 5 1.7 0 3.2-.6 4.5-1.5M7 3.1A7.6 7.6 0 0 1 8 3c4 0 6.7 3 7 5a8.2 8.2 0 0 1-2.5 3.5M6.6 6.6a2 2 0 0 0 2.8 2.8" />
+                  </svg>
+                </button>
+                <span class="tree-item-icon origin-icon-plane" aria-hidden="true">
+                  <svg viewBox="0 0 14 14">
+                    <rect x="4" y="2" width="7" height="7" fill="none" stroke="#94a3b8" stroke-width="0.8" />
+                    <rect x="2" y="5" width="7" height="7" fill="rgba(43, 108, 176, 0.45)" stroke="#2b6cb0"
+                      stroke-width="1" />
+                  </svg>
+                </span>
+                <span class="tree-item-label">XZ</span>
+              </div>
+              <div class="tree-row tree-grandchild origin-item-row is-item-hidden" data-origin-item="YZ">
+                <button class="tree-eye is-hidden" type="button" aria-label="Toggle YZ Plane"
+                  title="Toggle YZ Plane visibility">
+                  <svg class="eye-icon eye-open" viewBox="0 0 16 16">
+                    <path
+                      d="M8 3C4 3 1.3 6 1 8c.3 2 3 5 7 5s6.7-3 7-5c-.3-2-3-5-7-5zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-2a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+                  </svg>
+                  <svg class="eye-icon eye-closed" viewBox="0 0 16 16">
+                    <path
+                      d="M2 2l12 12M5.5 5.5A7.4 7.4 0 0 0 1 8c.3 2 3 5 7 5 1.7 0 3.2-.6 4.5-1.5M7 3.1A7.6 7.6 0 0 1 8 3c4 0 6.7 3 7 5a8.2 8.2 0 0 1-2.5 3.5M6.6 6.6a2 2 0 0 0 2.8 2.8" />
+                  </svg>
+                </button>
+                <span class="tree-item-icon origin-icon-plane" aria-hidden="true">
+                  <svg viewBox="0 0 14 14">
+                    <rect x="4" y="2" width="7" height="7" fill="none" stroke="#94a3b8" stroke-width="0.8" />
+                    <rect x="2" y="5" width="7" height="7" fill="rgba(56, 161, 105, 0.45)" stroke="#38a169"
+                      stroke-width="1" />
+                  </svg>
+                </span>
+                <span class="tree-item-label">YZ</span>
+              </div>
+            </div>
+            <div class="tree-row tree-child" id="sketchesFolderRow"><span class="tree-chevron" id="sketchesChevron"
+                aria-hidden="true">⌄</span><button class="tree-eye" id="sketchesEyeBtn" type="button"
+                aria-label="Toggle all sketches visibility" title="Toggle all sketches visibility">◉</button><span
+                class="tree-icon sketch-icon" aria-hidden="true">▤</span><span>Sketches</span><span class="tree-count"
+                id="sketchCount">0</span></div>
+            <div class="sketch-rows" id="sketchRows"></div>
+            <div class="tree-row tree-child" id="bodiesFolderRow" hidden><span class="tree-chevron" id="bodiesChevron"
+                aria-hidden="true">⌄</span><button class="tree-eye" id="bodiesEyeBtn" type="button"
+                aria-label="Toggle all bodies visibility" title="Toggle all bodies visibility">◉</button><span
+                class="tree-icon body-icon" aria-hidden="true">⬡</span><span>Bodies</span><span class="tree-count"
+                id="bodyCount">0</span></div>
+            <div class="body-rows" id="bodyRows" hidden></div>
+          </div>
+        </div>
+        <div class="browser-bottom"><span class="browser-bottom-dot"></span><span>webCAD preview</span><span
+            class="version">v0.1</span></div>
+      </aside>
+
+      <main class="editor" id="editor" aria-label="CAD workspace">
+        <section class="view-pane model-pane" aria-label="3D workspace">
+          <canvas id="modelCanvas" tabindex="0"
+            aria-label="Interactive 3D coordinate plane. Middle mouse drag pans. Shift and middle mouse drag orbits. Mouse wheel zooms."></canvas>
+          <div class="extrude-panel" id="extrudePanel" hidden role="dialog" aria-labelledby="extrudeTitle">
+            <h2 id="extrudeTitle">EXTRUDE</h2>
+            <p id="extrudeHelp">Select one or more closed sketch regions.</p>
+            <label class="extrude-field"><span>Type</span><select id="extrudeType">
+                <option value="solid">Solid Extrude</option>
+                <option value="thin">Thin Extrude</option>
+              </select></label>
+            <div class="extrude-field"><span>Profiles</span><output id="extrudeCount">0 selected</output></div>
+            <label class="extrude-chain" id="extrudeChainRow" hidden><input id="extrudeChain" type="checkbox" checked>
+              Chaining</label>
+            <label class="extrude-field"><span>Direction</span><select id="extrudeDirection">
+                <option value="one">One Side</option>
+                <option value="symmetric">Symmetric</option>
+                <option value="two">Two Sides</option>
+              </select></label>
+            <label class="extrude-field"><span>Distance</span><span class="extrude-number"><input id="extrudeDistance"
+                  type="number" step="0.001" value="0"
+                  aria-label="First distance in millimetres"><small>mm</small></span></label>
+            <label class="extrude-field" id="extrudeSecondRow" hidden><span>Other side</span><span
+                class="extrude-number"><input id="extrudeSecondDistance" type="number" min="0" step="0.001" value="0"
+                  aria-label="Second distance in millimetres"><small>mm</small></span></label>
+            <label class="extrude-field" id="extrudeThicknessRow" hidden><span>Thickness</span><span
+                class="extrude-number"><input id="extrudeThickness" type="number" min="0.001" step="0.001" value="1"
+                  aria-label="Thin wall thickness in millimetres"><small>mm</small></span></label>
+            <label class="extrude-field"><span>Operation</span><select id="extrudeOperation">
+                <option value="new">New Body</option>
+                <option value="join">Join</option>
+                <option value="cut">Cut</option>
+                <option value="intersect">Intersect</option>
+              </select></label>
+            <div class="extrude-actions"><button type="button" id="extrudeCancel">CANCEL</button><button type="button"
+                id="extrudeOk" disabled>OK</button></div>
+          </div>
+          <div class="extrude-hud" id="extrudeHud" hidden aria-live="off">
+            <div id="extrudeHudOperationRow" hidden><span>Operation</span><output id="extrudeHudOperation"></output>
+            </div>
+            <div><span>Direction</span><output id="extrudeHudDirection"></output></div>
+            <div><span id="extrudeHudFirstLabel">Distance</span><span class="extrude-hud-number"><input
+                  id="extrudeHudFirst" type="number" step="0.001" value="0"
+                  aria-label="Extrude distance in millimetres"><small>mm</small></span></div>
+            <div id="extrudeHudSecondRow" hidden><span>Other side</span><span class="extrude-hud-number"><input
+                  id="extrudeHudSecond" type="number" min="0" step="0.001" value="0"
+                  aria-label="Other side distance in millimetres"><small>mm</small></span></div>
+          </div>
+          <div class="extrude-hud solid-hole-hud" id="solidHoleHud" hidden aria-live="off">
+            <div id="solidHoleHudOperationRow"><span>Operation</span><output id="solidHoleHudOperation">CUT</output>
+            </div>
+            <div id="solidHoleHudTypeRow"><span>Type</span><output id="solidHoleHudType">Simple</output></div>
+            <div id="solidHoleHudExtentsRow"><span>Extents</span><output id="solidHoleHudExtents">Through All</output>
+            </div>
+            <div id="solidHoleHudDiameterRow"><span>Diameter</span><span class="extrude-hud-number"><input
+                  id="solidHoleHudDiameter" type="number" min="0.1" step="0.5" value="10"
+                  aria-label="Hole diameter in millimetres"><small>mm</small></span></div>
+            <div id="solidHoleHudDepthRow" hidden><span>Depth</span><span class="extrude-hud-number"><input
+                  id="solidHoleHudDepth" type="number" min="0.1" step="0.5" value="20"
+                  aria-label="Hole depth in millimetres"><small>mm</small></span></div>
+            <div id="solidHoleHudCboreDiaRow" hidden><span>CB Dia</span><span class="extrude-hud-number"><input
+                  id="solidHoleHudCboreDia" type="number" min="0.1" step="0.5" value="16"
+                  aria-label="Counterbore diameter in millimetres"><small>mm</small></span></div>
+            <div id="solidHoleHudCboreDepthRow" hidden><span>CB Depth</span><span class="extrude-hud-number"><input
+                  id="solidHoleHudCboreDepth" type="number" min="0.1" step="0.5" value="5"
+                  aria-label="Counterbore depth in millimetres"><small>mm</small></span></div>
+            <div id="solidHoleHudCsinkDiaRow" hidden><span>CS Dia</span><span class="extrude-hud-number"><input
+                  id="solidHoleHudCsinkDia" type="number" min="0.1" step="0.5" value="15"
+                  aria-label="Countersink diameter in millimetres"><small>mm</small></span></div>
+            <div id="solidHoleHudCsinkAngleRow" hidden><span>CS Angle</span><span class="extrude-hud-number"><input
+                  id="solidHoleHudCsinkAngle" type="number" min="10" max="170" step="1" value="90"
+                  aria-label="Countersink angle in degrees"><small>°</small></span></div>
+          </div>
+          <div class="extrude-panel revolve-panel" id="revolveHud" hidden role="dialog" aria-labelledby="revolveTitle">
+            <h2 id="revolveTitle">REVOLVE</h2>
+            <p id="revolveHelp">Revolve a sketch profile around an axis.</p>
+            <div class="extrude-field"><span>Profile</span><output id="revolveProfileCount">0 Selected</output></div>
+            <div class="extrude-field">
+              <span>Axis</span>
+              <div style="display: flex; gap: 4px; width: 100%;">
+                <button type="button" class="revolve-axis-btn active" id="revolveAxisPresetY" title="Y Axis (Up)">Y Axis</button>
+                <button type="button" class="revolve-axis-btn" id="revolveAxisPresetX" title="X Axis (Right)">X Axis</button>
+                <button type="button" class="revolve-axis-btn" id="revolveAxisSelectBtn" title="Pick sketch line">Pick Line</button>
+              </div>
+            </div>
+            <label class="extrude-field">
+              <span>Angle</span>
+              <span class="extrude-number">
+                <input id="revolveAngleInput" type="number" min="1" max="360" step="1" value="360" aria-label="Revolve angle in degrees">
+                <small>°</small>
+              </span>
+            </label>
+            <div style="margin: 4px 0 10px;">
+              <input id="revolveAngleRange" type="range" min="1" max="360" step="1" value="360" style="width: 100%; accent-color: #0284c7;">
+              <div style="display: flex; gap: 6px; margin-top: 6px;">
+                <button type="button" class="revolve-chip" data-angle="90">90°</button>
+                <button type="button" class="revolve-chip" data-angle="180">180°</button>
+                <button type="button" class="revolve-chip" data-angle="270">270°</button>
+                <button type="button" class="revolve-chip" data-angle="360">360°</button>
+              </div>
+            </div>
+            <label class="extrude-field">
+              <span>Operation</span>
+              <select id="revolveOperationSelect">
+                <option value="new">New Body</option>
+                <option value="join">Join</option>
+                <option value="cut">Cut</option>
+                <option value="intersect">Intersect</option>
+              </select>
+            </label>
+            <div class="extrude-actions">
+              <button type="button" id="revolveCancelBtn">CANCEL</button>
+              <button type="button" id="revolveCommitBtn" disabled>OK</button>
+            </div>
+          </div>
+          <div class="solid-bevel-panel" id="solidBevelPanel" hidden role="dialog" aria-labelledby="solidBevelTitle">
+            <h2 id="solidBevelTitle">FILLET</h2>
+            <p id="solidBevelHelp">Select an edge on a finished body.</p>
+            <div class="solid-bevel-field"><span>Edge</span><output id="solidBevelEdge">Select an edge</output></div>
+            <label class="solid-bevel-field"><span id="solidBevelValueLabel">Radius</span><span
+                class="solid-bevel-number"><input id="solidBevelValue" type="number" min="0.001" step="0.001" value="2"
+                  aria-label="Fillet radius in millimetres"><small>mm</small></span></label>
+            <div class="solid-bevel-actions"><button type="button" id="solidBevelCancel">CANCEL</button><button
+                type="button" id="solidBevelOk" disabled>OK</button></div>
+          </div>
+          <div class="solid-bevel-panel solid-hole-panel" id="solidHolePanel" hidden role="dialog"
+            aria-labelledby="solidHoleTitle">
+            <h2 id="solidHoleTitle">HOLE</h2>
+            <p id="solidHoleHelp">Click a planar face to position the hole.</p>
+            <div class="solid-bevel-field"><span>Face</span><output id="solidHoleFace">Click a planar face</output>
+            </div>
+            <label class="solid-bevel-field"><span>Type</span><select id="solidHoleType">
+                <option value="simple">Simple</option>
+                <option value="counterbore">Counterbore</option>
+                <option value="countersink">Countersink</option>
+              </select></label>
+            <label class="solid-bevel-field"><span>Extents</span><select id="solidHoleExtents">
+                <option value="all">Through All</option>
+                <option value="distance">Distance</option>
+              </select></label>
+            <label class="solid-bevel-field"><span>Diameter</span><span class="solid-bevel-number"><input
+                  id="solidHoleDiameter" type="number" min="0.1" step="0.5" value="10"
+                  aria-label="Hole diameter in millimetres"><small>mm</small></span></label>
+            <label class="solid-bevel-field" id="solidHoleDepthRow" hidden><span>Depth</span><span
+                class="solid-bevel-number"><input id="solidHoleDepth" type="number" min="0.1" step="0.5" value="20"
+                  aria-label="Hole depth in millimetres"><small>mm</small></span></label>
+
+            <div id="solidHoleCboreFields" hidden>
+              <label class="solid-bevel-field"><span>CB Dia</span><span class="solid-bevel-number"><input
+                    id="solidHoleCboreDia" type="number" min="0.1" step="0.5" value="16"
+                    aria-label="Counterbore diameter in millimetres"><small>mm</small></span></label>
+              <label class="solid-bevel-field"><span>CB Depth</span><span class="solid-bevel-number"><input
+                    id="solidHoleCboreDepth" type="number" min="0.1" step="0.5" value="5"
+                    aria-label="Counterbore depth in millimetres"><small>mm</small></span></label>
+            </div>
+
+            <div id="solidHoleCsinkFields" hidden>
+              <label class="solid-bevel-field"><span>CS Dia</span><span class="solid-bevel-number"><input
+                    id="solidHoleCsinkDia" type="number" min="0.1" step="0.5" value="15"
+                    aria-label="Countersink diameter in millimetres"><small>mm</small></span></label>
+              <label class="solid-bevel-field"><span>CS Angle</span><span class="solid-bevel-number"><input
+                    id="solidHoleCsinkAngle" type="number" min="10" max="170" step="1" value="90"
+                    aria-label="Countersink angle in degrees"><small>°</small></span></label>
+            </div>
+
+            <div class="solid-bevel-actions">
+              <button type="button" id="solidHoleCancel">CANCEL</button>
+              <button type="button" id="solidHoleOk" disabled>OK</button>
+            </div>
+          </div>
+          <div class="body-move-panel" id="bodyMovePanel" hidden role="dialog" aria-labelledby="bodyMoveTitle">
+            <h2 id="bodyMoveTitle">MOVE/ROTATE</h2>
+            <p id="bodyMoveHelp">Select a finished body.</p>
+            <div class="body-move-row"><span>Move Object</span><output>Bodies</output></div>
+            <div class="body-move-row"><span>Selection</span><button type="button" id="bodyMoveSelection">Select
+                body</button></div>
+            <div class="body-move-row"><span>Move Type</span>
+              <div class="body-move-types"><button type="button" id="bodyMoveFree" class="is-active"
+                  aria-pressed="true">Free Move</button><button type="button" id="bodyMovePoints"
+                  aria-pressed="false">Point to Point</button></div>
+            </div>
+            <div id="bodyMoveFreeFields">
+              <div class="body-move-row"><span>Set Pivot</span><button type="button" id="bodyMovePivot">Body
+                  center</button></div>
+              <div class="body-move-vector"><span>Move (mm)</span><label>X<input id="bodyMoveX" type="number"
+                    step="0.001" value="0"></label><label>Y<input id="bodyMoveY" type="number" step="0.001"
+                    value="0"></label><label>Z<input id="bodyMoveZ" type="number" step="0.001" value="0"></label></div>
+              <div class="body-move-vector"><span>Rotate (°)</span><label>X<input id="bodyRotateX" type="number"
+                    step="0.1" value="0"></label><label>Y<input id="bodyRotateY" type="number" step="0.1"
+                    value="0"></label><label>Z<input id="bodyRotateZ" type="number" step="0.1" value="0"></label></div>
+              <div class="body-move-row" style="margin-top: 6px;">
+                <button type="button" id="bodyMoveCenterGround"
+                  style="width: 100%; padding: 5px 8px; background: rgba(30,136,229,0.12); border: 1px solid rgba(30,136,229,0.45); color: #90caf9; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;">⌖
+                  CENTER &amp; GROUND (Z = 0)</button>
+              </div>
+            </div>
+            <div id="bodyMovePointFields" hidden>
+              <div class="body-move-row"><span>Origin Point</span><button type="button"
+                  id="bodyMoveOrigin">Select</button></div>
+              <div class="body-move-row"><span>Target Point</span><button type="button"
+                  id="bodyMoveTarget">Select</button></div>
+            </div>
+            <label class="body-move-copy"><input id="bodyMoveCopy" type="checkbox"> Create Copy</label>
+            <div class="body-move-actions"><button type="button" id="bodyMoveCancel">CANCEL</button><button
+                type="button" id="bodyMoveOk" disabled>OK</button></div>
+          </div>
+          <div class="body-move-panel body-pattern-panel" id="bodyPatternPanel" hidden role="dialog"
+            aria-labelledby="bodyPatternTitle">
+            <h2 id="bodyPatternTitle">RECTANGULAR PATTERN</h2>
+            <p id="bodyPatternHelp">Select a body to pattern.</p>
+            <div class="body-move-row"><span>Pattern Type</span>
+              <div class="body-move-types">
+                <button type="button" id="bodyPatternTypeRect" class="is-active"
+                  aria-pressed="true">Rectangular</button>
+                <button type="button" id="bodyPatternTypeCirc" aria-pressed="false">Circular</button>
+              </div>
+            </div>
+            <div class="body-move-row"><span>Target Body</span><button type="button" id="bodyPatternSelection">Select
+                body</button></div>
+
+            <!-- Rectangular Pattern Fields -->
+            <div id="bodyPatternRectFields">
+              <div class="body-move-row"><span>Direction 1</span>
+                <select id="bodyPatternDir1Axis">
+                  <option value="X">X Axis</option>
+                  <option value="Y">Y Axis</option>
+                  <option value="Z">Z Axis</option>
+                </select>
+              </div>
+              <div class="body-move-vector" style="grid-template-columns: 88px 1fr 1fr;">
+                <span>Dir 1</span>
+                <label>Quantity<input id="bodyPatternDir1Count" type="number" min="1" step="1" value="3"></label>
+                <label>Distance (mm)<input id="bodyPatternDir1Dist" type="number" step="1" value="25"></label>
+              </div>
+              <div class="body-move-row"><span>Direction 2</span>
+                <select id="bodyPatternDir2Axis">
+                  <option value="Y">Y Axis</option>
+                  <option value="X">X Axis</option>
+                  <option value="Z">Z Axis</option>
+                </select>
+              </div>
+              <div class="body-move-vector" style="grid-template-columns: 88px 1fr 1fr;">
+                <span>Dir 2</span>
+                <label>Quantity<input id="bodyPatternDir2Count" type="number" min="1" step="1" value="1"></label>
+                <label>Distance (mm)<input id="bodyPatternDir2Dist" type="number" step="1" value="25"></label>
+              </div>
+            </div>
+
+            <!-- Circular Pattern Fields -->
+            <div id="bodyPatternCircFields" hidden>
+              <div class="body-move-row"><span>Axis</span>
+                <select id="bodyPatternCircAxis">
+                  <option value="Z">Z Axis</option>
+                  <option value="Y">Y Axis</option>
+                  <option value="X">X Axis</option>
+                </select>
+              </div>
+              <div class="body-move-vector" style="grid-template-columns: 88px 1fr 1fr;">
+                <span>Settings</span>
+                <label>Quantity<input id="bodyPatternCircCount" type="number" min="2" step="1" value="4"></label>
+                <label>Angle (°)<input id="bodyPatternCircAngle" type="number" step="15" value="360"></label>
+              </div>
+            </div>
+
+            <div class="body-move-actions">
+              <button type="button" id="bodyPatternCancel">CANCEL</button>
+              <button type="button" id="bodyPatternOk" disabled>OK</button>
+            </div>
+          </div>
+          <!-- Mesh Decimator / Polygonizer Panel -->
+          <div class="body-move-panel mesh-to-solid-panel" id="meshToSolidPanel" hidden role="dialog"
+            aria-labelledby="meshToSolidTitle">
+            <h2 id="meshToSolidTitle">MESH TO SOLID</h2>
+            <p id="meshToSolidHelp">Select an imported mesh on the model or in the Browser. Only closed, watertight
+              meshes can become solids.</p>
+            <div class="body-move-row"><span>Body</span><button type="button" id="meshToSolidSelection">Select
+                body</button><output id="meshToSolidTarget" hidden></output></div>
+            <div class="body-move-row"><span>Facets</span><output id="meshToSolidDetail">No mesh selected</output></div>
+            <div class="body-move-row"><label for="meshToSolidQuality">Solid detail</label>
+              <select id="meshToSolidQuality" aria-label="Solid detail">
+                <option value="full">Full detail</option>
+                <option value="balanced">Optimized · small changes</option>
+                <option value="fast">Optimized · faster edits</option>
+              </select>
+            </div>
+            <div class="body-move-row"><label for="meshToSolidFinish">Surface finish</label>
+              <select id="meshToSolidFinish" aria-label="Surface finish">
+                <option value="42">CAD smooth · sharp edges</option>
+                <option value="0">Original facets</option>
+              </select>
+            </div>
+            <div class="body-move-row"><label for="meshToSolidGeometry">Geometry</label>
+              <select id="meshToSolidGeometry" aria-label="Geometry reconstruction">
+                <option value="feature-fit" selected>Analytic feature fit (reconstruct planes, holes &amp; cylinders)
+                </option>
+                <option value="rebuild">Adaptive surface rebuild</option>
+                <option value="original">Preserve original mesh</option>
+                <option value="repair">Repair as approximate solid (open or very large mesh)</option>
+              </select>
+            </div>
+            <div class="body-move-row" id="meshToSolidAccuracyRow"><label for="meshToSolidAccuracy">Surface shift
+                limit</label>
+              <select id="meshToSolidAccuracy" aria-label="Maximum surface shift">
+                <option value="0.003">Precise · 0.3% of size</option>
+                <option value="0.006" selected>Balanced · 0.6% of size</option>
+                <option value="0.01">Flexible · 1% of size</option>
+              </select>
+            </div>
+            <p>Analytic feature fit detects original CAD primitives (planes, holes, cylinders, spheres) and reconstructs
+              true curvature with zero faceting chords. Rebuild refines meshes within volume limits. Repair makes an
+              approximate shell for open or very large meshes.</p>
+            <div class="body-move-actions">
+              <button type="button" id="meshToSolidCancel">CANCEL</button>
+              <button type="button" id="meshToSolidConvert" disabled>CONVERT</button>
+            </div>
+          </div>
+          <div class="body-move-panel mesh-decimate-panel" id="meshDecimatePanel" hidden role="dialog"
+            aria-labelledby="meshDecimateTitle">
+            <h2 id="meshDecimateTitle">DECIMATE MESH</h2>
+            <p id="meshDecimateHelp">Select a mesh body to reduce polygons. Original geometry and exports stay
+              unchanged.</p>
+            <div class="body-move-row"><span>Body</span><button type="button" id="meshDecimateSelection">Select
+                body</button></div>
+            <div class="body-move-row"><span>Original Mesh</span><output id="meshDecimateOriginalCount">Select a
+                body</output></div>
+
+            <div class="decimate-slider-group">
+              <div class="body-move-row" style="margin-bottom: 2px;">
+                <span>Target display reduction</span>
+                <span id="meshDecimateRatioLabel" style="font-weight: 600; color: #1e88e5;">75%</span>
+              </div>
+              <input type="range" id="meshDecimateSlider" min="0" max="95" step="5" value="75"
+                style="width: 100%; margin: 6px 0 10px 0; accent-color: #1e88e5; cursor: pointer;" />
+              <div class="decimate-presets" style="display: flex; gap: 6px; margin-bottom: 8px;">
+                <button type="button" class="preset-btn" data-ratio="0"
+                  title="Show every original triangle; very large models may render more slowly"
+                  style="flex: 1; padding: 4px 0; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; border-radius: 4px; cursor: pointer;">0%</button>
+                <button type="button" class="preset-btn" data-ratio="25"
+                  style="flex: 1; padding: 4px 0; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; border-radius: 4px; cursor: pointer;">25%</button>
+                <button type="button" class="preset-btn" data-ratio="50"
+                  style="flex: 1; padding: 4px 0; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; border-radius: 4px; cursor: pointer;">50%</button>
+                <button type="button" class="preset-btn is-active" data-ratio="75"
+                  style="flex: 1; padding: 4px 0; font-size: 11px; background: #1e88e5; border: 1px solid #1e88e5; color: #fff; border-radius: 4px; cursor: pointer;">75%</button>
+                <button type="button" class="preset-btn" data-ratio="90"
+                  style="flex: 1; padding: 4px 0; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; border-radius: 4px; cursor: pointer;">90%</button>
+              </div>
+            </div>
+
+            <div class="body-move-row"><span>Display Mesh</span><output id="meshDecimateTargetCount">~0</output></div>
+
+            <div class="body-move-actions">
+              <button type="button" id="meshDecimateCancel">CANCEL</button>
+              <button type="button" id="meshDecimateOk" disabled>APPLY</button>
+            </div>
+          </div>
+          <!-- CAD Surface Settings Panel -->
+          <div class="body-move-panel surface-finish-panel" id="surfaceFinishPanel" hidden role="dialog"
+            aria-labelledby="surfaceFinishTitle">
+            <h2 id="surfaceFinishTitle">CAD SURFACE SETTINGS</h2>
+            <p id="surfaceFinishHelp">Smooths mesh facets across vertex seams while preserving sharp edges. Display
+              only.</p>
+            <div class="body-move-row"><span>Mesh</span><button type="button" id="surfaceFinishSelection"
+                class="is-active">Select mesh body</button></div>
+            <div class="body-move-row"><label for="surfaceFinishStyle">Finish Style</label>
+              <select id="surfaceFinishStyle">
+                <option value="42">CAD Smooth · 42° sharp creases</option>
+                <option value="custom">Custom Crease Angle</option>
+                <option value="0">Original Facets (Off)</option>
+              </select>
+            </div>
+            <div class="body-move-row" id="surfaceFinishCustomRow" hidden>
+              <span>Crease angle</span>
+              <span style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                <input type="range" id="surfaceFinishSlider" min="10" max="80" step="1" value="42"
+                  style="flex: 1; accent-color: #1e88e5; cursor: pointer;">
+                <output id="surfaceFinishAngleText"
+                  style="min-width: 32px; font-weight: 600; color: #1e88e5;">42°</output>
+              </span>
+            </div>
+            <p style="font-size: 11px; opacity: 0.75; margin: 4px 0 10px 0;">Angles below the crease are smoothed
+              together; sharp edges (90° corners, cylinder rims) remain crisp. Original geometry stays unchanged.</p>
+            <div class="body-move-actions">
+              <button type="button" id="surfaceFinishCancel">CANCEL</button>
+              <button type="button" id="surfaceFinishOk" disabled>APPLY</button>
+            </div>
+          </div>
+          <!-- Interference Detection Panel -->
+          <div class="body-move-panel interference-panel" id="interferencePanel" hidden role="dialog"
+            aria-labelledby="interferenceTitle">
+            <h2 id="interferenceTitle">INTERFERENCE DETECTION</h2>
+            <p id="interferenceHelp">Select two solid or mesh bodies to detect 3D volume collisions and overlaps.</p>
+
+            <div class="body-move-row">
+              <span>Body 1</span>
+              <button type="button" id="interferenceBody1Btn" class="is-active">Select Body 1</button>
+            </div>
+            <div class="body-move-row">
+              <span>Body 2</span>
+              <button type="button" id="interferenceBody2Btn">Select Body 2</button>
+            </div>
+
+            <!-- Analysis Status & Metrics Box -->
+            <div id="interferenceResultBox"
+              style="margin: 10px 0; padding: 10px 12px; border-radius: 6px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.1); font-size: 12px;">
+              <div id="interferenceStatusHeader"
+                style="display: flex; align-items: center; gap: 7px; font-weight: 700; margin-bottom: 6px; color: #94a3b8;">
+                <span id="interferenceStatusIcon" style="font-size: 14px;">ℹ</span>
+                <span id="interferenceStatusText">Select two bodies to check</span>
+              </div>
+              <div id="interferenceDetails" hidden>
+                <div class="body-move-row" style="margin: 6px 0 4px 0; grid-template-columns: 95px 1fr;">
+                  <span style="color: #94a3b8;">Clash Volume</span>
+                  <output id="interferenceVolumeText"
+                    style="font-weight: 700; color: #ef4444; background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.4);">0.00
+                    mm³</output>
+                </div>
+                <div class="body-move-row" style="margin: 4px 0 0 0; grid-template-columns: 95px 1fr;">
+                  <span style="color: #94a3b8;">Bounding Box</span>
+                  <output id="interferenceBoundsText"
+                    style="font-size: 11px; color: #cbd5e1; background: rgba(255, 255, 255, 0.05);">-</output>
+                </div>
+              </div>
+            </div>
+
+            <div class="body-move-actions">
+              <button type="button" id="interferenceClear">CLEAR</button>
+              <button type="button" id="interferenceClose">CLOSE</button>
+            </div>
+          </div>
+          <!-- Zebra Analysis Panel -->
+          <div class="body-move-panel zebra-panel" id="zebraAnalysisPanel" hidden role="dialog"
+            aria-labelledby="zebraTitle">
+            <h2 id="zebraTitle">ZEBRA ANALYSIS</h2>
+            <p id="zebraHelp">Displays alternating reflection stripes to evaluate surface curvature and boundary
+              continuity (G0/G1/G2).</p>
+
+            <div class="body-move-row">
+              <span>Body</span>
+              <button type="button" id="zebraBodyBtn" title="Click to select a specific body or inspect all bodies">All
+                visible bodies</button>
+            </div>
+
+            <div class="body-move-row">
+              <span>Direction</span>
+              <div class="body-move-types" style="display: flex; gap: 4px; flex: 1;">
+                <button type="button" id="zebraDirHorizontal" class="is-active" aria-pressed="true"
+                  style="flex: 1;">Horizontal</button>
+                <button type="button" id="zebraDirVertical" aria-pressed="false" style="flex: 1;">Vertical</button>
+              </div>
+            </div>
+
+            <div class="body-move-slider-group" style="margin: 6px 0;">
+              <div class="body-move-row" style="margin-bottom: 2px;">
+                <span>Stripe repeats</span>
+                <output id="zebraRepeatsOutput" style="font-weight: 600; color: #0288d1;">30</output>
+              </div>
+              <input type="range" id="zebraRepeatsSlider" min="10" max="80" step="2" value="30"
+                style="width: 100%; accent-color: #0288d1; cursor: pointer;">
+              <div class="zebra-presets" style="display: flex; gap: 6px; margin: 4px 0 8px 0;">
+                <button type="button" class="preset-btn" id="zebraPresetCoarse"
+                  style="flex: 1; padding: 3px 0; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; border-radius: 4px; cursor: pointer;">Coarse
+                  (16)</button>
+                <button type="button" class="preset-btn is-active" id="zebraPresetStd"
+                  style="flex: 1; padding: 3px 0; font-size: 11px; background: #0288d1; border: 1px solid #0288d1; color: #fff; border-radius: 4px; cursor: pointer;">Standard
+                  (30)</button>
+                <button type="button" class="preset-btn" id="zebraPresetFine"
+                  style="flex: 1; padding: 3px 0; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; border-radius: 4px; cursor: pointer;">Fine
+                  (50)</button>
+              </div>
+            </div>
+
+            <div class="body-move-slider-group" style="margin: 6px 0 10px 0;">
+              <div class="body-move-row" style="margin-bottom: 2px;">
+                <span>Opacity</span>
+                <output id="zebraOpacityOutput" style="font-weight: 600; color: #0288d1;">85%</output>
+              </div>
+              <input type="range" id="zebraOpacitySlider" min="20" max="100" step="5" value="85"
+                style="width: 100%; accent-color: #0288d1; cursor: pointer;">
+            </div>
+
+            <p style="font-size: 11px; opacity: 0.75; line-height: 1.4; margin: 4px 0 10px 0;">Curvature continuous (G2)
+              surfaces show smooth, uninterrupted stripes. Tangent (G1) surfaces show sharp stripe kinks at seams.</p>
+
+            <div class="body-move-actions">
+              <button type="button" id="zebraClearBtn">RESET</button>
+              <button type="button" id="zebraCloseBtn">CLOSE</button>
+            </div>
+          </div>
+          <div class="dimension-hud" id="dimensionHud" aria-label="Sketch dimensions" hidden></div>
+          <div class="fillet-prompt" id="filletPrompt" hidden></div>
+          <button class="finish-line" id="finishLine" type="button" title="Finish the continuous line"
+            aria-label="Finish the continuous line" hidden>✓</button>
+          <div class="pattern-palette" id="patternPalette" hidden role="dialog" aria-labelledby="patternTitle">
+            <strong id="patternTitle">PATTERN</strong>
+            <p id="patternDescription">Select sketch curves, then set the values.</p>
+            <div class="pattern-row"><span>Objects</span><output id="patternCount">0 selected</output><span></span>
+            </div>
+            <label class="chain-selection" title="Automatically selects chained sketch geometry."><input type="checkbox"
+                id="patternChain"> Chain Selection</label>
+            <div class="pattern-row" id="patternCenterRow" hidden><span>Center</span><button type="button"
+                id="patternCenter">Select center</button><span></span></div>
+            <div id="patternFields"></div>
+            <div class="pattern-actions"><button type="button" id="patternCancel">CANCEL</button><button type="button"
+                id="patternOk">OK</button></div>
+          </div>
+          <div class="pattern-palette mirror-palette" id="mirrorPalette" hidden role="dialog"
+            aria-labelledby="mirrorPaletteTitle">
+            <strong id="mirrorPaletteTitle">MIRROR</strong>
+            <p>Select sketch geometry and a mirror line or origin axis.</p>
+            <div class="pattern-row">
+              <span>Objects</span>
+              <button type="button" class="is-active" id="mirrorSelectObjectsBtn"
+                title="Select sketch objects to mirror"><span id="mirrorObjectsCountText">Select</span></button>
+              <span></span>
+            </div>
+            <label class="chain-selection" title="Automatically selects chained sketch geometry."><input type="checkbox"
+                id="mirrorChain"> Chain Selection</label>
+            <div class="pattern-row">
+              <span>Mirror line</span>
+              <button type="button" id="mirrorSelectLineBtn" title="Select mirror line or axis"><span
+                  id="mirrorLineCountText">Select</span></button>
+              <span></span>
+            </div>
+            <div class="pattern-actions">
+              <button type="button" id="mirrorCancelBtn">CANCEL</button>
+              <button type="button" id="mirrorOkBtn" disabled>OK</button>
+            </div>
+          </div>
+          <div class="pane-heading"><span class="pane-icon model-pane-icon" aria-hidden="true">⬡</span><span
+              id="modelPaneTitle">3D WORKSPACE</span></div>
+          <div class="view-cube" id="viewCube" aria-label="View cube: drag to orbit or select a face, edge, or corner">
+            <svg class="cube-axis-overlay" id="cubeAxisOverlay" viewBox="0 0 128 128" aria-hidden="true">
+              <path id="cubeAxisX" class="cube-axis-line cube-axis-x" />
+              <path id="cubeAxisY" class="cube-axis-line cube-axis-y" />
+              <path id="cubeAxisZ" class="cube-axis-line cube-axis-z" />
+              <text id="cubeAxisLabelX" class="cube-axis-label cube-axis-x">X</text>
+              <text id="cubeAxisLabelY" class="cube-axis-label cube-axis-y">Y</text>
+              <text id="cubeAxisLabelZ" class="cube-axis-label cube-axis-z">Z</text>
+            </svg>
+            <div class="cube-rotator" id="cubeRotator">
+              <button class="cube-face cube-front" type="button" data-view="front"
+                aria-label="Front view">FRONT</button>
+              <button class="cube-face cube-back" type="button" data-view="back" aria-label="Back view">BACK</button>
+              <button class="cube-face cube-right" type="button" data-view="right"
+                aria-label="Right view">RIGHT</button>
+              <button class="cube-face cube-left" type="button" data-view="left" aria-label="Left view">LEFT</button>
+              <button class="cube-face cube-top" type="button" data-view="top" aria-label="Top view">TOP</button>
+              <button class="cube-face cube-bottom" type="button" data-view="bottom"
+                aria-label="Bottom view">BOTTOM</button>
+            </div>
+            <svg class="cube-pick-overlay" id="cubePickOverlay" viewBox="0 0 128 128"
+              aria-label="View cube edges and corners"></svg>
+          </div>
+          <nav class="view-toolbar" id="viewToolbar" aria-label="View controls">
+            <button type="button" data-nav-mode="orbit" title="Orbit: drag to rotate" aria-label="Orbit"
+              aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 9a8 8 0 0 1 13-4l2 2M20 15a8 8 0 0 1-13 4l-2-2M19 3v4h-4M5 21v-4h4" />
+              </svg></button>
+            <button type="button" data-nav-mode="pan" title="Pan: drag to move" aria-label="Pan"
+              aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" />
+              </svg></button>
+            <button type="button" data-nav-mode="zoom" title="Zoom: drag vertically" aria-label="Zoom"
+              aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10" cy="10" r="6" />
+                <path d="m15 15 6 6M7 10h6M10 7v6" />
+              </svg></button>
+            <button type="button" id="viewFit" title="Fit view" aria-label="Fit view"><svg viewBox="0 0 24 24"
+                aria-hidden="true">
+                <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5M8 8h8v8H8z" />
+              </svg></button>
+            <span class="view-toolbar-divider" aria-hidden="true"></span>
+            <button type="button" id="displaySettingsButton" title="Display settings" aria-label="Display settings"
+              aria-expanded="false" aria-controls="displaySettingsMenu"><svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="14" rx="1" />
+                <path d="M8 21h8M12 18v3M5 15h14" />
+              </svg></button>
+            <div class="display-settings-menu" id="displaySettingsMenu" hidden role="group" aria-label="Display style">
+              <strong>Display settings</strong>
+              <label><input type="radio" name="displayStyle" value="shaded"> Shaded</label>
+              <label><input type="radio" name="displayStyle" value="shaded-edges" checked> Shaded with visible
+                edges</label>
+            </div>
+          </nav>
+          <div class="view-hint" id="viewHint">MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom</div>
+        </section>
+
+        <div class="pane-divider" id="paneDivider" hidden aria-hidden="true"><span></span></div>
+
+        <section class="view-pane sketch-pane" id="sketchPane" aria-label="Optional 2D sketch view" hidden>
+          <canvas id="sketchCanvas" aria-label="Empty sketch coordinate plane"></canvas>
+          <div class="pane-heading sketch-heading"><span class="pane-icon sketch-pane-icon"
+              aria-hidden="true">▤</span><span id="splitSketchTitle">2D SKETCH VIEW</span><span class="plane-chip"
+              id="activePlaneLabel">XY
+              PLANE</span><span class="pane-heading-line"></span><button type="button" class="close-sketch"
+              id="closeSketch" aria-label="Close split view">Close Split <span aria-hidden="true">×</span></button>
+          </div>
+          <div class="sketch-origin-label">ORIGIN <span>0, 0</span></div>
+          <div class="sketch-empty">Reference view · draw in the 3D workspace above</div>
+        </section>
+
+        <nav class="design-timeline" id="designTimeline" aria-label="Design history timeline">
+          <div class="timeline-main">
+            <div class="timeline-track" id="timelineTrack" role="list" aria-label="Timeline features"></div>
+            <span class="timeline-sr-only" id="timelineCounter" aria-live="polite">0 / 0 features</span>
+          </div>
+        </nav>
+
+        <footer class="statusbar"><span><i></i><span id="statusText">3D VIEW</span></span><span class="status-center"
+            id="geometryStatus">No
+            geometry yet</span><span>MM</span></footer>
+      </main>
+    </div>
+  </div>
+
+  <!-- Preferences Modal Window -->
+  <div class="modal-backdrop" id="settingsPanel" hidden>
+    <div class="modal-window" role="dialog" aria-labelledby="settingsModalTitle" aria-modal="true">
+      <header class="modal-header">
+        <div class="modal-title" id="settingsModalTitle">
+          <span class="modal-title-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+              </path>
+            </svg>
+          </span>
+          <strong>Preferences</strong>
+        </div>
+        <button type="button" class="modal-close" data-close-settings aria-label="Close preferences">×</button>
+      </header>
+      <div class="modal-body">
+        <aside class="modal-sidebar" aria-label="Settings categories">
+          <button type="button" class="category-item is-active" data-category="general">
+            <span class="category-icon" aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                </path>
+              </svg>
+            </span>
+            <span>General</span>
+          </button>
+          <button type="button" class="category-item" data-category="camera">
+            <span class="category-icon" aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </span>
+            <span>Camera</span>
+          </button>
+          <button type="button" class="category-item" data-category="shortcuts">
+            <span class="category-icon" aria-hidden="true">⌨</span>
+            <span>Shortcuts</span>
+          </button>
+        </aside>
+        <main class="modal-content">
+          <!-- General Preferences Pane -->
+          <section class="settings-section" data-section="general">
+            <h3 class="section-title">General Preferences</h3>
+            <div class="settings-group">
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Application Language</span>
+                  <span class="setting-desc">Primary interface language</span>
+                </div>
+                <div class="setting-control">
+                  <span class="setting-badge">English</span>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Default Units</span>
+                  <span class="setting-desc">Standard measurement units for sketching</span>
+                </div>
+                <div class="setting-control">
+                  <span class="setting-badge">Millimeter (mm)</span>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Grid Spacing</span>
+                  <span class="setting-desc">Visible sketch grid spacing changes with zoom</span>
+                </div>
+                <div class="setting-control">
+                  <span class="setting-badge">Adaptive</span>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Workspace Engine</span>
+                  <span class="setting-desc">Zero-dependency client-side runtime</span>
+                </div>
+                <div class="setting-control">
+                  <span class="setting-badge">webCAD Standalone</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Camera Preferences Pane -->
+          <section class="settings-section" data-section="camera" hidden>
+            <h3 class="section-title">Camera & Navigation</h3>
+            <div class="settings-group">
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Mouse Preset</span>
+                  <span class="setting-desc">Middle: Pan · Shift + Middle: Orbit · Wheel: Zoom</span>
+                </div>
+                <div class="setting-control">
+                  <span class="setting-badge" data-setting="mouseSetup">Fusion</span>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Default Orbit Type</span>
+                  <span class="setting-desc">Turntable constrained (with continuous tumbling) or free 3D rotation</span>
+                </div>
+                <div class="setting-control">
+                  <select class="settings-select" data-setting-select="orbitType">
+                    <option value="Constrained Orbit">Constrained Orbit</option>
+                    <option value="Free Orbit">Free Orbit</option>
+                  </select>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Reverse Zoom Direction</span>
+                  <span class="setting-desc">Invert scroll wheel zoom behavior</span>
+                </div>
+                <div class="setting-control">
+                  <select class="settings-select" data-setting-select="reverseZoomDirection">
+                    <option value="false">Off</option>
+                    <option value="true">On</option>
+                  </select>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-label">Enable Camera Pivot</span>
+                  <span class="setting-desc">Orbit around the origin center point</span>
+                </div>
+                <div class="setting-control">
+                  <select class="settings-select" data-setting-select="cameraPivot">
+                    <option value="true">On</option>
+                    <option value="false">Off</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="settings-section" data-section="shortcuts" hidden>
+            <h3 class="section-title">Keyboard Shortcuts</h3>
+            <p class="setting-desc">Select a field, then press one letter. Clear it with Backspace.</p>
+            <div class="settings-group" id="shortcutRows"></div>
+            <p class="shortcut-message" id="shortcutMessage" role="status"></p>
+            <button type="button" class="modal-btn shortcut-reset" id="resetShortcuts">Restore defaults</button>
+          </section>
         </main>
       </div>
+      <footer class="modal-footer">
+        <button type="button" class="modal-btn modal-btn-primary" data-close-settings>OK</button>
+      </footer>
     </div>
-  </body>
+  </div>
+
+  <!-- draw.io style Save As Modal Dialog -->
+  <div class="app-modal-backdrop" id="saveModalBackdrop" hidden>
+    <div class="drawio-save-card" role="dialog" aria-labelledby="saveDialogLabel" aria-modal="true">
+      <form class="drawio-form" id="saveDialogForm">
+        <div class="drawio-row">
+          <label class="drawio-label" id="saveDialogLabel" for="saveDialogFileNameInput">Save as:</label>
+          <div class="drawio-control">
+            <input type="text" class="drawio-input" id="saveDialogFileNameInput" value="Untitled Design.ocad"
+              spellcheck="false" autocomplete="off" />
+          </div>
+        </div>
+        <div class="drawio-row">
+          <label class="drawio-label" for="saveDialogFileTypeSelect">Type:</label>
+          <div class="drawio-control">
+            <select class="drawio-select" id="saveDialogFileTypeSelect">
+              <option value="ocad">onlineCAD Project (.ocad)</option>
+              <option value="stl-binary">Binary STL Mesh (.stl)</option>
+              <option value="stl-ascii">ASCII STL Mesh (.stl)</option>
+            </select>
+          </div>
+        </div>
+        <div class="drawio-row">
+          <label class="drawio-label" for="saveDialogWhereSelect">Where:</label>
+          <div class="drawio-control">
+            <select class="drawio-select" id="saveDialogWhereSelect">
+              <option value="download">Download to Device (Computer)</option>
+              <option value="storage">Browser Workspace Storage (Local Draft)</option>
+            </select>
+          </div>
+        </div>
+        <div class="drawio-footer">
+          <button type="button" class="drawio-help-btn" id="saveDialogHelpBtn"
+            title="Help: Supported file formats and locations" aria-label="Help">?</button>
+          <div class="drawio-actions">
+            <button type="button" class="drawio-btn drawio-btn-secondary" id="saveDialogCancelBtn">Cancel</button>
+            <button type="button" class="drawio-btn drawio-btn-secondary" id="saveDialogResetBtn">Reset</button>
+            <button type="submit" class="drawio-btn drawio-btn-primary" id="saveDialogConfirmBtn">Save</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- In-App Themed New Design Confirmation Dialog -->
+  <div class="app-modal-backdrop" id="newDesignModalBackdrop" hidden>
+    <div class="inapp-confirm-card" role="alertdialog" aria-labelledby="newDesignModalTitle" aria-modal="true">
+      <div class="inapp-confirm-header">
+        <h3 class="inapp-confirm-title" id="newDesignModalTitle">Start New Design?</h3>
+      </div>
+      <div class="inapp-confirm-body">
+        Any unsaved 2D sketches or 3D bodies in this workspace will be cleared. Do you want to save your project before
+        starting a fresh design?
+      </div>
+      <div class="inapp-confirm-footer">
+        <button type="button" class="confirm-btn confirm-btn-cancel" id="newDesignCancelBtn">Cancel</button>
+        <button type="button" class="confirm-btn confirm-btn-danger" id="newDesignDiscardBtn">Discard &amp; New</button>
+        <button type="button" class="confirm-btn confirm-btn-primary" id="newDesignSaveBtn">Save &amp; New</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- High-Poly Import Optimizer Modal Dialog -->
+  <div class="app-modal-backdrop" id="highPolyModalBackdrop" hidden>
+    <div class="drawio-save-card high-poly-modal-card" role="dialog" aria-labelledby="highPolyModalTitle"
+      aria-modal="true" style="max-width: 440px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <h3 id="highPolyModalTitle"
+          style="margin: 0; font-size: 15px; font-weight: 600; color: #f0f4f8; display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #e5a024;"></span>
+          High-Poly Mesh Detected
+        </h3>
+        <button type="button" id="highPolyCloseBtn"
+          style="background: none; border: none; color: #8a9ba8; cursor: pointer; font-size: 18px; line-height: 1;">✕</button>
+      </div>
+      <p id="highPolyModalDesc" style="margin: 0 0 16px 0; font-size: 13px; color: #a4b4c2; line-height: 1.5;">
+        This model has many triangles. Choose display detail; the original geometry is preserved.
+      </p>
+      <div class="high-poly-options" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px;">
+        <label class="high-poly-opt"
+          style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer;">
+          <input type="radio" name="highPolyChoice" value="0" />
+          <div style="flex: 1;">
+            <div style="font-size: 13px; font-weight: 500; color: #e1e9f0;">Full display detail</div>
+            <div style="font-size: 11px; color: #7d8f9f;" id="highPolyKeepLabel">Full original detail (125k triangles)
+            </div>
+          </div>
+        </label>
+        <label class="high-poly-opt"
+          style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(30,136,229,0.08); border: 1px solid #1e88e5; border-radius: 6px; cursor: pointer;">
+          <input type="radio" name="highPolyChoice" value="0.75" checked />
+          <div style="flex: 1;">
+            <div style="font-size: 13px; font-weight: 500; color: #e1e9f0;">Aim for 75% fewer display triangles <span
+                style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: #1e88e5; color: #fff; margin-left: 6px;">RECOMMENDED</span>
+            </div>
+            <div style="font-size: 11px; color: #7d8f9f;" id="highPolyRecLabel">Retains shape with 4x faster performance
+            </div>
+          </div>
+        </label>
+        <label class="high-poly-opt"
+          style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer;">
+          <input type="radio" name="highPolyChoice" value="0.90" />
+          <div style="flex: 1;">
+            <div style="font-size: 13px; font-weight: 500; color: #e1e9f0;">Aim for 90% fewer display triangles</div>
+            <div style="font-size: 11px; color: #7d8f9f;" id="highPolyFastLabel">Less detail on screen; original
+              geometry is kept</div>
+          </div>
+        </label>
+      </div>
+      <div style="margin-bottom: 16px;">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #cbd5e1; cursor: pointer;">
+          <input type="checkbox" id="highPolyCenterCheckbox" checked style="accent-color: #1e88e5; cursor: pointer;" />
+          <span>Center model to origin &amp; place on ground (Z = 0)</span>
+        </label>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="drawio-btn drawio-btn-secondary" id="highPolyCustomBtn">Open
+          Polygonizer...</button>
+        <button type="button" class="drawio-btn drawio-btn-primary" id="highPolyConfirmBtn">Import Model</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-tray" id="errorTray" role="region" aria-label="Errors" aria-live="assertive"></div>
+</body>
+
+</html>
+</div>
+</div>
+</div>
+
+<div class="error-tray" id="errorTray" role="region" aria-label="Errors" aria-live="assertive"></div>
+</body>
+
 </html>
