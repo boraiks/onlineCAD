@@ -1,7 +1,22 @@
+﻿# AI & Agent Files
+AI_HANDOFF.md
+GEMINI.md
+.gemini/
+.agents/
+
+# Operating System & IDE
 .DS_Store
 Thumbs.db
+*.log
+.vscode/
+
+# Dependencies & Build artifacts
 node_modules/
 data/
 dist/
 scratch/
+
+# Temporary / Scratch media
 *.png
+*.mp4
+*.tmp
