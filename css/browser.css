@@ -322,3 +322,45 @@
 .browser-bottom {
     display: none;
 }
+
+/* Delete button on sketch and body rows, revealed on hover / keyboard focus */
+.tree-delete {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    margin-left: 2px;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    color: #9aa9b4;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    opacity: 0;
+    transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.tree-row:hover .tree-delete,
+.tree-row:focus-within .tree-delete,
+.tree-delete:focus-visible {
+    opacity: 1;
+}
+
+.tree-delete:hover {
+    color: #dc2626;
+    background: rgba(220, 38, 38, 0.1);
+}
+
+.tree-delete svg {
+    width: 11px;
+    height: 11px;
+    display: block;
+}
+
+@media (hover: none) {
+    .tree-delete {
+        opacity: 1;
+    }
+}

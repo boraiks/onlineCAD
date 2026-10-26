@@ -80,6 +80,7 @@
       this.hoverBoundary = null;
       this.entityDrag = null;
       this.skipNextClick = false;
+      this.selectedEntityIds = new Set();
       this.bindEvents();
     }
 
@@ -98,6 +99,7 @@
       this.hoverConstraint = null;
       this.firstAxisPoint = null;
       this.hoverAxisPoint = null;
+      if (this.tool) this.selectedEntityIds.clear();
       if (this.fillet) {
         if (this.tool === 'fillet') this.fillet.start();
         else this.fillet.cancel();
@@ -122,6 +124,72 @@
       this.canvas.style.cursor = cad.sketchCursor.css(this.tool || (this.constructionEnabled ? 'construction' : null));
       this.onConstructionChange(this.constructionEnabled);
       this.onChange();
+    }
+
+    // Click selection without a tool (Shift/Ctrl adds), removed with Delete.
+    selectEntity(entity, additive = false) {
+      if (!additive) this.selectedEntityIds.clear();
+      if (entity) {
+        if (additive && this.selectedEntityIds.has(entity.id)) this.selectedEntityIds.delete(entity.id);
+        else this.selectedEntityIds.add(entity.id);
+      }
+      const count = this.selectedEntityIds.size;
+      if (count) this.onFeedback(`${count} sketch item${count === 1 ? '' : 's'} selected · Delete to remove · Shift+click to add`);
+      this.onChange();
+    }
+
+    clearEntitySelection() {
+      if (!this.selectedEntityIds.size) return;
+      this.selectedEntityIds.clear();
+      this.onChange();
+    }
+
+    selectedEntities() {
+      const sketch = this.getActiveSketch();
+      if (!sketch) return [];
+      return sketch.entities.filter(entity => this.selectedEntityIds.has(entity.id));
+    }
+
+    // Removes the selected entities together with every constraint, dimension
+    // and midpoint marker that refers to them, as one undoable step.
+    deleteSelection() {
+      const sketch = this.getActiveSketch();
+      const entities = this.selectedEntities();
+      if (!sketch || !entities.length) return false;
+      const ids = entities.map(entity => entity.id);
+      const refersToDeleted = item => {
+        const text = JSON.stringify(item);
+        return ids.some(id => text.includes(`"${id}"`));
+      };
+      const before = {
+        entities: [...sketch.entities],
+        constraints: [...sketch.constraints],
+        measurements: [...sketch.measurements],
+        midpoints: [...sketch.midpoints],
+      };
+      const apply = () => {
+        sketch.entities = before.entities.filter(entity => !ids.includes(entity.id));
+        sketch.constraints = before.constraints.filter(item => !refersToDeleted(item));
+        sketch.measurements = before.measurements.filter(item => !refersToDeleted(item));
+        sketch.midpoints = before.midpoints.filter(item => !refersToDeleted(item));
+        sketch.revision++;
+        this.selectedEntityIds.clear();
+        this.onChange();
+      };
+      const restore = () => {
+        sketch.entities = [...before.entities];
+        sketch.constraints = [...before.constraints];
+        sketch.measurements = [...before.measurements];
+        sketch.midpoints = [...before.midpoints];
+        sketch.revision++;
+        this.onChange();
+      };
+      this.history.execute({
+        name: `Delete ${ids.length} sketch item${ids.length === 1 ? '' : 's'}`, kind: 'sketch',
+        execute: apply, undo: restore, redo: apply,
+      });
+      this.onFeedback(`Deleted ${ids.length} sketch item${ids.length === 1 ? '' : 's'} · Ctrl+Z to undo`);
+      return true;
     }
 
     clearPointSelection() {
@@ -1116,7 +1184,10 @@
           return;
         }
 
-        if (!this.tool) return;
+        if (!this.tool) {
+          this.selectEntity(this.entityAt(event), event.shiftKey || event.ctrlKey || event.metaKey);
+          return;
+        }
         if (this.tool === 'fillet') {
           this.fillet.onPointerDown(event);
           return;
@@ -1391,6 +1462,14 @@
           this.setTool(shortcutTool);
           return;
         }
+        if (!this.tool && this.selectedEntityIds.size) {
+          if (event.key === 'Delete' || event.key === 'Backspace') {
+            event.preventDefault();
+            this.deleteSelection();
+            return;
+          }
+          if (event.key === 'Escape') this.clearEntitySelection();
+        }
         if (!this.tool) return;
         if (!isHudInput && this.start && ['line', 'rectangle', 'circle'].includes(this.tool) && /^[0-9.,]$/.test(event.key)) {
           const primaryKey = this.tool === 'line' ? 'length' : this.tool === 'circle' ? 'radius' : 'width';
@@ -1522,6 +1601,12 @@
         context.lineWidth = 1.35;
         context.stroke();
         context.restore();
+      }
+      if (activeSketch && this.selectedEntityIds.size) {
+        const toScreen = point => project(this.document.toWorld(activeSketch, point));
+        for (const entity of activeSketch.entities) {
+          if (this.selectedEntityIds.has(entity.id)) cad.sketchRender.drawEntity(context, entity, toScreen, '#f08c00', 3.5);
+        }
       }
       if (activeSketch && (this.tool || this.constructionEnabled) && this.hoverBoundary) {
         const toScreen = point => project(this.document.toWorld(activeSketch, point));

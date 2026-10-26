@@ -153,7 +153,9 @@
 
   function registerPlane(face) {
     if (face._planeName && cad.planes.grid[face._planeName]) return face._planeName;
-    const name = `FACE-${nextPlane++}`;
+    // Loaded projects bring their own FACE-n planes; never overwrite one.
+    let name = `FACE-${nextPlane++}`;
+    while (cad.planes.grid[name]) name = `FACE-${nextPlane++}`;
     const entry = { u: [...face.u], v: [...face.v], origin: [...face.origin],
       axes: ['X', 'Y', 'Z'] };
     cad.planes.grid[name] = entry;

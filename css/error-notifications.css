@@ -176,3 +176,72 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* Informational variant (autosave recovery) with inline actions */
+.error-notice.is-info {
+  border-color: #1674ab;
+  box-shadow:
+    0 12px 28px -4px rgba(15, 23, 42, 0.12),
+    0 4px 12px -2px rgba(15, 23, 42, 0.08),
+    0 0 18px -2px rgba(22, 116, 171, 0.22);
+  cursor: default;
+}
+
+.error-notice.is-info:hover {
+  border-color: #0e5f8f;
+  transform: none;
+}
+
+.error-notice.is-info .error-notice-accent {
+  background: linear-gradient(180deg, #2a8fd0 0%, #1674ab 100%);
+}
+
+.error-notice.is-info .error-notice-icon-badge {
+  background: #eaf4fb;
+  border-color: #b9dbf0;
+  color: #1674ab;
+  box-shadow: none;
+}
+
+.error-notice.is-info .error-notice-code {
+  color: #0e5f8f;
+  background: #eaf4fb;
+  border-color: #b9dbf0;
+}
+
+.error-notice-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.error-notice-action {
+  padding: 5px 12px;
+  border: 1px solid #c8d3dd;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2d3a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.error-notice-action:hover {
+  background: #f1f5f9;
+}
+
+.error-notice-action.is-primary {
+  border-color: #1674ab;
+  background: #1674ab;
+  color: #fff;
+}
+
+.error-notice-action.is-primary:hover {
+  background: #0e5f8f;
+}
+
+.document-save-status.is-dirty,
+#documentSaveStatus.is-dirty {
+  color: #b45309;
+}

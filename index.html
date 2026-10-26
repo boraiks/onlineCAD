@@ -73,11 +73,11 @@
   <script src="js/mesh-feature-fit-core.js" defer></script>
   <script src="js/mesh-solid-core.js" defer></script>
   <script src="js/mesh-rebuild-core.js" defer></script>
-  <script src="js/mesh-voxel-core.js" defer></script>
   <script src="js/surface-finish-core.js" defer></script>
   <script src="js/mesh-to-solid.js" defer></script>
   <script src="js/view-cube.js" defer></script>
   <script src="js/project-io.js" defer></script>
+  <script src="js/project-store.js" defer></script>
   <script src="js/importers.js" defer></script>
   <script src="js/tooltips.js" defer></script>
   <script src="js/tool-search.js" defer></script>
@@ -143,6 +143,17 @@
               </span>
               <span class="dropdown-badge">Ctrl+O</span>
             </button>
+            <button class="dropdown-item" id="openBrowserDraftBtn" type="button"
+              title="Open the project saved in this browser (Save Project > Where: Browser Workspace Storage)">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="4" width="14" height="12" rx="2" />
+                <path d="M3 8h14M7 12h6" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Open Browser Draft</strong>
+                <small>Project kept in this browser</small>
+              </span>
+            </button>
             <button class="dropdown-item" id="saveProjectBtn" type="button" title="Save project to .ocad file">
               <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
                 <path d="M4 3h9l3 3v11H4z" />
@@ -190,6 +201,30 @@
               </span>
               <span class="dropdown-badge">STL</span>
             </button>
+            <button class="dropdown-item" id="export3mfBtn" type="button"
+              title="Export visible 3D bodies as a 3MF package (Bambu Studio, PrusaSlicer, Cura, OrcaSlicer)">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M10 2 3 6v8l7 4 7-4V6l-7-4z" />
+                <path d="M7 8.5v3.5M10 7v5M13 8.5v3.5" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Export 3MF (.3mf)</strong>
+                <small>Modern slicer format, one object per body</small>
+              </span>
+              <span class="dropdown-badge">3MF</span>
+            </button>
+            <button class="dropdown-item" id="exportObjBtn" type="button"
+              title="Export visible 3D bodies as Wavefront OBJ">
+              <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M10 2 3 6v8l7 4 7-4V6l-7-4z" />
+                <circle cx="10" cy="10" r="2.2" />
+              </svg>
+              <span class="dropdown-item-text">
+                <strong>Export OBJ (.obj)</strong>
+                <small>Mesh for Blender and renderers</small>
+              </span>
+              <span class="dropdown-badge">OBJ</span>
+            </button>
             <button class="dropdown-item" id="exportOcadBtn" type="button" title="Export current project (.ocad)">
               <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
                 <path d="M4 3h9l3 3v11H4z" />
@@ -203,17 +238,17 @@
             </button>
             <div class="dropdown-separator"></div>
             <div class="dropdown-header">2D DRAWING</div>
-            <button class="dropdown-item is-todo" type="button" data-export="dxf"
-              title="Export 2D DXF Drawing (Planned)">
+            <button class="dropdown-item" id="exportDxfBtn" type="button" data-export="dxf"
+              title="Export the open sketch (or all visible sketches) as an AutoCAD R12 DXF drawing">
               <svg class="dropdown-item-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
                 <path d="M4 3h8l4 4v10H4z" />
                 <path d="M12 3v4h4" />
               </svg>
               <span class="dropdown-item-text">
                 <strong>Export DXF</strong>
-                <small>.dxf (2D Drawing)</small>
+                <small>Sketches as 2D drawing, one layer each</small>
               </span>
-              <span class="dropdown-badge">TO-DO</span>
+              <span class="dropdown-badge">DXF</span>
             </button>
           </div>
         </div>

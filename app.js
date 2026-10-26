@@ -248,7 +248,10 @@
     if (headerRedoBtn) headerRedoBtn.disabled = !history.canRedo;
     timeline?.render?.();
   }
-  history.onStateChange = updateUndoRedoUI;
+  history.onStateChange = () => {
+    updateUndoRedoUI();
+    markDirty();
+  };
   updateUndoRedoUI();
 
   headerUndoBtn?.addEventListener('click', () => {
@@ -272,21 +275,81 @@
   const docSaveStatus = document.querySelector('#documentSaveStatus');
   const treeProjectTitle = document.querySelector('#projectTreeRow strong');
 
+  // Dirty tracking: every history change (edit, undo, redo) marks the design
+  // as changed until it is saved as .ocad; the latest state is autosaved to
+  // browser storage so a closed tab or crash can be recovered.
+  let isDirty = false;
+
   function setDocumentName(name, isSaved = false) {
     currentDocumentName = String(name || '').trim() || 'Untitled Design';
     if (docTitleText) docTitleText.textContent = currentDocumentName;
     if (treeProjectTitle) treeProjectTitle.textContent = currentDocumentName;
-    if (docSaveStatus) docSaveStatus.textContent = isSaved ? 'Saved (.ocad)' : 'Unsaved workspace';
-    document.title = `${currentDocumentName} — onlineCAD`;
+    document.title = `${currentDocumentName} - onlineCAD`;
+    updateSaveStatus(isSaved);
   }
 
   function updateSaveStatus(isSaved = false) {
-    if (docSaveStatus) docSaveStatus.textContent = isSaved ? 'Saved (.ocad)' : 'Unsaved workspace';
+    isDirty = !isSaved;
+    if (docSaveStatus) {
+      docSaveStatus.textContent = isSaved ? 'Saved (.ocad)' : (workspaceHasContent() ? 'Unsaved changes' : 'Unsaved workspace');
+      docSaveStatus.classList.toggle('is-dirty', !isSaved && workspaceHasContent());
+    }
   }
+
+  function workspaceHasContent() {
+    return sketchDocument.sketches.some(sketch => sketch.entities.length) || (cad.app?.extrudeController?.bodies?.length || 0) > 0;
+  }
+
+  function markDirty() {
+    updateSaveStatus(false);
+    scheduleAutosave();
+  }
+
+  let autosaveTimer = null;
+  let recoveryPending = false;
+  function scheduleAutosave(delay = 1500) {
+    if (!cad.projectStore) return;
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(writeAutosave, delay);
+  }
+
+  function writeAutosave() {
+    autosaveTimer = null;
+    const store = cad.projectStore;
+    if (!store || recoveryPending || !cad.app?.extrudeController) return;
+    // Very dense meshes would stall the UI on every edit; those rely on manual saves.
+    const meshSize = cad.app?.extrudeController.bodies.reduce((sum, body) => sum + (body.mesh?.triangles?.length || 0), 0);
+    if (meshSize > 1_500_000) return;
+    try {
+      const data = cad.projectIO.serializeProject({ documentName: currentDocumentName, sketchDocument,
+        extrudeController: cad.app?.extrudeController, camera });
+      const write = store.hasContent(data) ? store.put(store.AUTOSAVE_KEY, data) : store.remove(store.AUTOSAVE_KEY);
+      write.catch(() => { /* Autosave is best effort. */ });
+    } catch { /* Autosave is best effort. */ }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && autosaveTimer) {
+      clearTimeout(autosaveTimer);
+      writeAutosave();
+    }
+  });
+
+  window.addEventListener('beforeunload', event => {
+    if (!isDirty || !workspaceHasContent()) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
 
   if (docTitleText) {
     docTitleText.addEventListener('blur', () => {
-      setDocumentName(docTitleText.textContent, false);
+      const name = String(docTitleText.textContent || '').trim() || 'Untitled Design';
+      if (name === currentDocumentName) {
+        docTitleText.textContent = currentDocumentName;
+        return;
+      }
+      setDocumentName(name, false);
+      scheduleAutosave();
     });
     docTitleText.addEventListener('keydown', event => {
       if (event.key === 'Enter') {
@@ -445,6 +508,78 @@
     } else {
       apply(visible);
     }
+  }
+
+  function makeTreeDeleteButton(name, onDelete) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tree-delete';
+    button.title = `Delete ${name}`;
+    button.setAttribute('aria-label', `Delete ${name}`);
+    button.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+      <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/></svg>`;
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      onDelete();
+    });
+    return button;
+  }
+
+  function deleteSketch(sketch) {
+    const index = sketchDocument.sketches.indexOf(sketch);
+    if (index < 0) return false;
+    const apply = () => {
+      if (activeSketch === sketch) applyActiveSketch(null);
+      sketchDocument.removeSketch(sketch.id);
+      renderSketchTree();
+      requestRedraw(true);
+    };
+    history.execute({
+      name: `Delete ${sketch.name}`, kind: 'view',
+      execute: apply,
+      undo: () => {
+        if (!sketchDocument.sketches.includes(sketch)) {
+          sketchDocument.sketches.splice(Math.min(index, sketchDocument.sketches.length), 0, sketch);
+        }
+        renderSketchTree();
+        requestRedraw(true);
+      },
+      redo: apply,
+    });
+    flashStatus(`DELETED · ${sketch.name}`, `${sketch.name} removed. Ctrl+Z to undo.`, 2500);
+    return true;
+  }
+
+  function anySolidToolActive() {
+    return [extrudeController, solidRevolve, solidBevel, solidHole, bodyMove, solidPattern, meshDecimate,
+      meshToSolid, surfaceFinish, interference, zebraAnalysis].some(tool => tool?.active);
+  }
+
+  function deleteBody(body) {
+    const bodies = extrudeController?.bodies;
+    const index = bodies ? bodies.indexOf(body) : -1;
+    if (index < 0) return false;
+    const apply = () => {
+      const at = extrudeController.bodies.indexOf(body);
+      if (at >= 0) extrudeController.bodies.splice(at, 1);
+      if (faceSelection?.selectedBody === body || faceSelection?.selected?.body === body) faceSelection.clear();
+      renderBodyTree();
+      requestRedraw(true);
+    };
+    history.execute({
+      name: `Delete ${body.name}`, kind: 'solid', timelineTool: 'deleteBody',
+      execute: apply,
+      undo: () => {
+        if (!extrudeController.bodies.includes(body)) {
+          extrudeController.bodies.splice(Math.min(index, extrudeController.bodies.length), 0, body);
+        }
+        renderBodyTree();
+        requestRedraw(true);
+      },
+      redo: apply,
+    });
+    flashStatus(`DELETED · ${body.name}`, `${body.name} removed. Ctrl+Z to undo.`, 2500);
+    return true;
   }
 
   function setAllBodiesVisibility(visible, recordHistory = true) {
@@ -614,7 +749,7 @@
       icon.textContent = '▤';
       const label = document.createElement('span');
       label.textContent = `${sketch.name} · ${sketch.faceBodyId ? 'Face' : sketch.plane}`;
-      row.append(eye, icon, label);
+      row.append(eye, icon, label, makeTreeDeleteButton(sketch.name, () => deleteSketch(sketch)));
       const edit = () => {
         if (sketch !== activeSketch) {
           const toolToActivate = pendingSketchTool;
@@ -672,7 +807,13 @@
       icon.textContent = '⬡';
       const label = document.createElement('span');
       label.textContent = body.name;
-      row.append(eye, icon, label);
+      row.append(eye, icon, label, makeTreeDeleteButton(body.name, () => {
+        if (anySolidToolActive()) {
+          showError({ code: 'CAD-E003', title: 'Delete unavailable', reason: 'Finish or cancel the active tool before deleting a body.' });
+          return;
+        }
+        deleteBody(body);
+      }));
       row.addEventListener('click', () => {
         if (interference?.active) { interference.setBody(body); return; }
         if (zebraAnalysis?.active) { zebraAnalysis.setBody(body); return; }
@@ -776,6 +917,7 @@
     zebraAnalysis?.close();
     faceSelection?.clear();
     sketchTools.setTool(null);
+    sketchTools.clearEntitySelection();
     sketchTools.setConstruction(false);
     sketchTools.clearPointSelection();
     profileSelection.clear();
@@ -1475,6 +1617,7 @@
     const initialType = options.type || 'ocad';
     if (saveDialogFileTypeSelect) saveDialogFileTypeSelect.value = initialType;
     if (saveDialogWhereSelect) saveDialogWhereSelect.value = 'download';
+    syncSaveWhereOptions();
 
     const ext = initialType.startsWith('stl') ? '.stl' : '.ocad';
     const baseName = currentDocumentName.replace(/\.(ocad|stl|json)$/i, '') || 'Untitled Design';
@@ -1489,6 +1632,15 @@
         saveDialogFileNameInput?.setSelectionRange(0, baseName.length);
       }, 40);
     }
+  }
+
+  // Browser storage keeps editable projects only; meshes are always downloaded.
+  function syncSaveWhereOptions() {
+    const storageOption = saveDialogWhereSelect?.querySelector('option[value="storage"]');
+    if (!storageOption) return;
+    const meshExport = saveDialogFileTypeSelect?.value !== 'ocad';
+    storageOption.disabled = meshExport;
+    if (meshExport) saveDialogWhereSelect.value = 'download';
   }
 
   function closeSaveDialog() {
@@ -1522,6 +1674,7 @@
 
     saveDialogFileTypeSelect?.addEventListener('change', () => {
       const type = saveDialogFileTypeSelect.value;
+      syncSaveWhereOptions();
       const targetExt = type.startsWith('stl') ? '.stl' : '.ocad';
       const cur = saveDialogFileNameInput?.value || currentDocumentName;
       const base = cur.replace(/\.(ocad|stl|json)$/i, '') || 'Untitled Design';
@@ -1554,7 +1707,8 @@
       const selectedWhere = saveDialogWhereSelect?.value || 'download';
       const baseName = rawInput.replace(/\.(ocad|stl|json)$/i, '') || 'Untitled Design';
 
-      setDocumentName(baseName, true);
+      // Exporting a mesh does not save the design; only .ocad clears the dirty flag.
+      setDocumentName(baseName, selectedType === 'ocad' || !isDirty);
 
       try {
         if (selectedType === 'ocad') {
@@ -1565,11 +1719,15 @@
               extrudeController,
               camera,
             });
-            localStorage.setItem('onlinecad_saved_project', JSON.stringify(serialized));
-            const msg = `PROJECT SAVED TO STORAGE · ${baseName}.ocad`;
-            statusText.textContent = msg;
-            viewHint.textContent = `Draft saved to browser local storage (${baseName}.ocad)`;
-            setTimeout(() => { if (statusText.textContent === msg) statusText.textContent = modeStatus(); }, 3500);
+            const store = cad.projectStore;
+            if (!store) throw new Error('Browser storage is not available in this browser.');
+            store.put(store.SAVED_KEY, serialized).then(() => {
+              flashStatus(`PROJECT SAVED TO BROWSER · ${baseName}`,
+                'Saved in this browser. Reopen it with FILE > Open Browser Draft.');
+            }).catch(err => {
+              updateSaveStatus(false);
+              showError({ code: 'CAD-S001', title: 'Save Failed', reason: err?.message || 'Could not write to browser storage.' });
+            });
           } else {
             const result = cad.projectIO.saveProjectToFile({
               documentName: baseName,
@@ -1577,6 +1735,7 @@
               extrudeController,
               camera,
             });
+            cad.projectStore?.remove(cad.projectStore.AUTOSAVE_KEY).catch(() => {});
             const msg = `PROJECT SAVED · ${result.filename}`;
             statusText.textContent = msg;
             viewHint.textContent = `Downloaded ${result.filename} (${sketchDocument.sketches.length} sketches, ${extrudeController?.bodies?.length || 0} bodies)`;
@@ -1595,22 +1754,9 @@
             });
             return;
           }
-          if (selectedWhere === 'storage') {
-            const result = isBinary
-              ? cad.projectIO.exportBinarySTL(targetBodies, baseName)
-              : cad.projectIO.exportAsciiSTL(targetBodies, baseName);
-            localStorage.setItem('onlinecad_saved_stl', isBinary ? 'binary-mesh' : result.data);
-            const msg = `STL SAVED TO STORAGE · ${baseName}.stl`;
-            statusText.textContent = msg;
-            viewHint.textContent = `Saved ${result.triangleCount.toLocaleString()} triangles to browser storage`;
-            setTimeout(() => { if (statusText.textContent === msg) statusText.textContent = modeStatus(); }, 3500);
-          } else {
-            const result = cad.projectIO.saveSTLToFile(targetBodies, baseName, { binary: isBinary });
-            const msg = `STL EXPORTED · ${result.filename}`;
-            statusText.textContent = msg;
-            viewHint.textContent = `Exported ${result.filename} (${result.triangleCount.toLocaleString()} triangles, ${(result.byteLength / 1024).toFixed(1)} KB)`;
-            setTimeout(() => { if (statusText.textContent === msg) statusText.textContent = modeStatus(); }, 4000);
-          }
+          const result = cad.projectIO.saveSTLToFile(targetBodies, baseName, { binary: isBinary });
+          flashStatus(`STL EXPORTED · ${result.filename}`,
+            `Exported ${result.filename} (${result.triangleCount.toLocaleString()} triangles, ${(result.byteLength / 1024).toFixed(1)} KB)`, 4000);
         }
 
         const cb = pendingSaveCallback;
@@ -1632,6 +1778,9 @@
     sketchDocument.nextSketchId = 1;
     sketchDocument.nextEntityId = 1;
     sketchDocument.nextMeasurementId = 1;
+    sketchDocument.nextMarkerId = 1;
+    sketchDocument.nextConstraintId = 1;
+    cad.projectIO?.clearCustomPlanes();
     if (extrudeController) {
       extrudeController.bodies = [];
       extrudeController.nextBodyId = 1;
@@ -1683,41 +1832,66 @@
     if (!file) return;
     meshToSolid?.close();
     try {
+      applyActiveSketch(null);
       const result = await cad.projectIO.openProjectFromFile(file, {
         sketchDocument,
         extrudeController,
         camera,
         history,
       });
-      for (const body of extrudeController.bodies) {
-        if (!body.mesh || !(body.displayReduction > 0)) continue;
-        try {
-          const simplified = await cad.meshDecimator.workerJob('simplify', {
-            mesh: body.mesh, ratio: body.displayReduction,
-          }).promise;
-          body.renderMesh = { vertices: simplified.vertices, triangles: simplified.triangles };
-        } catch {
-          const simplified = cad.meshDecimator.decimateGridClustering(body.mesh, {
-            ratio: body.displayReduction,
-          });
-          body.renderMesh = { vertices: simplified.vertices, triangles: simplified.triangles };
-        }
-      }
-      setDocumentName(result.documentName, true);
-      applyActiveSketch(null);
-      renderSketchTree();
-      renderBodyTree();
-      requestRedraw(true);
-      if (extrudeController?.bodies?.length) {
-        modelView.fitToScene(true);
-      }
-      const msg = `PROJECT OPENED · ${result.documentName}`;
-      statusText.textContent = msg;
-      viewHint.textContent = `Loaded ${result.documentName} (${result.sketchCount} sketches, ${result.bodyCount} bodies)`;
-      setTimeout(() => { if (statusText.textContent === msg) statusText.textContent = modeStatus(); }, 3500);
+      await finishProjectLoad(result);
     } catch (err) {
       showError({ code: 'CAD-F002', title: 'Open Failed', reason: err?.message || 'Could not open project file' });
     }
+  }
+
+  // Load a project kept in browser storage (manual draft or autosave).
+  async function openStoredProject(key, { saved = false } = {}) {
+    const store = cad.projectStore;
+    try {
+      const entry = store ? await store.get(key) : null;
+      if (!entry?.project) {
+        showError({ code: 'CAD-F003', title: 'Nothing to open',
+          reason: 'No project is saved in this browser yet. Use Save Project > Where: Browser Workspace Storage.' });
+        return false;
+      }
+      meshToSolid?.close();
+      applyActiveSketch(null);
+      const result = cad.projectIO.deserializeProject(entry.project, { sketchDocument, extrudeController, camera, history });
+      await finishProjectLoad(result, { saved });
+      return true;
+    } catch (err) {
+      showError({ code: 'CAD-F002', title: 'Open Failed', reason: err?.message || 'Could not open the browser project' });
+      return false;
+    }
+  }
+
+  async function finishProjectLoad(result, { saved = true } = {}) {
+    for (const body of extrudeController.bodies) {
+      if (!body.mesh || !(body.displayReduction > 0)) continue;
+      try {
+        const simplified = await cad.meshDecimator.workerJob('simplify', {
+          mesh: body.mesh, ratio: body.displayReduction,
+        }).promise;
+        body.renderMesh = { vertices: simplified.vertices, triangles: simplified.triangles };
+      } catch {
+        const simplified = cad.meshDecimator.decimateGridClustering(body.mesh, {
+          ratio: body.displayReduction,
+        });
+        body.renderMesh = { vertices: simplified.vertices, triangles: simplified.triangles };
+      }
+    }
+    setDocumentName(result.documentName, saved);
+    if (!saved) scheduleAutosave();
+    applyActiveSketch(null);
+    renderSketchTree();
+    renderBodyTree();
+    requestRedraw(true);
+    if (extrudeController?.bodies?.length) {
+      modelView.fitToScene(true);
+    }
+    flashStatus(`PROJECT OPENED · ${result.documentName}`,
+      `Loaded ${result.documentName} (${result.sketchCount} sketches, ${result.bodyCount} bodies)`);
   }
 
   const importFileInput = document.querySelector('#importFileInput');
@@ -1927,6 +2101,8 @@
     openProjectFile: handleOpenProjectFile,
     newDesign: handleNewDesign,
     exportSTL: handleExportSTL,
+    exportMesh: handleExportMesh,
+    exportDXF: handleExportDXF,
     importFile: handleImportFile,
     setDocumentName,
     getDocumentName: () => currentDocumentName,
@@ -1939,6 +2115,12 @@
   document.querySelector('#openProjectBtn')?.addEventListener('click', () => {
     toggleFileMenu?.(false);
     projectFileInput?.click();
+  });
+  document.querySelector('#openBrowserDraftBtn')?.addEventListener('click', () => {
+    toggleFileMenu?.(false);
+    const open = () => openStoredProject(cad.projectStore?.SAVED_KEY, { saved: true });
+    if (isDirty && workspaceHasContent() && !window.confirm('Replace the current design with the browser draft? Unsaved changes will be lost.')) return;
+    open();
   });
   document.querySelector('#saveProjectBtn')?.addEventListener('click', () => {
     toggleFileMenu?.(false);
@@ -1956,10 +2138,57 @@
     toggleExportMenu?.(false);
     handleSaveProject();
   });
-  document.querySelector('[data-export="dxf"]')?.addEventListener('click', () => {
+  function flashStatus(message, hint, duration = 3500) {
+    statusText.textContent = message;
+    if (hint) viewHint.textContent = hint;
+    setTimeout(() => { if (statusText.textContent === message) statusText.textContent = modeStatus(); }, duration);
+  }
+
+  function handleExportMesh(format) {
+    const label = format.toUpperCase();
+    const bodies = (extrudeController?.bodies || []).filter(b => b.visible !== false && b.mesh?.triangles?.length);
+    if (!bodies.length) {
+      showError({ code: 'CAD-E001', title: 'Export Notice',
+        reason: `No visible 3D bodies available to export as ${label}. Create a body with EXTRUDE first.` });
+      return;
+    }
+    try {
+      const result = cad.projectIO.saveMeshToFile(format, bodies, currentDocumentName);
+      flashStatus(`${label} EXPORTED · ${result.filename}`,
+        `Exported ${result.filename} (${bodies.length} bodies, ${result.triangleCount.toLocaleString()} triangles)`);
+    } catch (err) {
+      showError({ code: 'CAD-E002', title: 'Export Failed', reason: err?.message || `Could not export ${label}.` });
+    }
+  }
+
+  function handleExportDXF() {
+    const sketches = activeSketch ? [activeSketch]
+      : sketchDocument.sketches.filter(sketch => sketch.visible !== false);
+    if (!sketches.some(sketch => sketch.entities.length)) {
+      showError({ code: 'CAD-E001', title: 'Export Notice',
+        reason: 'No sketch geometry to export as DXF. Draw or show a sketch first.' });
+      return;
+    }
+    try {
+      const result = cad.projectIO.saveDXFToFile(sketches, currentDocumentName);
+      flashStatus(`DXF EXPORTED · ${result.filename}`,
+        `Exported ${result.entityCount} entities from ${sketches.length} sketch${sketches.length === 1 ? '' : 'es'}`);
+    } catch (err) {
+      showError({ code: 'CAD-E002', title: 'Export Failed', reason: err?.message || 'Could not export DXF.' });
+    }
+  }
+
+  document.querySelector('#export3mfBtn')?.addEventListener('click', () => {
     toggleExportMenu?.(false);
-    statusText.textContent = 'EXPORT .DXF · FEATURE PLANNED (TO-DO)';
-    setTimeout(() => { if (statusText.textContent === 'EXPORT .DXF · FEATURE PLANNED (TO-DO)') statusText.textContent = modeStatus(); }, 2200);
+    handleExportMesh('3mf');
+  });
+  document.querySelector('#exportObjBtn')?.addEventListener('click', () => {
+    toggleExportMenu?.(false);
+    handleExportMesh('obj');
+  });
+  document.querySelector('#exportDxfBtn')?.addEventListener('click', () => {
+    toggleExportMenu?.(false);
+    handleExportDXF();
   });
 
   if (importDropdown) {
@@ -2467,6 +2696,13 @@
       return;
     }
 
+    if ((event.key === 'Delete' || event.key === 'Backspace') && !isCtrl && !activeSketch &&
+        faceSelection?.selectedBody && !anySolidToolActive()) {
+      event.preventDefault();
+      deleteBody(faceSelection.selectedBody);
+      return;
+    }
+
     if (!isCtrl && !event.altKey && cad.shortcuts.toolFor(event.key) === 'extrude') {
       event.preventDefault();
       if (activeSketch) closeSketch();
@@ -2606,4 +2842,72 @@
     setRibbonWorkspace,
   });
   redraw();
+
+  // Offer to recover the last autosave when the page opens on an empty workspace.
+  function showRecoveryNotice(entry) {
+    const project = entry.project;
+    const when = new Date(entry.savedAt).toLocaleString();
+    const notice = document.createElement('section');
+    notice.className = 'error-notice is-info';
+    notice.setAttribute('role', 'status');
+    const accent = document.createElement('div');
+    accent.className = 'error-notice-accent';
+    const icon = document.createElement('div');
+    icon.className = 'error-notice-icon-badge';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>`;
+    const content = document.createElement('div');
+    content.className = 'error-notice-content';
+    const heading = document.createElement('div');
+    heading.className = 'error-notice-header';
+    const title = document.createElement('strong');
+    title.className = 'error-notice-title';
+    title.textContent = 'Recover unsaved work?';
+    const code = document.createElement('code');
+    code.className = 'error-notice-code';
+    code.textContent = 'AUTOSAVE';
+    heading.append(title, code);
+    const text = document.createElement('p');
+    text.className = 'error-notice-text';
+    const sketchTotal = project.sketches?.length || 0;
+    const bodyTotal = project.bodies?.length || 0;
+    text.textContent = `"${project.documentName || 'Untitled Design'}" from ${when} (${sketchTotal} sketches, ${bodyTotal} bodies).`;
+    const actions = document.createElement('div');
+    actions.className = 'error-notice-actions';
+    const restore = document.createElement('button');
+    restore.type = 'button';
+    restore.className = 'error-notice-action is-primary';
+    restore.textContent = 'Restore';
+    const discard = document.createElement('button');
+    discard.type = 'button';
+    discard.className = 'error-notice-action';
+    discard.textContent = 'Discard';
+    actions.append(restore, discard);
+    content.append(heading, text, actions);
+    notice.append(accent, icon, content);
+    // Until the user decides, new edits must not overwrite the old autosave.
+    recoveryPending = true;
+    restore.addEventListener('click', async () => {
+      notice.remove();
+      recoveryPending = false;
+      await openStoredProject(cad.projectStore.AUTOSAVE_KEY, { saved: false });
+    });
+    discard.addEventListener('click', () => {
+      notice.remove();
+      recoveryPending = false;
+      scheduleAutosave(0);
+      cad.projectStore.remove(cad.projectStore.AUTOSAVE_KEY).catch(() => {});
+    });
+    errorTray.prepend(notice);
+  }
+
+  if (cad.projectStore) {
+    cad.projectStore.migrateLegacy()
+      .then(() => cad.projectStore.get(cad.projectStore.AUTOSAVE_KEY))
+      .then(entry => {
+        if (entry?.project && cad.projectStore.hasContent(entry.project) && !workspaceHasContent()) showRecoveryNotice(entry);
+      })
+      .catch(() => { /* Recovery is best effort. */ });
+  }
 })(window.WebCAD = window.WebCAD || {});

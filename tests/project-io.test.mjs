@@ -149,3 +149,120 @@ test('projectIO exports valid ASCII STL string with facet normal and vertices', 
   assert.equal(stl.triangleCount, 1);
   assert.ok(stl.byteLength > 0);
 });
+
+test('projectIO keeps constraint and marker counters ahead of loaded ids', () => {
+  const doc = new cad.SketchDocument();
+  const sketch = doc.makeSketch('XY');
+  const line = doc.makeLine([0, 0], [10, 0]);
+  doc.insertEntity(sketch, line);
+  doc.insertSketch(sketch);
+  doc.insertConstraint(sketch, doc.makeConstraint({ type: 'horizontal', entityId: line.id }));
+  doc.insertMidpoint(sketch, doc.makeMidpointMarker(line.id, null));
+  const data = cad.projectIO.serializeProject({ sketchDocument: doc });
+  assert.equal(data.counters.nextConstraintId, 2);
+  assert.equal(data.counters.nextMarkerId, 2);
+
+  // Older files had no counters for these; ids must still not collide.
+  delete data.counters.nextConstraintId;
+  delete data.counters.nextMarkerId;
+  data.counters.nextEntityId = 1;
+  const restored = new cad.SketchDocument();
+  cad.projectIO.deserializeProject(data, { sketchDocument: restored, extrudeController: { bodies: [] } });
+  assert.equal(restored.nextConstraintId, 2);
+  assert.equal(restored.nextMarkerId, 2);
+  assert.equal(restored.nextEntityId, 2);
+  const next = restored.makeConstraint({ type: 'vertical', entityId: line.id });
+  restored.insertConstraint(restored.sketches[0], next);
+  assert.equal(restored.sketches[0].constraints.length, 2, 'new constraint is not swallowed by an id clash');
+});
+
+test('projectIO clears face planes of the previous design when loading', () => {
+  cad.planes.grid['FACE-99'] = { u: [1, 0, 0], v: [0, 1, 0], origin: [0, 0, 0] };
+  cad.projectIO.deserializeProject({ format: 'onlineCAD', sketches: [], bodies: [], planes: {} },
+    { sketchDocument: new cad.SketchDocument(), extrudeController: { bodies: [] } });
+  assert.equal(cad.planes.grid['FACE-99'], undefined);
+  assert.ok(cad.planes.grid.XY, 'origin planes stay');
+});
+
+const cubeBody = {
+  id: 'body-1', name: 'Cube', visible: true,
+  mesh: { vertices: [0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0, 10], triangles: [0, 2, 1, 0, 1, 3, 0, 3, 2, 1, 2, 3] },
+};
+
+test('projectIO exports OBJ with 1-based indices across bodies', () => {
+  const second = { ...cubeBody, id: 'body-2', name: 'Copy' };
+  const hidden = { ...cubeBody, id: 'body-3', visible: false };
+  const result = cad.projectIO.exportOBJ([cubeBody, second, hidden], 'Part');
+  const lines = result.text.trim().split('\n');
+  assert.equal(lines.filter(line => line.startsWith('v ')).length, 8);
+  assert.equal(lines.filter(line => line.startsWith('f ')).length, 8);
+  assert.ok(lines.includes('o Cube') && lines.includes('o Copy'));
+  assert.ok(lines.includes('f 1 3 2'));
+  assert.ok(lines.includes('f 5 7 6'), 'second body indices are offset');
+  assert.equal(result.triangleCount, 8);
+});
+
+function readStoredZip(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const end = bytes.length - 22;
+  assert.equal(view.getUint32(end, true), 0x06054B50);
+  const count = view.getUint16(end + 10, true);
+  let offset = view.getUint32(end + 16, true);
+  const files = {};
+  for (let i = 0; i < count; i++) {
+    assert.equal(view.getUint32(offset, true), 0x02014B50);
+    const crc = view.getUint32(offset + 16, true);
+    const size = view.getUint32(offset + 20, true);
+    const nameLength = view.getUint16(offset + 28, true);
+    const local = view.getUint32(offset + 42, true);
+    const name = new TextDecoder().decode(bytes.subarray(offset + 46, offset + 46 + nameLength));
+    assert.equal(view.getUint32(local, true), 0x04034B50);
+    const dataStart = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    const data = bytes.subarray(dataStart, dataStart + size);
+    assert.equal(cad.projectIO.crc32(data), crc, `${name} CRC matches`);
+    files[name] = new TextDecoder().decode(data);
+    offset += 46 + nameLength;
+  }
+  return files;
+}
+
+test('projectIO exports a valid 3MF package', () => {
+  assert.equal(cad.projectIO.crc32(new TextEncoder().encode('123456789')), 0xCBF43926);
+  const result = cad.projectIO.export3MF([cubeBody], 'Bracket & Co');
+  const files = readStoredZip(result.bytes);
+  assert.deepEqual(Object.keys(files).sort(), ['3D/3dmodel.model', '[Content_Types].xml', '_rels/.rels']);
+  const model = files['3D/3dmodel.model'];
+  assert.match(model, /unit="millimeter"/);
+  assert.equal((model.match(/<vertex /g) || []).length, 4);
+  assert.equal((model.match(/<triangle /g) || []).length, 4);
+  assert.match(model, /Bracket &amp; Co/);
+  assert.match(files['_rels/.rels'], /\/3D\/3dmodel\.model/);
+  assert.equal(result.triangleCount, 4);
+});
+
+test('projectIO exports sketches as R12 DXF with layers and CCW arcs', () => {
+  const sketch = {
+    id: 'sketch-1', name: 'Sketch 1', entities: [
+      { id: 'entity-1', type: 'rectangle', start: [0, 0], end: [20, 10] },
+      { id: 'entity-2', type: 'circle', center: [5, 5], radius: 2 },
+      { id: 'entity-3', type: 'line', start: [0, 0], end: [20, 10], construction: true },
+      { id: 'entity-4', type: 'arc', center: [0, 0], radius: 5, startAngle: Math.PI / 2, endAngle: 0, counterClockwise: true },
+      { id: 'entity-5', type: 'point', position: [3, 4] },
+    ],
+  };
+  const result = cad.projectIO.exportDXF([sketch]);
+  const pairs = result.text.trim().split('\n');
+  const types = pairs.filter((value, index) => index % 2 === 1 && pairs[index - 1] === '0');
+  assert.equal(types.filter(type => type === 'LINE').length, 5);
+  assert.equal(types.filter(type => type === 'CIRCLE').length, 1);
+  assert.equal(types.filter(type => type === 'ARC').length, 1);
+  assert.equal(types.filter(type => type === 'POINT').length, 1);
+  assert.equal(pairs.at(-1), 'EOF');
+  assert.ok(pairs.includes('SKETCH_1') && pairs.includes('SKETCH_1_CONSTRUCTION'));
+  const arc = pairs.indexOf('ARC');
+  const arcGroups = pairs.slice(arc + 1, arc + 18);
+  assert.equal(arcGroups[arcGroups.indexOf('50') + 1], '0', 'clockwise arc is written from its end angle');
+  assert.equal(arcGroups[arcGroups.indexOf('51') + 1], '90');
+  assert.equal(result.entityCount, 5);
+  assert.throws(() => cad.projectIO.exportDXF([{ entities: [] }]), /No sketch geometry/);
+});

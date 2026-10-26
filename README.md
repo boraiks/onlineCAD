@@ -1,4 +1,4 @@
-﻿# onlineCAD
+# onlineCAD
 
 A lightweight, high-performance browser-native 3D CAD modeling workspace built with modern Web standards, WebAssembly, and WebGL.
 
@@ -21,6 +21,7 @@ Designed to operate with zero server-side dependencies, all geometry evaluations
 - **Drawing Primitives**: Lines, 2-Point and Center Rectangles, Circles (clean radius HUD), Arcs, Points, and Construction geometry.
 - **Constraints & Snapping**: Coincident, Horizontal, Vertical, Tangent, Parallel, Perpendicular, and Concentric relations with real-time cursor magnetic snapping.
 - **Sketch Editing**: Dynamic Trim, Fillet (corner and circle-circle), Offset, Mirroring, and Rectangular/Circular Patterns.
+- **Select & Delete**: Click sketch geometry with no tool active (Shift/Ctrl+click to add) and press `Delete`; dependent constraints and dimensions are removed with it and `Ctrl+Z` brings everything back.
 - **Profile Solver**: Automatic cycle detection for closed planar loops, supporting nested profiles and multi-island solid extrusions.
 
 ### 2. Solid 3D Modeling
@@ -38,8 +39,11 @@ Designed to operate with zero server-side dependencies, all geometry evaluations
 ### 4. Parametric Timeline & Project Persistence
 - **Timeline History**: Step-by-step feature tree enabling chronological review and non-destructive rollbacks.
 - **Undo / Redo**: Bi-directional operational history stack accessible via `Ctrl+Z` / `Ctrl+Y`.
-- **Native Persistence (`.ocad`)**: Save and reload projects with complete entity hierarchy and body states.
-- **3D Printing Export (`.stl`)**: Direct binary STL export formatted for 3D printer slicers (Bambu Studio, PrusaSlicer, Cura, OrcaSlicer).
+- **Native Persistence (`.ocad`)**: Save and reload projects with complete entity hierarchy and body states, as a download or as a draft kept in the browser (**FILE > Open Browser Draft**).
+- **Autosave & Recovery**: Every change is autosaved to browser storage (IndexedDB); after a closed tab or crash the workspace offers to restore the last state. The title bar shows *Unsaved changes* and the browser warns before leaving with unsaved work.
+- **3D Printing Export**: Binary/ASCII STL and 3MF (one object per body, millimetre units) for Bambu Studio, PrusaSlicer, Cura and OrcaSlicer; OBJ for Blender and renderers.
+- **2D Drawing Export (`.dxf`)**: The open sketch, or all visible sketches, as AutoCAD R12 DXF with one layer per sketch and a separate layer for construction geometry.
+- **Delete Sketches & Bodies**: Trash button on browser tree rows, or select a body and press `Delete`; fully undoable.
 - **Universal Importers**: Drag-and-drop support for STEP (`.step`, `.stp`), STL, OBJ, and DXF files.
 
 ### 5. Workflow & Usability
@@ -121,7 +125,9 @@ Navigate to `http://localhost:8080` in your browser.
 | <kbd>C</kbd> | Circle Tool (Opens plane picker if outside sketch) | Global / Sketch |
 | <kbd>R</kbd> | 2-Point Rectangle (Opens plane picker) | Global / Sketch |
 | <kbd>M</kbd> | Move / Rotate Transform | Solid Workspace |
-| <kbd>F</kbd> | Zoom to Fit | Viewport |
+| <kbd>F</kbd> | 3D Fillet (Sketch Fillet inside a sketch) | Solid Workspace / Sketch |
+| <kbd>Home</kbd> | Zoom to Fit | Viewport |
+| <kbd>Delete</kbd> | Delete selected sketch items or body | Sketch / Solid Workspace |
 | <kbd>Ctrl</kbd> + <kbd>Z</kbd> | Undo | Global |
 | <kbd>Ctrl</kbd> + <kbd>Y</kbd> | Redo | Global |
 | <kbd>Ctrl</kbd> + <kbd>S</kbd> | Save Project (`.ocad`) | Global |
@@ -141,7 +147,7 @@ The project includes an automated test suite covering the solid kernel, sketch c
 node --test tests/*.test.mjs
 ```
 
-All 196 unit and integration tests run directly via the Node.js native test runner.
+All 202 unit and integration tests run directly via the Node.js native test runner.
 
 ---
 

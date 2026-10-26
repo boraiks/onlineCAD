@@ -207,3 +207,21 @@ test('openProjectFromFile strictly rejects non-ocad files', async () => {
     /Only \.ocad files are supported/
   );
 });
+
+test('DXF export round-trips through the DXF importer', () => {
+  const sketch = {
+    id: 'sketch-1', name: 'Plate', entities: [
+      { id: 'entity-1', type: 'rectangle', start: [0, 0], end: [40, 20] },
+      { id: 'entity-2', type: 'circle', center: [10, 10], radius: 3 },
+      { id: 'entity-3', type: 'arc', center: [30, 10], radius: 4, startAngle: 0, endAngle: Math.PI, counterClockwise: false },
+    ],
+  };
+  const parsed = cad.importers.parseDXF(cad.projectIO.exportDXF([sketch]).text);
+  const { entities } = parsed;
+  const count = type => entities.filter(entity => entity.type === type).length;
+  assert.equal(count('line'), 4);
+  assert.equal(count('circle'), 1);
+  assert.equal(count('arc'), 1);
+  const arc = entities.find(entity => entity.type === 'arc');
+  assert.ok(Math.abs(arc.endAngle - Math.PI) < 1e-6);
+});
