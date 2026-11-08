@@ -216,7 +216,8 @@
         } else if (converted.rebuildReason) {
           rebuildNote = ` · surface rebuild skipped: ${converted.rebuildReason}`;
         }
-        this.onStatus?.(`MESH TO SOLID · ${body.name}: ${converted.originalTriangles.toLocaleString()} → ${converted.triangleCount.toLocaleString()} triangles, ${converted.volume.toFixed(2)} mm³${rebuildNote}`);
+        const repairNote = cad.meshToSolid.repairSummary(converted.repair);
+        this.onStatus?.(`MESH TO SOLID · ${body.name}: ${converted.originalTriangles.toLocaleString()} → ${converted.triangleCount.toLocaleString()} triangles, ${converted.volume.toFixed(2)} mm³${repairNote ? ` · ${repairNote}` : ''}${rebuildNote}`);
         return true;
       } catch (error) {
         if (error?.name !== 'AbortError') {
@@ -255,5 +256,14 @@
     }
   }
 
-  cad.meshToSolid = { MeshToSolidController, convertMesh };
+  function repairSummary(repair) {
+    if (!repair) return '';
+    const parts = [];
+    if (repair.filledHoles) parts.push(`${repair.filledHoles} hole${repair.filledHoles === 1 ? '' : 's'} closed`);
+    if (repair.removedNonManifold) parts.push(`${repair.removedNonManifold} overlapping facets replaced`);
+    if (repair.removedDuplicates) parts.push(`${repair.removedDuplicates} duplicate facets removed`);
+    return parts.length ? `auto-repaired: ${parts.join(', ')}` : 'auto-repaired';
+  }
+
+  cad.meshToSolid = { MeshToSolidController, convertMesh, repairSummary };
 })(window.WebCAD = window.WebCAD || {});

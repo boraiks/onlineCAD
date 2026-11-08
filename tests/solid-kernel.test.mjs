@@ -14,7 +14,7 @@ globalThis.document = {
   } }
 };
 
-for (const file of ['math.js', 'orientation.js', 'settings.js', 'camera.js', 'planes.js', 'sketch-grid.js', 'sketch-geometry.js', 'sketch-model.js', 'canvas.js', 'sketch-profiles.js', 'sketch-render.js', 'solid-kernel.js', 'body-renderer.js', 'body-faces.js', 'extrude.js', 'body-move.js']) {
+for (const file of ['math.js', 'orientation.js', 'settings.js', 'camera.js', 'planes.js', 'sketch-grid.js', 'sketch-geometry.js', 'sketch-model.js', 'canvas.js', 'sketch-profiles.js', 'sketch-render.js', 'solid-kernel.js', 'mesh-rebuild-core.js', 'mesh-feature-fit-core.js', 'mesh-solid-core.js', 'body-renderer.js', 'body-faces.js', 'extrude.js', 'body-move.js']) {
   const url = new URL(`../js/${file}`, import.meta.url);
   runInThisContext(readFileSync(url, 'utf8'), { filename: file });
 }
@@ -881,4 +881,34 @@ test('stepped cylinder concave junction is detected as a ring and can be fillete
   assert.ok(chamfered?.mesh, 'Chamfering concave ring produces a valid mesh');
   const chamferVol = volume(chamfered);
   assert.ok(chamferVol > initialVolume + 10, 'Chamfering concave ring adds material in the corner');
+});
+
+test('booleans repair imported meshes that are not closed instead of failing', async () => {
+  await cad.solidKernel.load();
+  const box = { id: 'box', plane: 'XY', points: [[0, 0], [20, 0], [20, 20], [0, 20]],
+    holes: [], start: 0, end: 20, normal: [0, 0, 1] };
+  const closed = cad.solidKernel.meshBody(box);
+  // STL-style soup: every facet has its own vertices, one facet is missing
+  // (a hole) and another is stored twice (a non-manifold edge).
+  const vertices = [];
+  const triangles = [];
+  const facets = [];
+  for (let t = 0; t < closed.triangles.length; t += 3) facets.push(closed.triangles.slice(t, t + 3));
+  facets.splice(0, 1);
+  facets.push(facets[3]);
+  for (const facet of facets) {
+    for (const index of facet) {
+      triangles.push(vertices.length / 3);
+      vertices.push(closed.vertices[index * 3], closed.vertices[index * 3 + 1], closed.vertices[index * 3 + 2]);
+    }
+  }
+  const imported = { id: 'body-1', name: 'Imported', meshSource: 'mesh', plane: 'XY', normal: [0, 0, 1],
+    mesh: { vertices, triangles } };
+  const tool = { id: 'tool', plane: 'XY', points: [[5, 5], [15, 5], [15, 15], [5, 15]],
+    holes: [], start: -5, end: 25, normal: [0, 0, 1] };
+  tool.mesh = cad.solidKernel.meshBody(tool);
+  const cut = cad.solidKernel.booleanBody(imported, [tool], 'cut');
+  assert.ok(cut && !cut.empty, 'cut succeeds on the repaired mesh');
+  const repaired = globalThis.WebCADMeshSolidCore.prepareSolidMesh(imported.mesh);
+  assert.ok(repaired.repair.filledHoles >= 1);
 });

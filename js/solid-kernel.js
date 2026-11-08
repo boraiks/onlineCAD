@@ -25,16 +25,40 @@
     return loading;
   }
 
+  // Imported meshes are often not closed. Booleans repair them once (cached
+  // per mesh) instead of failing with "Not manifold".
+  const repairedMeshes = new WeakMap();
+
+  function manifoldFromMesh(vertices, triangles) {
+    let solid = null;
+    try {
+      solid = new module.Manifold(new module.Mesh({
+        numProp: 3, vertProperties: new Float32Array(vertices), triVerts: new Uint32Array(triangles),
+      }));
+      if (solid.status() === 'NoError') return solid;
+    } catch { /* Fall through to the repair path. */ }
+    solid?.delete();
+    return null;
+  }
+
+  function meshManifold(body) {
+    const direct = repairedMeshes.has(body.mesh) ? null : manifoldFromMesh(body.mesh.vertices, body.mesh.triangles);
+    if (direct) return direct;
+    const core = globalThis.WebCADMeshSolidCore;
+    if (!core?.prepareSolidMesh) throw new Error('Not manifold: the mesh is not a closed solid.');
+    let repaired = repairedMeshes.get(body.mesh);
+    if (!repaired) {
+      repaired = core.prepareSolidMesh(body.mesh);
+      repairedMeshes.set(body.mesh, repaired);
+    }
+    const solid = manifoldFromMesh(repaired.vertices, repaired.triangles);
+    if (!solid) throw new Error(`${body.name || 'The mesh'} is not a closed solid even after automatic repair. Repair the STL in a mesh tool first.`);
+    return solid;
+  }
+
   function fromBody(body, cutMargin = 0) {
     if (!module) throw new Error('3D geometry kernel is not ready');
-    if (body.mesh && body.meshSource !== 'profile') {
-      const mesh = new module.Mesh({
-        numProp: 3,
-        vertProperties: new Float32Array(body.mesh.vertices),
-        triVerts: new Uint32Array(body.mesh.triangles)
-      });
-      return new module.Manifold(mesh);
-    }
+    if (body.mesh && body.meshSource !== 'profile') return meshManifold(body);
     const { u, v } = cad.planes.grid[body.plane];
     const n = body.normal;
     const matrix = [u[0], u[1], u[2], 0, v[0], v[1], v[2], 0,

@@ -23,7 +23,9 @@
       weldedVertices: remap.length - compact.length / 3 };
   }
 
-  function prepareClosedMesh(source, allowWeld = true) {
+  // keepZeroArea: after repair, sliver facets hold the surface closed;
+  // Manifold collapses them itself, removing them here would reopen holes.
+  function prepareClosedMesh(source, allowWeld = true, { keepZeroArea = false } = {}) {
     const vertices = source?.vertices;
     const triangles = source?.triangles;
     if (!vertices || !triangles || vertices.length % 3 || triangles.length % 3 || triangles.length < 12)
@@ -53,7 +55,7 @@
       const ux = vertices[b * 3] - ax, uy = vertices[b * 3 + 1] - ay, uz = vertices[b * 3 + 2] - az;
       const vx = vertices[c * 3] - ax, vy = vertices[c * 3 + 1] - ay, vz = vertices[c * 3 + 2] - az;
       const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-      if (nx * nx + ny * ny + nz * nz <= 1e-24) { removed++; continue; }
+      if (!keepZeroArea && nx * nx + ny * ny + nz * nz <= 1e-24) { removed++; continue; }
       valid.push(a, b, c);
       addEdge(a, b); addEdge(b, c); addEdge(c, a);
     }
@@ -221,7 +223,7 @@
     if (options.geometry === 'feature-fit') {
       if (!root.WebCADMeshFeatureFitCore)
         throw new Error('Analytic feature-fitting engine is unavailable.');
-      const cleaned = prepareClosedMesh(source);
+      const cleaned = prepareSolidMesh(source);
       const fitOptions = { ...options };
       if (options.accuracy && !options.chordTolerance) {
         fitOptions.chordToleranceRatio = Math.max(5e-5, Number(options.accuracy) * 0.05);
@@ -249,6 +251,7 @@
         return {
           vertices, triangles, volume,
           removedDegenerate: cleaned.removedDegenerate,
+          repair: cleaned.repair || null,
           repairedWinding: cleaned.repairedWinding,
           reoriented: cleaned.reoriented,
           triangleCount: triangles.length / 3,
@@ -269,7 +272,7 @@
         solid.delete();
       }
     }
-    const cleaned = prepareClosedMesh(source);
+    const cleaned = prepareSolidMesh(source);
     const input = new module.Mesh({ numProp: 3,
       vertProperties: cleaned.vertices, triVerts: cleaned.triangles });
     const solid = new module.Manifold(input);
@@ -344,7 +347,7 @@
         vertices[at++] = output.vertProperties[i + 2];
       }
       const triangles = Uint32Array.from(output.triVerts);
-      return { vertices, triangles, volume, removedDegenerate: cleaned.removedDegenerate,
+      return { vertices, triangles, volume, removedDegenerate: cleaned.removedDegenerate, repair: cleaned.repair || null,
         repairedWinding: cleaned.repairedWinding, reoriented: cleaned.reoriented,
         triangleCount: triangles.length / 3, vertexCount: vertices.length / 3,
         originalTriangles: cleaned.triangles.length / 3,
@@ -360,5 +363,196 @@
     }
   }
 
-  root.WebCADMeshSolidCore = { prepareClosedMesh, convert };
+  // Downloaded STL files often have a handful of defects (nearly coincident
+  // vertices, doubled facets, edges shared by more than two facets, small
+  // holes). Fix those locally so the surface encloses a volume:
+  //   1. weld vertices closer than a tiny fraction of the model size,
+  //   2. drop degenerate facets and cancel doubled facets,
+  //   3. remove facets on edges used by more than two facets,
+  //   4. close every remaining hole with a fan around its centroid.
+  function repairMesh(source) {
+    const sourceVertices = source.vertices;
+    const sourceTriangles = source.triangles;
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < sourceVertices.length; i += 3) {
+      minX = Math.min(minX, sourceVertices[i]); maxX = Math.max(maxX, sourceVertices[i]);
+      minY = Math.min(minY, sourceVertices[i + 1]); maxY = Math.max(maxY, sourceVertices[i + 1]);
+      minZ = Math.min(minZ, sourceVertices[i + 2]); maxZ = Math.max(maxZ, sourceVertices[i + 2]);
+    }
+    const extent = Math.max(maxX - minX, maxY - minY, maxZ - minZ) || 1;
+    const cell = extent * 1e-6;
+
+    const lookup = new Map();
+    const vertices = [];
+    const remap = new Uint32Array(sourceVertices.length / 3);
+    for (let i = 0; i < remap.length; i++) {
+      const x = sourceVertices[i * 3], y = sourceVertices[i * 3 + 1], z = sourceVertices[i * 3 + 2];
+      const key = `${Math.round(x / cell)},${Math.round(y / cell)},${Math.round(z / cell)}`;
+      let index = lookup.get(key);
+      if (index === undefined) {
+        index = vertices.length / 3;
+        vertices.push(x, y, z);
+        lookup.set(key, index);
+      }
+      remap[i] = index;
+    }
+    lookup.clear();
+    const weldedVertices = remap.length - vertices.length / 3;
+
+    // Facets with the same three corners: equal windings are duplicates,
+    // opposite windings are a zero-thickness double wall and cancel out.
+    const facets = new Map();
+    let removedDegenerate = 0;
+    for (let i = 0; i < sourceTriangles.length; i += 3) {
+      const a = remap[sourceTriangles[i]], b = remap[sourceTriangles[i + 1]], c = remap[sourceTriangles[i + 2]];
+      if (a === b || b === c || c === a) { removedDegenerate++; continue; }
+      const sorted = [a, b, c].sort((p, q) => p - q);
+      const key = sorted.join(',');
+      // Even permutations of the sorted triple keep the winding.
+      const rotation = [a, b, c].indexOf(sorted[0]);
+      const even = [a, b, c][(rotation + 1) % 3] === sorted[1];
+      const entry = facets.get(key) || { triangle: null, balance: 0, count: 0 };
+      if (!entry.triangle || (entry.balance === 0)) entry.triangle = [a, b, c];
+      entry.balance += even ? 1 : -1;
+      entry.count++;
+      facets.set(key, entry);
+    }
+    let triangles = [];
+    let removedDuplicates = 0;
+    for (const entry of facets.values()) {
+      if (entry.balance === 0) { removedDuplicates += entry.count; continue; }
+      const [a, b, c] = entry.triangle;
+      const sorted = [a, b, c].sort((p, q) => p - q);
+      const rotation = [a, b, c].indexOf(sorted[0]);
+      const even = [a, b, c][(rotation + 1) % 3] === sorted[1];
+      triangles.push(even === entry.balance > 0 ? [a, b, c] : [a, c, b]);
+      removedDuplicates += entry.count - 1;
+    }
+    facets.clear();
+
+    const vertexCount = () => vertices.length / 3;
+    const edgeKey = (p, q) => Math.min(p, q) * 4294967296 + Math.max(p, q);
+    const countEdges = list => {
+      const counts = new Map();
+      for (const [a, b, c] of list) {
+        for (const key of [edgeKey(a, b), edgeKey(b, c), edgeKey(c, a)]) counts.set(key, (counts.get(key) || 0) + 1);
+      }
+      return counts;
+    };
+
+    let counts = countEdges(triangles);
+    const crowded = new Set([...counts].filter(([, count]) => count > 2).map(([key]) => key));
+    const before = triangles.length;
+    if (crowded.size) {
+      triangles = triangles.filter(([a, b, c]) =>
+        !crowded.has(edgeKey(a, b)) && !crowded.has(edgeKey(b, c)) && !crowded.has(edgeKey(c, a)));
+      counts = countEdges(triangles);
+    }
+    const removedNonManifold = before - triangles.length;
+
+    let filledHoles = 0;
+    const closeCycle = cycle => {
+      if (cycle.length < 3) return;
+      filledHoles++;
+      if (cycle.length === 3) {
+        triangles.push([cycle[0], cycle[1], cycle[2]]);
+        return;
+      }
+      let cx = 0, cy = 0, cz = 0;
+      for (const index of cycle) {
+        cx += vertices[index * 3]; cy += vertices[index * 3 + 1]; cz += vertices[index * 3 + 2];
+      }
+      const center = vertexCount();
+      vertices.push(cx / cycle.length, cy / cycle.length, cz / cycle.length);
+      for (let i = 0; i < cycle.length; i++) triangles.push([cycle[i], cycle[(i + 1) % cycle.length], center]);
+    };
+    // A traced loop may pass the same vertex twice (pinched holes); split it
+    // into simple cycles so each fan stays manifold.
+    const closeLoop = path => {
+      const stack = [];
+      const position = new Map();
+      for (const index of path) {
+        if (position.has(index)) {
+          const loop = stack.splice(position.get(index) + 1);
+          for (const removed of loop) position.delete(removed);
+          closeCycle([index, ...loop]);
+        } else {
+          position.set(index, stack.length);
+          stack.push(index);
+        }
+      }
+      closeCycle(stack);
+    };
+    // Directed pass: each open edge u->v gets a fill edge v->u, so the fans
+    // already match the surrounding winding. Holes whose rim has mixed
+    // winding only close in the undirected pass; prepareClosedMesh then
+    // makes the winding consistent.
+    const fillHoles = directed => {
+      const open = countEdges(triangles);
+      const next = new Map();
+      const link = (from, to) => {
+        if (!next.has(from)) next.set(from, []);
+        next.get(from).push(to);
+      };
+      for (const [a, b, c] of triangles) {
+        for (const [from, to] of [[a, b], [b, c], [c, a]]) {
+          if (open.get(edgeKey(from, to)) !== 1) continue;
+          link(to, from);
+          if (!directed) link(from, to);
+        }
+      }
+      const take = (from) => {
+        const to = next.get(from).pop();
+        if (!directed) {
+          const back = next.get(to);
+          back.splice(back.lastIndexOf(from), 1);
+        }
+        return to;
+      };
+      for (const start of [...next.keys()]) {
+        while (next.get(start)?.length) {
+          const path = [start];
+          let current = start;
+          let closed = false;
+          while (next.get(current)?.length) {
+            const to = take(current);
+            if (to === start) { closed = true; break; }
+            path.push(to);
+            current = to;
+          }
+          if (closed) closeLoop(path);
+        }
+      }
+    };
+    fillHoles(true);
+    fillHoles(false);
+
+    return {
+      vertices: Float32Array.from(vertices),
+      triangles: Uint32Array.from(triangles.flat()),
+      repair: { weldedVertices, removedDegenerate, removedDuplicates, removedNonManifold, filledHoles },
+    };
+  }
+
+  // prepareClosedMesh with a repair pass for surfaces that are not closed.
+  function prepareSolidMesh(source) {
+    try {
+      return prepareClosedMesh(source);
+    } catch (error) {
+      if (!/open edges|non-manifold edges/.test(error?.message || '')) throw error;
+      const repaired = repairMesh(source);
+      let prepared;
+      try {
+        prepared = prepareClosedMesh(repaired, false, { keepZeroArea: true });
+      } catch (retryError) {
+        const problems = retryError.message.replace(/^Cannot make a solid: /, '').replace(/\. Repair the STL surface first\.$/, '');
+        throw new Error(`Cannot make a solid even after automatic repair (${problems} remain). Repair the STL in a mesh tool such as Meshmixer or Blender first.`);
+      }
+      prepared.repair = repaired.repair;
+      return prepared;
+    }
+  }
+
+  root.WebCADMeshSolidCore = { prepareClosedMesh, prepareSolidMesh, repairMesh, convert };
 })(typeof self !== 'undefined' ? self : globalThis);

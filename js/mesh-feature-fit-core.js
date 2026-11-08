@@ -12,6 +12,8 @@
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
   const len = a => Math.hypot(a[0], a[1], a[2]);
   const unit = a => { const l = len(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+  // Spreading large point sets into Math.max overflows the call stack.
+  const maxOf = (items, measure) => { let max = -Infinity; for (const item of items) max = Math.max(max, measure(item)); return max; };
 
   function weld(mesh) {
     const v = mesh.vertices, t = mesh.triangles;
@@ -117,7 +119,7 @@
     for (const f of ids) if (dot(n, normals[f]) < Math.cos(Math.PI / 90)) return null;
     const pts = regionPoints(ctx.points, ctx.faces, ids);
     const offset = pts.reduce((s, p) => s + dot(n, p), 0) / pts.length;
-    const residual = Math.max(...pts.map(p => Math.abs(dot(n, p) - offset)));
+    const residual = maxOf(pts, p => Math.abs(dot(n, p) - offset));
     return residual <= ctx.tol ? { type: 'plane', normal: n, offset, residual } : null;
   }
 
@@ -147,10 +149,10 @@
     const radius = Math.sqrt(Math.max(0, cx * cx + cy * cy - sol[2]));
     if (!(radius > 0) || radius > ctx.extent * 20) return null;
     const center = addScaled(addScaled([0, 0, 0], u, cx), w, cy);
-    const residual = Math.max(...pts.map(p => {
+    const residual = maxOf(pts, p => {
       const d = sub(p, center), t = dot(d, axis);
       return Math.abs(len(addScaled(d, axis, -t)) - radius);
-    }));
+    });
     return residual <= ctx.tol ? { type: 'cylinder', axis, center, radius, residual } : null;
   }
 
@@ -167,7 +169,7 @@
     const center = [-sol[0] / 2, -sol[1] / 2, -sol[2] / 2];
     const radius = Math.sqrt(Math.max(0, dot(center, center) - sol[3]));
     if (!(radius > 0) || radius > ctx.extent * 20) return null;
-    const residual = Math.max(...pts.map(p => Math.abs(len(sub(p, center)) - radius)));
+    const residual = maxOf(pts, p => Math.abs(len(sub(p, center)) - radius));
     return residual <= ctx.tol ? { type: 'sphere', center, radius, residual } : null;
   }
 
