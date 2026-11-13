@@ -276,6 +276,12 @@
   const docSaveStatus = document.querySelector('#documentSaveStatus');
   const treeProjectTitle = document.querySelector('#projectTreeRow strong');
 
+  // Build stamp in the status bar; js/version.js is rewritten on every commit.
+  const appVersionLabel = document.querySelector('#appVersion');
+  if (appVersionLabel && cad.version) {
+    appVersionLabel.textContent = `v${cad.version.number} · ${cad.version.date}`;
+  }
+
   // Dirty tracking: every history change (edit, undo, redo) marks the design
   // as changed until it is saved as .ocad; the latest state is autosaved to
   // browser storage so a closed tab or crash can be recovered.
@@ -708,7 +714,7 @@
         }
         savedPlaneVisibility = null;
       }
-      viewHint.textContent = 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom';
+      viewHint.textContent = '';
     }
     modelView.setPicking(show);
     openSketchButton.setAttribute('aria-pressed', String(show));
@@ -1004,7 +1010,7 @@
       sketchView.setPlane(null);
       modelPaneTitle.textContent = '3D WORKSPACE';
       statusText.textContent = '3D VIEW';
-      viewHint.textContent = 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom';
+      viewHint.textContent = '';
     }
     setSplitView(false);
     renderSketchTree();
@@ -1317,7 +1323,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom'
+        ? ''
         : message.startsWith('EXTRUDE')
           ? `${message} · Click face or sketch profile · Hold Ctrl to select occluded sketches`
           : message;
@@ -1335,7 +1341,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom'
+        ? ''
         : message;
     },
     onModeChange: mode => {
@@ -1359,7 +1365,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom'
+        ? ''
         : message;
     },
     onError: showError
@@ -1377,7 +1383,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom'
+        ? ''
         : message;
     },
     onModeChange: active => {
@@ -1395,7 +1401,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom' : message;
+        ? '' : message;
     },
     onModeChange: active => {
       bodyMoveBtn.setAttribute('aria-pressed', String(active));
@@ -1412,7 +1418,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom' : message;
+        ? '' : message;
     },
     onModeChange: mode => {
       const active = Boolean(mode);
@@ -1440,7 +1446,7 @@
           'Selected body · Move/Rotate (M) · Double-click another face or Esc to deselect';
       } else if (!activeSketch) {
         statusText.textContent = '3D VIEW';
-        viewHint.textContent = 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom';
+        viewHint.textContent = '';
       }
       renderBodyTree();
     },
@@ -1456,7 +1462,7 @@
         viewHint.textContent = 'Selected face · Sketch: draw on face · Extrude: extend face';
       } else if (!activeSketch) {
         statusText.textContent = '3D VIEW';
-        viewHint.textContent = 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom';
+        viewHint.textContent = '';
       }
       renderBodyTree();
     },
@@ -1473,7 +1479,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom' : message;
+        ? '' : message;
     },
     onModeChange: mode => {
       const active = Boolean(mode);
@@ -1491,7 +1497,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom' : message;
+        ? '' : message;
     },
     onModeChange: active => {
       meshToSolidBtn?.setAttribute('aria-pressed', String(active));
@@ -1509,7 +1515,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom' : message;
+        ? '' : message;
     },
     onModeChange: active => {
       meshFillBtn?.setAttribute('aria-pressed', String(active));
@@ -1526,7 +1532,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom' : message;
+        ? '' : message;
     },
     onModeChange: mode => {
       const active = Boolean(mode);
@@ -1545,7 +1551,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom' : message;
+        ? '' : message;
     },
     onModeChange: active => {
       interferenceBtn?.setAttribute('aria-pressed', String(active));
@@ -1563,7 +1569,7 @@
     onStatus: message => {
       statusText.textContent = message;
       viewHint.textContent = message === '3D VIEW'
-        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom' : message;
+        ? '' : message;
     },
     onModeChange: active => {
       zebraAnalysisBtn?.setAttribute('aria-pressed', String(active));

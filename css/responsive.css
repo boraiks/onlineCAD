@@ -17,9 +17,12 @@
     display: none;
   }
 
-  .brand,
-  .titlebar-right {
-    min-width: 0;
+  .brand-name {
+    display: none;
+  }
+
+  .brand {
+    margin-right: 6px;
   }
 
   .toolbar-stage {
@@ -37,22 +40,7 @@
 }
 
 @media (max-width: 620px) {
-  .titlebar {
-    padding: 0 10px;
-  }
-
-  .brand-name {
-    font-size: 14px;
-  }
-
   .document-title {
-    gap: 5px;
-    font-size: 10px;
-  }
-
-  .document-title>span:last-child,
-  .document-separator,
-  .titlebar-right {
     display: none;
   }
 

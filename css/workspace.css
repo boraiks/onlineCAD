@@ -211,6 +211,23 @@
     letter-spacing: .05em;
 }
 
+.status-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.app-version {
+    padding-left: 10px;
+    border-left: 1px solid #d3dfe6;
+    color: #6f8797;
+    letter-spacing: 0;
+}
+
+.app-version:empty {
+    display: none;
+}
+
 .statusbar>span:first-child {
     display: flex;
     align-items: center;

@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="css/tooltips.css" />
   <link rel="stylesheet" href="css/tool-search.css" />
   <link rel="stylesheet" href="css/responsive.css" />
+  <script src="js/version.js" defer></script>
   <script src="js/math.js" defer></script>
   <script src="js/orientation.js" defer></script>
   <script src="js/planes.js" defer></script>
@@ -88,22 +89,14 @@
 
 <body>
   <div class="app-shell">
-    <header class="titlebar">
-      <div class="brand" aria-label="webCAD">
+    <div class="tabbar" aria-label="Workspace">
+      <div class="brand" aria-label="onlineCAD">
         <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32">
             <path d="M5 8.5 16 3l11 5.5v15L16 29 5 23.5z" />
             <path d="m5 8.5 11 6 11-6M16 14.5V29" />
           </svg></span>
         <span class="brand-name">online<span>CAD</span></span>
       </div>
-      <div class="document-title" id="documentTitleContainer" title="Click to rename design"><span
-          class="document-glyph" aria-hidden="true">◇</span><strong id="documentTitleText" contenteditable="true"
-          spellcheck="false" title="Click to rename design">Untitled Design</strong><span
-          class="document-separator"></span><span id="documentSaveStatus">Unsaved workspace</span></div>
-      <div class="titlebar-right"></div>
-    </header>
-
-    <div class="tabbar" aria-label="Workspace">
       <div class="ribbon-tabs" id="ribbonTabs" role="tablist">
         <button type="button" class="ribbon-tab tab-active" id="ribbonTabSolid" role="tab" aria-selected="true"
           title="Solid 3D Modeling Workspace">SOLID</button>
@@ -114,6 +107,10 @@
         <button type="button" class="ribbon-tab ribbon-tab-sketch" id="ribbonTabSketch" role="tab" aria-selected="false"
           title="Active 2D Sketch" hidden>SKETCH</button>
       </div>
+      <div class="document-title" id="documentTitleContainer" title="Click to rename design"><span
+          class="document-glyph" aria-hidden="true">◇</span><strong id="documentTitleText" contenteditable="true"
+          spellcheck="false" title="Click to rename design">Untitled Design</strong><span
+          class="document-separator"></span><span id="documentSaveStatus">Unsaved workspace</span></div>
       <div class="tabbar-right">
         <div class="tab-menu" id="fileMenuContainer">
           <button class="tab-menu-button" id="fileMenuButton" type="button" aria-haspopup="true" aria-expanded="false"
@@ -1829,7 +1826,7 @@
                 edges</label>
             </div>
           </nav>
-          <div class="view-hint" id="viewHint">MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom</div>
+          <div class="view-hint" id="viewHint"></div>
         </section>
 
         <div class="pane-divider" id="paneDivider" hidden aria-hidden="true"><span></span></div>
@@ -1855,7 +1852,8 @@
 
         <footer class="statusbar"><span><i></i><span id="statusText">3D VIEW</span></span><span class="status-center"
             id="geometryStatus">No
-            geometry yet</span><span>MM</span></footer>
+            geometry yet</span><span class="status-right"><span>MM</span><span class="app-version" id="appVersion"
+              title="Build shown here changes with every update"></span></span></footer>
       </main>
     </div>
   </div>
