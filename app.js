@@ -41,6 +41,7 @@
   const solidPatternMenuButton = document.querySelector('#solidPatternMenuButton');
   const meshDecimateBtn = document.querySelector('#meshDecimateBtn');
   const meshToSolidBtn = document.querySelector('#meshToSolidBtn');
+  const meshFillBtn = document.querySelector('#meshFillBtn');
   const surfaceFinishBtn = document.querySelector('#surfaceFinishBtn');
   const ribbonTabs = document.querySelector('#ribbonTabs');
   const ribbonTabSolid = document.querySelector('#ribbonTabSolid');
@@ -378,6 +379,7 @@
   let solidPatternMenu;
   let meshDecimate;
   let meshToSolid;
+  let meshFill;
   let surfaceFinish;
   let interference;
   let zebraAnalysis;
@@ -552,7 +554,7 @@
 
   function anySolidToolActive() {
     return [extrudeController, solidRevolve, solidBevel, solidHole, bodyMove, solidPattern, meshDecimate,
-      meshToSolid, surfaceFinish, interference, zebraAnalysis].some(tool => tool?.active);
+      meshToSolid, meshFill, surfaceFinish, interference, zebraAnalysis].some(tool => tool?.active);
   }
 
   function deleteBody(body) {
@@ -676,6 +678,7 @@
       solidBevel?.close();
       bodyMove?.close();
       meshToSolid?.close();
+      meshFill?.close();
       faceSelection?.clear();
       profileSelection?.clear();
       if (!savedPlaneVisibility) {
@@ -789,7 +792,7 @@
       const row = document.createElement('div');
       row.className = 'tree-row tree-grandchild body-tree-row';
       row.classList.toggle('is-item-hidden', body.visible === false);
-      row.classList.toggle('is-selected', faceSelection?.selectedBody === body || body.convertSelected === true || meshDecimate?.selectedBody === body || surfaceFinish?.selectedBody === body || interference?.body1 === body || interference?.body2 === body || zebraAnalysis?.selectedBody === body);
+      row.classList.toggle('is-selected', faceSelection?.selectedBody === body || body.convertSelected === true || meshDecimate?.selectedBody === body || meshFill?.selectedBody === body || surfaceFinish?.selectedBody === body || interference?.body1 === body || interference?.body2 === body || zebraAnalysis?.selectedBody === body);
       const eye = document.createElement('button');
       eye.type = 'button';
       eye.className = 'tree-eye';
@@ -819,6 +822,7 @@
         if (zebraAnalysis?.active) { zebraAnalysis.setBody(body); return; }
         if (meshDecimate?.active) { meshDecimate.setBody(body); return; }
         if (meshToSolid?.active) { meshToSolid.selectBody(body); return; }
+        if (meshFill?.active) { meshFill.setBody(body); return; }
         if (surfaceFinish?.active) { surfaceFinish.setBody(body); return; }
         if (body.visible === false || !faceSelection) return;
         if (faceSelection.selectedBody === body) {
@@ -894,6 +898,7 @@
     if (!isMesh) {
       meshDecimate?.close();
       meshToSolid?.close();
+      meshFill?.close();
       surfaceFinish?.close();
     }
     if (!isUtilities) {
@@ -912,6 +917,7 @@
     solidPatternMenu?.close();
     meshDecimate?.close();
     meshToSolid?.close();
+    meshFill?.close();
     surfaceFinish?.close();
     interference?.close();
     zebraAnalysis?.close();
@@ -941,6 +947,7 @@
     if (solidPatternMenuContainer) solidPatternMenuContainer.hidden = Boolean(sketch);
     if (meshDecimateBtn) meshDecimateBtn.hidden = Boolean(sketch);
     if (meshToSolidBtn) meshToSolidBtn.hidden = Boolean(sketch);
+    if (meshFillBtn) meshFillBtn.hidden = Boolean(sketch);
     lineToolButton.hidden = !sketch;
     rectangleToolButton.hidden = !sketch;
     circleToolButton.hidden = !sketch;
@@ -1416,7 +1423,7 @@
   faceSelection = new cad.BodyFaceSelection({
     canvas: modelCanvas, camera, extrudeController,
     isAvailable: () => !activeSketch && !modelView.picking && !extrudeController.active &&
-      !solidRevolve?.active && !solidBevel.active && !solidHole.active && !bodyMove.active && !solidPattern.active && !meshDecimate?.active && !meshToSolid?.active && !surfaceFinish?.active && !interference?.active && !zebraAnalysis?.active && !modelView.navigationMode,
+      !solidRevolve?.active && !solidBevel.active && !solidHole.active && !bodyMove.active && !solidPattern.active && !meshDecimate?.active && !meshToSolid?.active && !meshFill?.active && !surfaceFinish?.active && !interference?.active && !zebraAnalysis?.active && !modelView.navigationMode,
     onChange: () => {
       renderBodyTree();
       requestRedraw(false);
@@ -1490,6 +1497,23 @@
       meshToSolidBtn?.setAttribute('aria-pressed', String(active));
       meshToSolidBtn?.classList.toggle('selected', active);
       modelCanvas.classList.toggle('is-mesh-to-solid', active);
+    },
+  });
+  meshFill = new cad.meshFill.MeshFillController({
+    canvas: modelCanvas,
+    panel: document.querySelector('#meshFillPanel'),
+    extrudeController, faceSelection, history,
+    onChange: () => requestRedraw(false),
+    onBodiesChange: renderBodyTree,
+    onError: showError,
+    onStatus: message => {
+      statusText.textContent = message;
+      viewHint.textContent = message === '3D VIEW'
+        ? 'MMB: pan · Shift + MMB: orbit · Wheel / Ctrl + Shift + MMB: zoom' : message;
+    },
+    onModeChange: active => {
+      meshFillBtn?.setAttribute('aria-pressed', String(active));
+      meshFillBtn?.classList.toggle('selected', active);
     },
   });
   surfaceFinish = new cad.surfaceFinish.SurfaceFinishController({
@@ -1831,6 +1855,7 @@
   async function handleOpenProjectFile(file) {
     if (!file) return;
     meshToSolid?.close();
+    meshFill?.close();
     try {
       applyActiveSketch(null);
       const result = await cad.projectIO.openProjectFromFile(file, {
@@ -1856,6 +1881,7 @@
         return false;
       }
       meshToSolid?.close();
+      meshFill?.close();
       applyActiveSketch(null);
       const result = cad.projectIO.deserializeProject(entry.project, { sketchDocument, extrudeController, camera, history });
       await finishProjectLoad(result, { saved });
@@ -2224,6 +2250,7 @@
       solidPattern.close();
       meshDecimate?.close();
       meshToSolid?.close();
+      meshFill?.close();
       surfaceFinish?.close();
       interference?.close();
       zebraAnalysis?.close();
@@ -2250,6 +2277,7 @@
       solidPattern?.close();
       meshDecimate?.close();
       meshToSolid?.close();
+      meshFill?.close();
       surfaceFinish?.close();
       interference?.close();
       zebraAnalysis?.close();
@@ -2273,6 +2301,7 @@
       solidPattern.close();
       meshDecimate?.close();
       meshToSolid?.close();
+      meshFill?.close();
       surfaceFinish?.close();
       interference?.close();
       zebraAnalysis?.close();
@@ -2290,6 +2319,7 @@
     solidPattern.close();
     meshDecimate?.close();
     meshToSolid?.close();
+    meshFill?.close();
     surfaceFinish?.close();
     interference?.close();
     zebraAnalysis?.close();
@@ -2310,6 +2340,7 @@
       solidPattern.close();
       meshDecimate?.close();
       meshToSolid?.close();
+      meshFill?.close();
       surfaceFinish?.close();
       interference?.close();
       zebraAnalysis?.close();
@@ -2338,6 +2369,7 @@
     bodyMove.close();
     meshDecimate?.close();
     meshToSolid?.close();
+    meshFill?.close();
     surfaceFinish?.close();
     interference?.close();
     zebraAnalysis?.close();
@@ -2356,6 +2388,7 @@
     bodyMove.close();
     meshDecimate?.close();
     meshToSolid?.close();
+    meshFill?.close();
     surfaceFinish?.close();
     interference?.close();
     zebraAnalysis?.close();
@@ -2374,6 +2407,7 @@
     bodyMove.close();
     solidPattern.close();
     meshToSolid?.close();
+    meshFill?.close();
     surfaceFinish?.close();
     interference?.close();
     zebraAnalysis?.close();
@@ -2400,6 +2434,16 @@
     meshToSolid.open(targetBody);
   });
 
+  meshFillBtn?.addEventListener('click', () => {
+    if (activeSketch) return;
+    if (modelView.picking) setPicking(false);
+    for (const tool of [extrudeController, solidRevolve, solidBevel, solidHole, bodyMove, solidPattern,
+      meshDecimate, meshToSolid, surfaceFinish, interference, zebraAnalysis]) tool?.close();
+    const targetBody = faceSelection?.selectedBody || faceSelection?.selected?.body || null;
+    faceSelection?.clear();
+    meshFill.open(targetBody);
+  });
+
   surfaceFinishBtn?.addEventListener('click', () => {
     if (activeSketch) return;
     if (modelView.picking) setPicking(false);
@@ -2411,6 +2455,7 @@
     solidPattern.close();
     meshDecimate?.close();
     meshToSolid?.close();
+    meshFill?.close();
     interference?.close();
     zebraAnalysis?.close();
     faceSelection?.clear();
@@ -2428,6 +2473,7 @@
     solidPattern.close();
     meshDecimate?.close();
     meshToSolid?.close();
+    meshFill?.close();
     surfaceFinish?.close();
     zebraAnalysis?.close();
     const targetBody = faceSelection?.selectedBody || faceSelection?.selected?.body || null;
@@ -2452,6 +2498,7 @@
     solidPattern.close();
     meshDecimate?.close();
     meshToSolid?.close();
+    meshFill?.close();
     surfaceFinish?.close();
     interference?.close();
     const targetBody = faceSelection?.selectedBody || faceSelection?.selected?.body || null;
@@ -2773,6 +2820,11 @@
         meshToSolid.close();
         return;
       }
+      if (meshFill?.active) {
+        event.preventDefault();
+        meshFill.close();
+        return;
+      }
       if (meshDecimate?.active) {
         event.preventDefault();
         meshDecimate.close();
@@ -2827,6 +2879,7 @@
     solidPattern,
     meshDecimate,
     meshToSolid,
+    meshFill,
     surfaceFinish,
     interference,
     zebraAnalysis,

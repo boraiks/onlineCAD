@@ -25,3 +25,8 @@
 .model-pane canvas.is-mesh-to-solid { cursor: crosshair; }
 .model-pane canvas.is-body-move { cursor: crosshair; }
 .model-pane canvas.is-body-move-dragging { cursor: grabbing; }
+.mesh-fill-panel #meshFillOk { background: #177fa9; border-color: #177fa9; color: #fff; }
+.mesh-fill-panel #meshFillOk:disabled { opacity: .5; cursor: default; }
+.mesh-fill-panel select { min-width: 0; min-height: 29px; border: 1px solid #adc5d1; border-radius: 3px; background: #fff; color: #254d62; font: inherit; }
+.mesh-fill-gap { display: inline-flex; align-items: center; gap: 6px; }
+.mesh-fill-gap input { width: 72px; min-height: 29px; border: 1px solid #adc5d1; border-radius: 3px; padding: 0 6px; color: #254d62; font: inherit; }

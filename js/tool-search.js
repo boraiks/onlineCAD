@@ -370,6 +370,15 @@
         execute: () => document.querySelector('#meshToSolidBtn')?.click()
       },
       {
+        id: 'mesh-fill',
+        name: 'Fill Hollow',
+        category: 'Mesh',
+        keywords: ['fill', 'hollow', 'shell', 'cavity', 'solidify', 'doldur', 'ici bos'],
+        shortcut: () => '',
+        icon: ICONS.mesh,
+        execute: () => document.querySelector('#meshFillBtn')?.click()
+      },
+      {
         id: 'surface-finish',
         name: 'Surface Finish',
         category: 'Mesh',

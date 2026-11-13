@@ -44,6 +44,8 @@ Designed to operate with zero server-side dependencies, all geometry evaluations
 - **3D Printing Export**: Binary/ASCII STL and 3MF (one object per body, millimetre units) for Bambu Studio, PrusaSlicer, Cura and OrcaSlicer; OBJ for Blender and renderers.
 - **2D Drawing Export (`.dxf`)**: The open sketch, or all visible sketches, as AutoCAD R12 DXF with one layer per sketch and a separate layer for construction geometry.
 - **Delete Sketches & Bodies**: Trash button on browser tree rows, or select a body and press `Delete`; fully undoable.
+- **Fill Hollow (MESH tab)**: Makes hollow models solid. Fully enclosed cavities are filled exactly; for shells open through windows or vents, *Close openings up to* bridges openings of that size with a voxel flood fill. The outside surface is kept as it is.
+- **Automatic Mesh Repair**: Downloaded STL files with small holes, doubled facets or edges shared by more than two facets are repaired automatically before Mesh to Solid and boolean operations.
 - **Universal Importers**: Drag-and-drop support for STEP (`.step`, `.stp`), STL, OBJ, and DXF files.
 
 ### 5. Workflow & Usability

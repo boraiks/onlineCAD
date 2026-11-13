@@ -166,8 +166,11 @@
       this.syncUI();
       this.onStatus?.(`MESH TO SOLID · Converting ${body.name}…`);
       // Paint the processing state before a file:// conversion runs on the UI thread.
-      if (typeof requestAnimationFrame === 'function')
-        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      // Background tabs never fire animation frames, so do not wait on one alone.
+      await new Promise(resolve => {
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(resolve, 0));
+        setTimeout(resolve, 100);
+      });
       try {
         if (!this.active || this.selectedBody !== body) return false;
         const converted = await convertMesh(sourceMesh, { quality: this.qualitySelect.value,
