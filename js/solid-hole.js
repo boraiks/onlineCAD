@@ -101,6 +101,10 @@
       this.preview = null;
       this.generation = 0;
       this.previewTimer = null;
+      this.dragFrame = 0;
+      this.hoverFrame = 0;
+      this.pendingHoverEvent = null;
+      this.cachedHudSize = null;
       this.isDraggingHandle = false;
       this.suppressClick = false;
 
@@ -168,6 +172,12 @@
       if (!this.active) return;
       this.generation++;
       clearTimeout(this.previewTimer);
+      if (this.dragFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this.dragFrame);
+      this.dragFrame = 0;
+      if (this.hoverFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this.hoverFrame);
+      this.hoverFrame = 0;
+      this.pendingHoverEvent = null;
+      this.cachedHudSize = null;
       this.active = false;
       this.selectedFace = null;
       this.selectedBody = null;
@@ -183,6 +193,7 @@
     }
 
     updateVisibility() {
+      this.cachedHudSize = null;
       const isDistance = this.extentsSelect?.value === 'distance';
       if (this.depthRow) this.depthRow.hidden = !isDistance;
 
@@ -240,7 +251,7 @@
       return [0, 1, 2].map(i => origin[i] + this.center2D[0] * u[i] + this.center2D[1] * v[i]);
     }
 
-    updatePreview() {
+    updatePreview({ interactive = false } = {}) {
       if (!this.active) return;
       this.preview = null;
       if (!this.selectedFace || !this.selectedBody) {
@@ -255,62 +266,40 @@
       const extentVal = getBodyExtent(this.selectedBody);
       const depth = extents === 'all' ? extentVal : Math.max(0.1, Number(this.depthInput.value) || 20);
       const type = this.typeSelect.value;
-      const plane = cad.bodyFaces.registerPlane(this.selectedFace);
+      const cbDia = this.cboreDiaInput?.value;
+      const cbDepth = this.cboreDepthInput?.value;
+      const csDia = this.csinkDiaInput?.value;
+      const csAngle = this.csinkAngleInput?.value;
 
-      const mainPoints = makeCirclePolygon(this.center2D, radius, 64);
-      const tools = [{
-        profileId: 'hole-main',
-        plane,
-        origin: [...this.selectedFace.origin],
-        normal: [...this.selectedFace.normal],
-        points: mainPoints,
-        holes: [],
-        start: -depth,
-        end: 1.0
-      }];
-
-      if (type === 'counterbore') {
-        const cbDia = Math.max(dia + 0.2, Number(this.cboreDiaInput.value) || dia * 1.6);
-        const cbDepth = Math.max(0.1, Math.min(depth - 0.05, Number(this.cboreDepthInput.value) || 5));
-        const cbPoints = makeCirclePolygon(this.center2D, cbDia / 2, 64);
-        tools.push({
-          profileId: 'hole-cbore',
-          plane,
-          origin: [...this.selectedFace.origin],
-          normal: [...this.selectedFace.normal],
-          points: cbPoints,
-          holes: [],
-          start: -cbDepth,
-          end: 1.0
-        });
-      } else if (type === 'countersink') {
-        const csDia = Math.max(dia + 0.2, Number(this.csinkDiaInput.value) || dia * 1.5);
-        const csAngle = Math.max(10, Math.min(170, Number(this.csinkAngleInput.value) || 90));
-        const angleRad = (csAngle * Math.PI) / 180;
-        const hCsink = Math.max(0.01, Math.min(depth - 0.05, ((csDia - dia) / 2) / Math.tan(angleRad / 2)));
-        const numSlices = 16;
-        for (let s = 0; s < numSlices; s++) {
-          const t = s / numSlices;
-          const tNext = (s + 1) / numSlices;
-          const rSlice = radius + (1 - t) * (csDia / 2 - radius);
-          const zStart = -tNext * hCsink;
-          const zEnd = s === 0 ? 1.0 : -t * hCsink;
-          const slicePoints = makeCirclePolygon(this.center2D, rSlice, 48);
-          tools.push({
-            profileId: `hole-csink-${s}`,
+      try {
+        if (typeof cad.solidKernel.cutHole === 'function') {
+          this.preview = cad.solidKernel.cutHole(this.selectedBody, {
+            face: this.selectedFace,
+            center2D: this.center2D,
+            diameter: dia,
+            depth,
+            type,
+            cboreDia: cbDia,
+            cboreDepth: cbDepth,
+            csinkDia: csDia,
+            csinkAngle: csAngle,
+            interactive,
+          });
+        } else {
+          const plane = cad.bodyFaces.registerPlane(this.selectedFace);
+          const mainPoints = makeCirclePolygon(this.center2D, radius, interactive ? 24 : 64);
+          const tools = [{
+            profileId: 'hole-main',
             plane,
             origin: [...this.selectedFace.origin],
             normal: [...this.selectedFace.normal],
-            points: slicePoints,
+            points: mainPoints,
             holes: [],
-            start: zStart,
-            end: zEnd
-          });
+            start: -depth,
+            end: 1.0
+          }];
+          this.preview = cad.solidKernel.booleanBody(this.selectedBody, tools, 'cut');
         }
-      }
-
-      try {
-        this.preview = cad.solidKernel.booleanBody(this.selectedBody, tools, 'cut');
       } catch (err) {
         this.preview = null;
       }
@@ -334,6 +323,10 @@
 
     commit() {
       if (!this.active || !this.preview || !this.selectedBody) return false;
+      if (this.preview._fastPreview) {
+        this.updatePreview({ interactive: false });
+        if (!this.preview || this.preview.empty) return false;
+      }
       const before = [...this.extrudeController.bodies];
       const target = this.selectedBody;
       const after = before.map(body => body === target ? this.preview : body);
@@ -508,12 +501,18 @@
       const centerWorld = this.centerWorld();
       if (!centerWorld) return;
       const screen = project(centerWorld);
-      const bounds = this.canvas.getBoundingClientRect();
-      const width = this.hud.offsetWidth || 185;
-      const height = this.hud.offsetHeight || 95;
-      const preferredX = screen[0] + width + 24 > bounds.width - 290 ? screen[0] - width - 18 : screen[0] + 18;
-      const left = Math.max(8, Math.min(bounds.width - width - 8, preferredX));
-      const top = Math.max(8, Math.min(bounds.height - height - 8, screen[1] - height / 2));
+      if (!this.cachedHudSize) {
+        const w = this.hud.offsetWidth;
+        const h = this.hud.offsetHeight;
+        if (w && h) this.cachedHudSize = { width: w, height: h };
+      }
+      const viewWidth = this.canvas.clientWidth || this.canvas.getBoundingClientRect().width;
+      const viewHeight = this.canvas.clientHeight || this.canvas.getBoundingClientRect().height;
+      const width = this.cachedHudSize?.width || 185;
+      const height = this.cachedHudSize?.height || 95;
+      const preferredX = screen[0] + width + 24 > viewWidth - 290 ? screen[0] - width - 18 : screen[0] + 18;
+      const left = Math.max(8, Math.min(viewWidth - width - 8, preferredX));
+      const top = Math.max(8, Math.min(viewHeight - height - 8, screen[1] - height / 2));
       const x = `${left}px`, y = `${top}px`;
       if (this.hud.style.left !== x) this.hud.style.left = x;
       if (this.hud.style.top !== y) this.hud.style.top = y;
@@ -565,12 +564,19 @@
         }
       });
 
+      const cancelHoverFrame = () => {
+        if (this.hoverFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this.hoverFrame);
+        this.hoverFrame = 0;
+        this.pendingHoverEvent = null;
+      };
+
       this.canvas.addEventListener('pointermove', event => {
         if (!this.active) return;
         const bounds = this.canvas.getBoundingClientRect();
         const screen = [event.clientX - bounds.left, event.clientY - bounds.top];
 
         if (this.isDraggingHandle && this.selectedFace) {
+          cancelHoverFrame();
           const uv = this.unprojectPointOnFacePlane(screen);
           if (uv) {
             this.center2D = [
@@ -579,34 +585,70 @@
             ];
             this.suppressClick = true;
             clearTimeout(this.previewTimer);
-            this.previewTimer = setTimeout(() => this.updatePreview(), 40);
-            this.onChange?.();
+            if (typeof requestAnimationFrame === 'function') {
+              if (!this.dragFrame) {
+                this.dragFrame = requestAnimationFrame(() => {
+                  this.dragFrame = 0;
+                  if (this.active && this.isDraggingHandle) {
+                    this.updatePreview({ interactive: true });
+                  }
+                });
+              }
+              this.onChange?.();
+            } else {
+              this.updatePreview({ interactive: true });
+            }
           }
           return;
         }
 
         if (event.buttons) return;
 
-        // Hover test
-        const hit = cad.bodyFaces.hitPointAt(screen, this.extrudeController.bodies, this.camera, bounds);
-        const hovered = hit?.face || null;
-        if (hovered !== this.hoveredFace) {
-          this.hoveredFace = hovered;
-          this.onChange?.();
+        // Hover test (coalesced once per animation frame)
+        const runHover = (ev) => {
+          if (!this.active || this.isDraggingHandle) return;
+          const b = this.canvas.getBoundingClientRect();
+          const pt = [ev.clientX - b.left, ev.clientY - b.top];
+          const hit = cad.bodyFaces.hitPointAt(pt, this.extrudeController.bodies, this.camera, b);
+          const hovered = hit?.face || null;
+          if (hovered !== this.hoveredFace) {
+            this.hoveredFace = hovered;
+            this.onChange?.();
+          }
+        };
+        if (typeof requestAnimationFrame === 'function') {
+          this.pendingHoverEvent = event;
+          if (!this.hoverFrame) {
+            this.hoverFrame = requestAnimationFrame(() => {
+              this.hoverFrame = 0;
+              const ev = this.pendingHoverEvent;
+              this.pendingHoverEvent = null;
+              if (ev) runHover(ev);
+            });
+          }
+        } else {
+          runHover(event);
         }
       });
 
       this.canvas.addEventListener('pointerup', event => {
         if (this.isDraggingHandle) {
           this.isDraggingHandle = false;
+          if (this.dragFrame && typeof cancelAnimationFrame === 'function') {
+            cancelAnimationFrame(this.dragFrame);
+          }
+          this.dragFrame = 0;
+          clearTimeout(this.previewTimer);
           if (this.canvas.hasPointerCapture?.(event.pointerId)) {
             this.canvas.releasePointerCapture(event.pointerId);
           }
+          this.updatePreview({ interactive: false });
           setTimeout(() => { this.suppressClick = false; }, 0);
         }
       });
 
       this.canvas.addEventListener('pointerleave', () => {
+        cancelHoverFrame();
         if (!this.active) return;
         if (this.hoveredFace) {
           this.hoveredFace = null;
@@ -615,6 +657,7 @@
       });
 
       this.canvas.addEventListener('click', event => {
+        cancelHoverFrame();
         if (!this.active || event.button !== 0) return;
         if (this.suppressClick) {
           this.suppressClick = false;

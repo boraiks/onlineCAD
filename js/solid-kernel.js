@@ -28,17 +28,26 @@
   // Imported meshes are often not closed. Booleans repair them once (cached
   // per mesh) instead of failing with "Not manifold".
   const repairedMeshes = new WeakMap();
+  const manifoldCache = new Map();
+  const MAX_MANIFOLD_CACHE = 8;
 
   function manifoldFromMesh(vertices, triangles) {
     let solid = null;
     try {
-      solid = new module.Manifold(new module.Mesh({
-        numProp: 3, vertProperties: new Float32Array(vertices), triVerts: new Uint32Array(triangles),
-      }));
-      if (solid.status() === 'NoError') return solid;
-    } catch { /* Fall through to the repair path. */ }
-    solid?.delete();
-    return null;
+      const vertProps = vertices instanceof Float32Array ? vertices : new Float32Array(vertices);
+      const triVerts = triangles instanceof Uint32Array ? triangles : new Uint32Array(triangles);
+      solid = new module.Mesh({
+        numProp: 3, vertProperties: vertProps, triVerts,
+      });
+      const manifold = new module.Manifold(solid);
+      solid.delete?.();
+      if (manifold.status() === 'NoError') return manifold;
+      manifold.delete();
+      return null;
+    } catch {
+      solid?.delete?.();
+      return null;
+    }
   }
 
   function meshManifold(body) {
@@ -54,6 +63,30 @@
     const solid = manifoldFromMesh(repaired.vertices, repaired.triangles);
     if (!solid) throw new Error(`${body.name || 'The mesh'} is not a closed solid even after automatic repair. Repair the STL in a mesh tool first.`);
     return solid;
+  }
+
+  function borrowManifold(body, cutMargin = 0) {
+    if (!module) throw new Error('3D geometry kernel is not ready');
+    if (cutMargin === 0 && body?.mesh && body.meshSource !== 'profile') {
+      const cached = manifoldCache.get(body.mesh);
+      if (cached) {
+        manifoldCache.delete(body.mesh);
+        manifoldCache.set(body.mesh, cached);
+        return { solid: cached.solid, volume: cached.volume, owned: false };
+      }
+      const solid = meshManifold(body);
+      const volume = solid.volume();
+      manifoldCache.set(body.mesh, { solid, volume });
+      if (manifoldCache.size > MAX_MANIFOLD_CACHE) {
+        const oldestKey = manifoldCache.keys().next().value;
+        const oldest = manifoldCache.get(oldestKey);
+        manifoldCache.delete(oldestKey);
+        try { oldest?.solid?.delete(); } catch {}
+      }
+      return { solid, volume, owned: false };
+    }
+    const solid = fromBody(body, cutMargin);
+    return { solid, volume: solid.volume(), owned: true };
   }
 
   function fromBody(body, cutMargin = 0) {
@@ -92,10 +125,19 @@
   }
 
   function meshData(mesh) {
-    const vertices = [];
-    for (let index = 0; index < mesh.vertProperties.length; index += mesh.numProp)
-      vertices.push(mesh.vertProperties[index], mesh.vertProperties[index + 1], mesh.vertProperties[index + 2]);
-    return { vertices, triangles: Array.from(mesh.triVerts) };
+    const triVerts = new Uint32Array(mesh.triVerts);
+    if (mesh.numProp === 3) {
+      return { vertices: new Float32Array(mesh.vertProperties), triangles: triVerts };
+    }
+    const count = Math.floor(mesh.vertProperties.length / mesh.numProp);
+    const vertices = new Float32Array(count * 3);
+    const src = mesh.vertProperties;
+    for (let i = 0, s = 0, d = 0; i < count; i++, s += mesh.numProp) {
+      vertices[d++] = src[s];
+      vertices[d++] = src[s + 1];
+      vertices[d++] = src[s + 2];
+    }
+    return { vertices, triangles: triVerts };
   }
 
   function meshBody(body) {
@@ -111,10 +153,13 @@
     }
   }
 
-  function bevelCircularRim(body, ring, kind, amount, isConvex = true) {
+  function bevelCircularRim(body, ring, kind, amount, isConvex = true, options = {}) {
     const { radius, count = 64 } = ring;
-    if (amount >= radius) return null;
-    if (isConvex && Number.isFinite(body.end) && Number.isFinite(body.start) && amount >= Math.abs(body.end - body.start)) return null;
+    const isHole = Boolean(ring.isHole);
+    if (((!isHole && isConvex) || (isHole && !isConvex)) && amount >= radius) return null;
+    if (!isHole && isConvex && body.meshSource === 'profile' &&
+        Number.isFinite(body.end) && Number.isFinite(body.start) &&
+        amount >= Math.abs(body.end - body.start)) return null;
 
     let center3D = ring.center3D;
     let normal3D = ring.normal3D;
@@ -127,10 +172,15 @@
       normal3D = top ? [...n] : n.map(x => -x);
     }
 
-    const steps = Math.min(128, Math.max(8, cad.sketchGeometry?.curveSegments(amount, Math.PI / 2) || 24));
+    const interactive = Boolean(options?.interactive);
+    const baseSteps = cad.sketchGeometry?.curveSegments(amount, Math.PI / 2) || 24;
+    const steps = interactive
+      ? Math.min(16, Math.max(6, Math.round(baseSteps * 0.5)))
+      : Math.min(128, Math.max(8, baseSteps));
+    const revCount = interactive ? Math.min(count, 32) : count;
     let polygon;
 
-    if (isConvex) {
+    if (isConvex && !isHole) {
       const delta = Math.max(0.2, amount * 0.25);
       polygon = [
         [radius - amount, delta],
@@ -148,11 +198,31 @@
         [radius + delta, -amount],
         [radius + delta, delta]
       );
-    } else {
-      const delta = Math.min(0.05, amount * 0.1);
+    } else if (isConvex && isHole) {
+      const delta = Math.max(0.2, amount * 0.25);
+      const rInner = Math.max(0, radius - delta);
       polygon = [
-        [radius - delta, -delta],
-        [radius - delta, amount],
+        [rInner, delta],
+        [rInner, -amount],
+        [radius, -amount],
+      ];
+      if (kind === 'fillet') {
+        const arcCenter = [radius + amount, -amount];
+        for (let i = 1; i < steps; i++) {
+          const angle = Math.PI - (Math.PI / 2) * (i / steps);
+          polygon.push([arcCenter[0] + amount * Math.cos(angle), arcCenter[1] + amount * Math.sin(angle)]);
+        }
+      }
+      polygon.push(
+        [radius + amount, 0],
+        [radius + amount, delta]
+      );
+    } else if (!isConvex && !isHole) {
+      const delta = Math.min(0.05, amount * 0.1);
+      const rInner = Math.max(0, radius - delta);
+      polygon = [
+        [rInner, -delta],
+        [rInner, amount],
       ];
       if (kind === 'fillet') {
         for (let i = 0; i <= steps; i++) {
@@ -165,6 +235,22 @@
         polygon.push([radius + amount, 0]);
       }
       polygon.push([radius + amount, -delta]);
+    } else {
+      const delta = Math.min(0.05, amount * 0.1);
+      polygon = [
+        [radius - amount, -delta],
+        [radius + delta, -delta],
+        [radius + delta, amount],
+        [radius, amount],
+      ];
+      if (kind === 'fillet') {
+        const arcCenter = [radius - amount, amount];
+        for (let i = 1; i < steps; i++) {
+          const angle = -(Math.PI / 2) * (i / steps);
+          polygon.push([arcCenter[0] + amount * Math.cos(angle), arcCenter[1] + amount * Math.sin(angle)]);
+        }
+      }
+      polygon.push([radius - amount, 0]);
     }
 
     const nz = normal3D;
@@ -192,32 +278,37 @@
       0, 0, 0, 1,
     ];
 
-    let original, section, revolved, oriented, tool, result;
+    let borrowed = null, section, revolved, oriented, tool, result;
     try {
-      original = fromBody(body);
+      borrowed = borrowManifold(body);
+      const original = borrowed.solid;
+      const initialVol = borrowed.volume;
       section = new module.CrossSection([polygon], 'EvenOdd');
-      revolved = section.revolve(count);
+      revolved = section.revolve(revCount);
       oriented = revolved.transform(matrix);
       tool = oriented.translate(center3D);
       result = isConvex ? original.subtract(tool) : original.add(tool);
       if (result.isEmpty()) return null;
-      const initialVol = original.volume();
       const finalVol = result.volume();
       const change = isConvex ? initialVol - finalVol : finalVol - initialVol;
       if (change <= Math.max(1e-8, initialVol * 1e-10)) return null;
-      return {
+      const out = {
         ...body, cells: null, meshSource: body.meshSource === 'solid' ? 'solid' : 'mesh', renderMesh: null,
         displayReduction: 0, mesh: meshData(result.getMesh())
       };
+      if (interactive) out._fastPreview = true;
+      return out;
     } finally {
-      result?.delete(); tool?.delete(); oriented?.delete(); revolved?.delete(); section?.delete(); original?.delete();
+      result?.delete(); tool?.delete(); oriented?.delete(); revolved?.delete(); section?.delete();
+      if (borrowed?.owned) borrowed.solid.delete();
     }
   }
 
-  function bevelBody(body, edge, kind, amount) {
+  function bevelBody(body, edge, kind, amount, options = {}) {
     if (!module || !body || !edge || !['fillet', 'chamfer'].includes(kind) ||
       !Number.isFinite(amount) || amount <= 0) return null;
-    if (edge.ring) return bevelCircularRim(body, edge.ring, kind, amount, edge.convex !== false);
+    if (edge.ring) return bevelCircularRim(body, edge.ring, kind, amount, edge.convex !== false, options);
+    const interactive = Boolean(options?.interactive);
     const { cross, dot } = cad.math;
     const subtract = (a, b) => a.map((value, axis) => value - b[axis]);
     const scale = (a, factor) => a.map(value => value * factor);
@@ -244,7 +335,10 @@
       let sweep = Math.atan2(end[1], end[0]) - Math.atan2(start[1], start[0]);
       if (sweep > Math.PI) sweep -= 2 * Math.PI;
       if (sweep < -Math.PI) sweep += 2 * Math.PI;
-      const steps = Math.min(128, Math.max(8, cad.sketchGeometry?.curveSegments(amount, sweep) || 24));
+      const baseSteps = cad.sketchGeometry?.curveSegments(amount, sweep) || 24;
+      const steps = interactive
+        ? Math.min(16, Math.max(6, Math.round(baseSteps * 0.5)))
+        : Math.min(128, Math.max(8, baseSteps));
       const origin = toPlane(center);
       const angle = Math.atan2(start[1], start[0]);
       for (let index = 1; index < steps; index++) {
@@ -258,23 +352,28 @@
     const matrix = [ray1[0], ray1[1], ray1[2], 0,
     across[0], across[1], across[2], 0,
     tangent[0], tangent[1], tangent[2], 0, 0, 0, 0, 1];
-    let original, section, prism, oriented, cutter, result;
+    let borrowed = null, section, prism, oriented, cutter, result;
     try {
-      original = fromBody(body);
+      borrowed = borrowManifold(body);
+      const original = borrowed.solid;
+      const initialVol = borrowed.volume;
       section = new module.CrossSection([polygon], 'EvenOdd');
       prism = section.extrude(length + extension * 2);
       oriented = prism.transform(matrix);
       cutter = oriented.translate(subtract(edge.a, scale(tangent, extension)));
       result = edge.convex === false ? original.add(cutter) : original.subtract(cutter);
       const change = edge.convex === false
-        ? result.volume() - original.volume() : original.volume() - result.volume();
-      if (result.isEmpty() || change <= Math.max(1e-8, original.volume() * 1e-10)) return null;
-      return {
+        ? result.volume() - initialVol : initialVol - result.volume();
+      if (result.isEmpty() || change <= Math.max(1e-8, initialVol * 1e-10)) return null;
+      const out = {
         ...body, cells: null, meshSource: body.meshSource === 'solid' ? 'solid' : 'mesh', renderMesh: null,
         displayReduction: 0, mesh: meshData(result.getMesh())
       };
+      if (interactive) out._fastPreview = true;
+      return out;
     } finally {
-      result?.delete(); cutter?.delete(); oriented?.delete(); prism?.delete(); section?.delete(); original?.delete();
+      result?.delete(); cutter?.delete(); oriented?.delete(); prism?.delete(); section?.delete();
+      if (borrowed?.owned) borrowed.solid.delete();
     }
   }
 
@@ -321,8 +420,11 @@
   function booleanBody(target, tools, operation) {
     if (!module || !target || !tools.length || !['join', 'cut', 'intersect'].includes(operation)) return null;
     const objects = [];
+    let borrowedTarget = null;
     try {
-      const original = fromBody(target); objects.push(original);
+      borrowedTarget = borrowManifold(target);
+      const original = borrowedTarget.solid;
+      const originalVolume = borrowedTarget.volume;
       const referenceSolids = [];
       let hasExpandedCut = false;
       const toolSolids = tools.map(body => {
@@ -334,7 +436,10 @@
         if (coincidentCut) {
           const vertices = target.mesh?.vertices || [];
           let extent = 1;
-          for (const value of vertices) extent = Math.max(extent, Math.abs(value));
+          for (let i = 0; i < vertices.length; i++) {
+            const abs = Math.abs(vertices[i]);
+            if (abs > extent) extent = abs;
+          }
           cutMargin = Math.max(0.001, Math.min(0.01, extent * 2e-6));
         }
         const unexpanded = fromBody(body);
@@ -354,25 +459,33 @@
         return combined;
       };
       const tool = combine(toolSolids);
-      const referenceTool = hasExpandedCut ? combine(referenceSolids) : tool;
-      const overlap = original.intersect(referenceTool); objects.push(overlap);
-      const scale = Math.max(1, original.volume(), referenceTool.volume());
-      const hasVolume = overlap.volume() > scale * 1e-8;
       let result;
-      if (operation === 'join') {
-        result = original.add(tool);
+      if (operation === 'cut' && !hasExpandedCut) {
+        result = original.subtract(tool);
         objects.push(result);
-        // Disconnected solids cannot become one body through Join.
-        if (!hasVolume) {
-          const parts = result.decompose();
-          const disconnected = parts.length > 1;
-          parts.forEach(part => part.delete());
-          if (disconnected) return null;
-        }
+        const scale = Math.max(1, originalVolume, tool.volume());
+        const removed = originalVolume - result.volume();
+        if (removed <= scale * 1e-8) return null;
       } else {
-        if (!hasVolume) return null;
-        result = operation === 'cut' ? original.subtract(tool) : overlap;
-        if (result !== overlap) objects.push(result);
+        const referenceTool = hasExpandedCut ? combine(referenceSolids) : tool;
+        const overlap = original.intersect(referenceTool); objects.push(overlap);
+        const scale = Math.max(1, originalVolume, referenceTool.volume());
+        const hasVolume = overlap.volume() > scale * 1e-8;
+        if (operation === 'join') {
+          result = original.add(tool);
+          objects.push(result);
+          // Disconnected solids cannot become one body through Join.
+          if (!hasVolume) {
+            const parts = result.decompose();
+            const disconnected = parts.length > 1;
+            parts.forEach(part => part.delete());
+            if (disconnected) return null;
+          }
+        } else {
+          if (!hasVolume) return null;
+          result = operation === 'cut' ? original.subtract(tool) : overlap;
+          if (result !== overlap) objects.push(result);
+        }
       }
       return {
         ...target, cells: null, meshSource: target.meshSource === 'solid' ? 'solid' : 'mesh', renderMesh: null,
@@ -381,14 +494,118 @@
       };
     } finally {
       for (const object of objects) object.delete();
+      if (borrowedTarget?.owned) borrowedTarget.solid.delete();
+    }
+  }
+
+  function cutHole(target, spec) {
+    if (!module || !target || !spec?.face) return null;
+    const {
+      face,
+      center2D = [0, 0],
+      diameter = 10,
+      depth = 20,
+      type = 'simple',
+      cboreDia = 16,
+      cboreDepth = 5,
+      csinkDia = 15,
+      csinkAngle = 90,
+      interactive = false,
+    } = spec;
+    const d = Math.max(0.1, Number(depth) || 20);
+    const radius = Math.max(0.05, (Number(diameter) || 10) / 2);
+    const segments = interactive ? 24 : 64;
+    let polygon;
+    if (type === 'counterbore') {
+      const cbR = Math.max(radius + 0.1, (Number(cboreDia) || radius * 3.2) / 2);
+      const maxCbD = d > 0.15 ? d - 0.05 : d * 0.9;
+      const cbD = Math.max(0.01, Math.min(maxCbD, Number(cboreDepth) || 5));
+      polygon = [
+        [0, -d],
+        [radius, -d],
+        [radius, -cbD],
+        [cbR, -cbD],
+        [cbR, 1.0],
+        [0, 1.0],
+      ];
+    } else if (type === 'countersink') {
+      const csR = Math.max(radius + 0.1, (Number(csinkDia) || radius * 3.0) / 2);
+      const csAngle = Math.max(10, Math.min(170, Number(csinkAngle) || 90));
+      const angleRad = (csAngle * Math.PI) / 180;
+      const maxCsD = d > 0.1 ? d - 0.05 : d * 0.9;
+      const hCsink = Math.max(0.01, Math.min(maxCsD, (csR - radius) / Math.tan(angleRad / 2)));
+      polygon = [
+        [0, -d],
+        [radius, -d],
+        [radius, -hCsink],
+        [csR, 0],
+        [csR, 1.0],
+        [0, 1.0],
+      ];
+    } else {
+      polygon = [
+        [0, -d],
+        [radius, -d],
+        [radius, 1.0],
+        [0, 1.0],
+      ];
+    }
+
+    const n = face.normal || [0, 0, 1];
+    const u = face.u || [1, 0, 0];
+    let v = face.v || cad.math.cross(n, u);
+    const c = cad.math.cross(u, v);
+    if (cad.math.dot(c, n) < 0) v = [-v[0], -v[1], -v[2]];
+    const origin = face.origin || [0, 0, 0];
+    const cu = center2D[0] || 0, cv = center2D[1] || 0;
+    const center3D = [
+      origin[0] + u[0] * cu + v[0] * cv,
+      origin[1] + u[1] * cu + v[1] * cv,
+      origin[2] + u[2] * cu + v[2] * cv,
+    ];
+    const matrix = [
+      u[0], u[1], u[2], 0,
+      v[0], v[1], v[2], 0,
+      n[0], n[1], n[2], 0,
+      0, 0, 0, 1,
+    ];
+
+    let borrowed = null, section, revolved, oriented, tool, result;
+    try {
+      borrowed = borrowManifold(target);
+      const original = borrowed.solid;
+      const originalVolume = borrowed.volume;
+      section = new module.CrossSection([polygon], 'EvenOdd');
+      revolved = section.revolve(segments);
+      oriented = revolved.transform(matrix);
+      tool = oriented.translate(center3D);
+      result = original.subtract(tool);
+      const scale = Math.max(1, originalVolume, tool.volume());
+      const removed = originalVolume - result.volume();
+      if (result.isEmpty() || removed <= scale * 1e-8) return null;
+      const out = {
+        ...target,
+        cells: null,
+        meshSource: target.meshSource === 'solid' ? 'solid' : 'mesh',
+        renderMesh: null,
+        displayReduction: 0,
+        mesh: meshData(result.getMesh()),
+        empty: result.isEmpty(),
+      };
+      if (interactive) out._fastPreview = true;
+      return out;
+    } finally {
+      result?.delete(); tool?.delete(); oriented?.delete(); revolved?.delete(); section?.delete();
+      if (borrowed?.owned) borrowed.solid.delete();
     }
   }
 
   function intersectsBody(target, tools) {
     if (!module || !target || !tools?.length) return false;
-    const original = fromBody(target);
+    const borrowed = borrowManifold(target);
+    const original = borrowed.solid;
     try {
-      const originalVolume = original.volume();
+      const originalVolume = borrowed.volume;
       for (const body of tools) {
         const tool = fromBody(body);
         try {
@@ -399,7 +616,7 @@
         } finally { tool.delete(); }
       }
       return false;
-    } finally { original.delete(); }
+    } finally { if (borrowed.owned) original.delete(); }
   }
 
   function computeInterference(bodyA, bodyB) {
@@ -409,15 +626,15 @@
     if (!module) {
       return { hasInterference: false, volume: 0, mesh: null, bounds: null, center: null, error: 'Solid kernel not ready' };
     }
-    let solidA = null, solidB = null, overlap = null;
+    let borrowedA = null, borrowedB = null, overlap = null;
     try {
       if (!bodyA.mesh) bodyA.mesh = meshBody(bodyA);
       if (!bodyB.mesh) bodyB.mesh = meshBody(bodyB);
-      solidA = fromBody(bodyA);
-      solidB = fromBody(bodyB);
-      overlap = solidA.intersect(solidB);
-      const volA = solidA.volume();
-      const volB = solidB.volume();
+      borrowedA = borrowManifold(bodyA);
+      borrowedB = borrowManifold(bodyB);
+      overlap = borrowedA.solid.intersect(borrowedB.solid);
+      const volA = borrowedA.volume;
+      const volB = borrowedB.volume;
       const volOverlap = overlap.volume();
       const minScale = Math.max(1, volA, volB);
       if (volOverlap <= minScale * 1e-7 || overlap.isEmpty()) {
@@ -447,8 +664,8 @@
     } catch (err) {
       return { hasInterference: false, volume: 0, mesh: null, bounds: null, center: null, error: err?.message };
     } finally {
-      solidA?.delete();
-      solidB?.delete();
+      if (borrowedA?.owned) borrowedA.solid.delete();
+      if (borrowedB?.owned) borrowedB.solid.delete();
       overlap?.delete();
     }
   }
@@ -522,13 +739,16 @@
       };
 
       if (options.operation && options.operation !== 'new' && options.targetBody) {
-        return booleanBody(options.targetBody, [body], options.operation);
+        const res = booleanBody(options.targetBody, [body], options.operation);
+        if (res && options.interactive) res._fastPreview = true;
+        return res;
       }
+      if (options.interactive) body._fastPreview = true;
       return body;
     } finally {
       positioned?.delete(); oriented?.delete(); revolved?.delete(); section?.delete();
     }
   }
 
-  cad.solidKernel = { load, ready: () => !!module, booleanBody, intersectsBody, computeInterference, meshBody, bevelBody, revolveProfile };
+  cad.solidKernel = { load, ready: () => !!module, booleanBody, cutHole, intersectsBody, computeInterference, meshBody, bevelBody, revolveProfile };
 })(window.WebCAD = window.WebCAD || {});

@@ -1,16 +1,24 @@
 #!/bin/sh
-# Stamps js/version.js with the build number (commit count) and date, so the
-# status bar shows which build a deployed page is running.
+# Stamps js/version.js with MAJOR.MINOR (MAJOR and BASE from VERSION, minor from commits since BASE)
+# and date, so the status bar shows which build a deployed page is running.
 # Enable once per clone: git config core.hooksPath .githooks
+MAJOR=0
+BASE=0
+if [ -f VERSION ]; then
+  . ./VERSION
+fi
 count=$(git rev-list --count HEAD 2>/dev/null || echo 0)
-build=$((count + 1))
+minor=$((count + 1 - BASE))
+if [ "$minor" -lt 0 ]; then
+  minor=0
+fi
 today=$(date +%Y-%m-%d)
 
 cat > js/version.js <<EOF
 // Written by .githooks/pre-commit on every commit. Do not edit by hand.
 (function (cad) {
   'use strict';
-  cad.version = { number: '0.${build}', date: '${today}' };
+  cad.version = { number: '${MAJOR}.${minor}', date: '${today}' };
 })(window.WebCAD = window.WebCAD || {});
 EOF
 git add js/version.js

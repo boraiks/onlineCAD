@@ -122,6 +122,7 @@
       this.target = null;
       this.preview = null;
       this.drag = null;
+      this.dragFrame = 0;
       this.hoveredRing = null;
       this.suppressClick = false;
       this.generation = 0;
@@ -173,6 +174,8 @@
       if (!this.active) return;
       this.active = false;
       this.generation++;
+      if (this.dragFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this.dragFrame);
+      this.dragFrame = 0;
       this.selected = this.preview = this.drag = null;
       this.hoveredRing = null;
       this.canvas.style.cursor = '';
@@ -202,13 +205,14 @@
 
     vector(inputs) { return inputs.map(input => number(input.value)); }
 
-    updatePreview() {
+    updatePreview({ interactive = false } = {}) {
       if (!this.selected?.mesh) { this.preview = null; this.sync(); return; }
       const translation = this.mode === 'free' ? this.vector(this.translationInputs)
         : this.origin && this.target ? subtract(this.target, this.origin) : [0, 0, 0];
       const rotation = this.mode === 'free' ? this.vector(this.rotationInputs) : [0, 0, 0];
       const changed = [...translation, ...rotation].some(value => Math.abs(value) > 1e-9);
       this.preview = changed ? transformBody(this.selected, translation, rotation, this.pivot) : null;
+      if (this.preview && interactive) this.preview._fastPreview = true;
       this.sync();
     }
 
@@ -251,19 +255,41 @@
 
     bodyAt(event) {
       const { bounds, point } = this.screen(event);
+      const px = point[0], py = point[1];
+      const [originX, originY] = this.camera.origin(bounds.width, bounds.height);
+      const unit = this.camera.unit(bounds.width, bounds.height);
+      const pivot = cad.settings.cameraPivot ? this.camera.pivot : [0, 0, 0];
+      const R = this.camera.right, U = this.camera.up, D = this.camera.depth;
+      const baseX = originX - dot(R, pivot) * unit;
+      const baseY = originY + dot(U, pivot) * unit;
+      const rx = R[0] * unit, ry = R[1] * unit, rz = R[2] * unit;
+      const ux = U[0] * unit, uy = U[1] * unit, uz = U[2] * unit;
+      const dx = D[0], dy = D[1], dz = D[2];
       let best = null;
       for (const body of this.extrudeController.bodies) {
         if (body.visible === false) continue;
         const targetMesh = body.renderMesh || body.mesh;
         if (!targetMesh?.vertices?.length) continue;
         const { vertices, triangles } = targetMesh;
-        const projected = [];
-        for (let i = 0; i < vertices.length; i += 3)
-          projected.push(this.camera.project(vertices.slice(i, i + 3), bounds.width, bounds.height));
+        const projected = this._pickProjected && this._pickProjected.length >= vertices.length
+          ? this._pickProjected
+          : (this._pickProjected = new Float64Array(vertices.length));
+        for (let i = 0; i < vertices.length; i += 3) {
+          const x = vertices[i], y = vertices[i + 1], z = vertices[i + 2];
+          projected[i] = baseX + rx * x + ry * y + rz * z;
+          projected[i + 1] = baseY - (ux * x + uy * y + uz * z);
+          projected[i + 2] = dx * x + dy * y + dz * z;
+        }
         for (let i = 0; i < triangles.length; i += 3) {
-          const ids = triangles.slice(i, i + 3);
-          if (!containsTriangle(point, ...ids.map(id => projected[id]))) continue;
-          const depth = ids.reduce((sum, id) => sum + dot(vertices.slice(id * 3, id * 3 + 3), this.camera.depth), 0) / 3;
+          const a = triangles[i] * 3, b = triangles[i + 1] * 3, c = triangles[i + 2] * 3;
+          const ax = projected[a], ay = projected[a + 1];
+          const bx = projected[b], by = projected[b + 1];
+          const cx = projected[c], cy = projected[c + 1];
+          const c1 = (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+          const c2 = (cx - bx) * (py - by) - (cy - by) * (px - bx);
+          const c3 = (ax - cx) * (py - cy) - (ay - cy) * (px - cx);
+          if ((c1 < -0.5 || c2 < -0.5 || c3 < -0.5) && (c1 > 0.5 || c2 > 0.5 || c3 > 0.5)) continue;
+          const depth = (projected[a + 2] + projected[b + 2] + projected[c + 2]) / 3;
           if (!best || depth > best.depth) best = { body, depth };
         }
       }
@@ -278,7 +304,7 @@
         if (!body?.mesh || body.visible === false) continue;
         const vertices = body.mesh.vertices;
         for (let i = 0; i < vertices.length; i += 3) {
-          const world = vertices.slice(i, i + 3);
+          const world = [vertices[i], vertices[i + 1], vertices[i + 2]];
           const screen = this.camera.project(world, bounds.width, bounds.height);
           const distance = Math.hypot(point[0] - screen[0], point[1] - screen[1]);
           if (distance > 12) continue;
@@ -380,7 +406,8 @@
       if (!this.active || !this.selected) return;
       context.save();
       const activeBody = this.preview || this.selected;
-      if (activeBody && cad.bodyFaces?.renderBodyHighlight) {
+      const gpuActive = Boolean(cad.bodyRenderer && !cad.bodyRenderer.failed && cad.bodyRenderer.gl);
+      if (activeBody && cad.bodyFaces?.renderBodyHighlight && (!gpuActive || activeBody.meshSource === 'import')) {
         cad.bodyFaces.renderBodyHighlight(context, project, activeBody, {
           fill: 'rgba(33, 137, 227, .18)',
           stroke: '#0e70b0',
@@ -478,6 +505,10 @@
 
     commit() {
       if (!this.active || !this.preview || !this.selected) return false;
+      if (this.preview._fastPreview) {
+        this.updatePreview({ interactive: false });
+        if (!this.preview) return false;
+      }
       const before = [...this.extrudeController.bodies];
       let result = this.preview;
       if (this.copyInput.checked) {
@@ -595,6 +626,20 @@
           return;
         }
 
+        const scheduleInteractivePreview = () => {
+          if (typeof requestAnimationFrame === 'function') {
+            if (!this.dragFrame) {
+              this.dragFrame = requestAnimationFrame(() => {
+                this.dragFrame = 0;
+                if (this.active && this.drag) this.updatePreview({ interactive: true });
+              });
+            }
+            this.onChange();
+          } else {
+            this.updatePreview({ interactive: true });
+          }
+        };
+
         if (this.drag.type === 'rotate') {
           this.drag.moved = true;
           const { bounds, point } = this.screen(event);
@@ -621,7 +666,7 @@
             }
           }
           this.rotationInputs[this.drag.axis].value = String(Math.round(targetAngle * 10) / 10);
-          this.updatePreview();
+          scheduleInteractivePreview();
           return;
         }
 
@@ -638,15 +683,21 @@
           values[this.drag.axis] += amount;
         }
         values.forEach((value, i) => { this.translationInputs[i].value = String(Math.round(value * 1000) / 1000); });
-        this.updatePreview();
+        scheduleInteractivePreview();
       });
       const stopDrag = event => {
         if (!this.drag || event.pointerId !== this.drag.pointerId) return;
-        if (this.drag.moved) { this.suppressClick = true; setTimeout(() => { this.suppressClick = false; }, 0); }
+        const wasMoved = this.drag.moved;
+        if (this.dragFrame && typeof cancelAnimationFrame === 'function') {
+          cancelAnimationFrame(this.dragFrame);
+        }
+        this.dragFrame = 0;
+        if (wasMoved) { this.suppressClick = true; setTimeout(() => { this.suppressClick = false; }, 0); }
         this.drag = null;
         this.canvas.style.cursor = '';
         this.canvas.classList.remove('is-body-move-dragging');
         if (this.canvas.hasPointerCapture?.(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
+        if (wasMoved) this.updatePreview({ interactive: false });
       };
       this.canvas.addEventListener('pointerup', stopDrag);
       this.canvas.addEventListener('pointercancel', stopDrag);

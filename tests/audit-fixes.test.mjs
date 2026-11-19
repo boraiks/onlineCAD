@@ -610,3 +610,157 @@ test('BodyRenderer draws fillet tangent seam edges and GPU single-surface highli
     cad.app = prior.app;
   }
 });
+
+test('Inner circular hole rim fillet and chamfer flare outward cleanly and blind-hole concave rim bevels inward', async () => {
+  const mod = await cad.solidKernel.load();
+  const volumeOf = body => {
+    const m = new mod.Manifold(new mod.Mesh({
+      numProp: 3,
+      vertProperties: body.mesh.vertices instanceof Float32Array ? body.mesh.vertices : new Float32Array(body.mesh.vertices),
+      triVerts: body.mesh.triangles instanceof Uint32Array ? body.mesh.triangles : new Uint32Array(body.mesh.triangles),
+    }));
+    try { return m.volume(); } finally { m.delete(); }
+  };
+
+  const cyl = makeCylinderBody('hole-bevel-cyl', 25, 50);
+  const topFace = cad.bodyFaces.patches(cyl).find(f => f.normal[2] > 0.99);
+  const drilled = cad.solidKernel.cutHole(cyl, {
+    face: topFace, center2D: [0, 0], diameter: 10, depth: 60, type: 'simple',
+  });
+  assert.ok(drilled?.mesh, 'through-hole drilled cleanly');
+
+  const edges = cad.bodyRenderer.selectableEdges(drilled);
+  const holeRim = edges.find(e => e.ring && Math.abs((e.ring.center3D?.[2] ?? e.ring.cap) - 50) < 0.1 && Math.abs(e.ring.radius - 5) < 0.5);
+  const outerRim = edges.find(e => e.ring && Math.abs((e.ring.center3D?.[2] ?? e.ring.cap) - 50) < 0.1 && Math.abs(e.ring.radius - 25) < 0.5);
+  assert.ok(holeRim && outerRim, 'both inner hole rim and outer rim detected');
+  assert.equal(holeRim.ring.isHole, true, 'inner hole rim flagged as isHole = true');
+  assert.equal(outerRim.ring.isHole, false, 'outer cylinder rim flagged as isHole = false');
+
+  const drilledVol = volumeOf(drilled);
+  const filleted3 = cad.solidKernel.bevelBody(drilled, holeRim, 'fillet', 3);
+  const chamfered3 = cad.solidKernel.bevelBody(drilled, holeRim, 'chamfer', 3);
+  const filleted6 = cad.solidKernel.bevelBody(drilled, holeRim, 'fillet', 6);
+  assert.ok(filleted3?.mesh && volumeOf(filleted3) < drilledVol - 10, 'R3 hole fillet removes material from lip');
+  assert.ok(chamfered3?.mesh && volumeOf(chamfered3) < drilledVol - 10, 'D3 hole chamfer removes material from lip');
+  assert.ok(filleted6?.mesh && volumeOf(filleted6) < volumeOf(filleted3), 'R6 > hole radius (5) still fillets hole rim outward');
+  assert.equal(cad.bodyFaces.patches(filleted3).length, 2, 'filleted hole cylinder keeps only 2 planar caps');
+
+  // Verify top planar face aperture expanded outward from r=5 to r=8 (never cutting an inverted groove inside r<5)
+  for (const [label, body] of [['filleted3', filleted3], ['chamfered3', chamfered3]]) {
+    const v = body.mesh.vertices;
+    let minTopR = Infinity;
+    for (let i = 0; i < v.length; i += 3) {
+      if (v[i + 2] > 49.999) {
+        const r = Math.hypot(v[i], v[i + 1]);
+        if (r < 24.9 && r < minTopR) minTopR = r;
+      }
+    }
+    assert.ok(minTopR >= 7.95, `${label} top face opening flared outward to r=${minTopR.toFixed(3)} (>= 7.95 mm)`);
+    const topCap = cad.bodyFaces.patches(body).find(f => f.normal[2] > 0.99);
+    assert.equal(topCap?.holes?.length, 1, `${label} top cap retains hole aperture loop`);
+    const minHoleR = Math.min(...topCap.holes[0].map(p => Math.hypot(p[0], p[1])));
+    assert.ok(minHoleR >= 7.95, `${label} planar hole loop radius r=${minHoleR.toFixed(3)} (>= 7.95 mm)`);
+  }
+
+  // Blind hole bottom concave rim fillet (convex === false, isHole === true)
+  const box = { id: 'blind-box', plane: 'XY', points: [[-25, -25], [25, -25], [25, 25], [-25, 25]], holes: [], start: 0, end: 50, normal: [0, 0, 1] };
+  box.mesh = cad.solidKernel.meshBody(box);
+  const boxTop = cad.bodyFaces.patches(box).find(f => f.normal[2] > 0.99);
+  const blindBox = cad.solidKernel.cutHole(box, {
+    face: boxTop, center2D: [0, 0], diameter: 10, depth: 20, type: 'simple',
+  });
+  const blindEdges = cad.bodyRenderer.selectableEdges(blindBox);
+  const bottomConcaveRim = blindEdges.find(e => e.ring && e.convex === false && e.ring.isHole === true);
+  assert.ok(bottomConcaveRim, 'blind hole bottom concave inner rim detected');
+  const blindVol = volumeOf(blindBox);
+  const concaveFillet = cad.solidKernel.bevelBody(blindBox, bottomConcaveRim, 'fillet', 2);
+  assert.ok(concaveFillet?.mesh, 'concave blind hole floor fillet succeeds');
+  assert.ok(volumeOf(concaveFillet) > blindVol + 1, 'concave blind hole floor fillet adds material in corner');
+});
+
+test('bodyFaces.patches() and registerPlane() produce world-aligned canonical sketch bases (zero diagonal tilt)', async () => {
+  await cad.solidKernel.load();
+  const camera = new cad.Camera();
+  const makeDrilledOnPlane = (planeName) => {
+    const doc = new cad.SketchDocument();
+    const sk = doc.makeSketch(planeName);
+    doc.insertSketch(sk);
+    doc.insertEntity(sk, doc.makeEntity({ type: 'circle', center: [0, 0], radius: 20 }));
+    const prof = cad.sketchProfiles.fromSketch(sk)[0];
+    const body = { ...cad.extrude.makeBody(prof, 'one', 30), id: `cyl-${planeName}` };
+    body.mesh = cad.solidKernel.meshBody(body);
+    const cap = cad.bodyFaces.patches(body).find(f => cad.math.dot(f.normal, body.normal) > 0.99);
+    return cad.solidKernel.cutHole(body, { face: cap, center2D: [0, 0], diameter: 8, depth: 40, type: 'simple' });
+  };
+
+  for (const planeName of ['XY', 'XZ', 'YZ']) {
+    const body = makeDrilledOnPlane(planeName);
+    const caps = cad.bodyFaces.patches(body);
+    assert.equal(caps.length, 2, `${planeName} drilled cylinder has 2 planar caps`);
+    for (const face of caps) {
+      camera.selectDirection(face.normal);
+      assert.ok(Math.abs(face.u[2]) < 1e-6, `${planeName} face u stays horizontal (|u.z| < 1e-6)`);
+      assert.ok(cad.math.dot(face.u, camera.right) > 0.9999, `${planeName} face u matches camera.right`);
+      const pName = cad.bodyFaces.registerPlane(face);
+      const gridEntry = cad.planes.grid[pName];
+      if (Math.abs(face.normal[2]) > 0.999) {
+        assert.deepEqual(gridEntry.axes, ['X', 'Y', 'Z']);
+      } else if (Math.abs(face.normal[1]) > 0.999) {
+        assert.deepEqual(gridEntry.axes, ['X', 'Z', 'Y']);
+      } else {
+        assert.deepEqual(gridEntry.axes, ['Y', 'Z', 'X']);
+      }
+    }
+  }
+  const topCap = cad.bodyFaces.patches(makeDrilledOnPlane('XY')).find(f => f.normal[2] > 0.99);
+  assert.deepEqual(topCap.u, [1, 0, 0]);
+  assert.deepEqual(topCap.v, [0, 1, 0]);
+});
+
+test('solidKernel.cutHole produces exact volumes across hole types and fast interactive GPU preview skips topology()', async () => {
+  const mod = await cad.solidKernel.load();
+  const volumeOf = body => {
+    const m = new mod.Manifold(new mod.Mesh({
+      numProp: 3,
+      vertProperties: body.mesh.vertices instanceof Float32Array ? body.mesh.vertices : new Float32Array(body.mesh.vertices),
+      triVerts: body.mesh.triangles instanceof Uint32Array ? body.mesh.triangles : new Uint32Array(body.mesh.triangles),
+    }));
+    try { return m.volume(); } finally { m.delete(); }
+  };
+
+  const cube = { id: 'cut-cube', plane: 'XY', points: [[-25, -25], [25, -25], [25, 25], [-25, 25]], holes: [], start: 0, end: 50, normal: [0, 0, 1] };
+  cube.mesh = cad.solidKernel.meshBody(cube);
+  const topFace = cad.bodyFaces.patches(cube).find(f => f.normal[2] > 0.99);
+
+  // Simple blind
+  const simple = cad.solidKernel.cutHole(cube, { face: topFace, center2D: [0, 0], diameter: 10, depth: 25, type: 'simple' });
+  const expSimple = 125000 - Math.PI * 25 * 25;
+  assert.ok(Math.abs(volumeOf(simple) - expSimple) < 40, `simple hole volume ${volumeOf(simple)} vs ${expSimple}`);
+
+  // Counterbore through
+  const cbore = cad.solidKernel.cutHole(cube, { face: topFace, center2D: [0, 0], diameter: 8, depth: 60, type: 'counterbore', cboreDia: 16, cboreDepth: 10 });
+  const expCbore = 125000 - (Math.PI * 16 * 40 + Math.PI * 64 * 10);
+  assert.ok(Math.abs(volumeOf(cbore) - expCbore) < 60, `counterbore volume ${volumeOf(cbore)} vs ${expCbore}`);
+
+  // Countersink through (conical frustum)
+  const csink = cad.solidKernel.cutHole(cube, { face: topFace, center2D: [0, 0], diameter: 8, depth: 60, type: 'countersink', csinkDia: 16, csinkAngle: 90 });
+  const hCsink = 4;
+  const expCsink = 125000 - (Math.PI * hCsink / 3 * (64 + 16 + 32) + Math.PI * 16 * (50 - hCsink));
+  assert.ok(Math.abs(volumeOf(csink) - expCsink) < 60, `countersink volume ${volumeOf(csink)} vs ${expCsink}`);
+
+  // Interactive fast preview + BodyRenderer fast path without topology()
+  const preview = cad.solidKernel.cutHole(cube, { face: topFace, center2D: [4, -3], diameter: 10, depth: 25, type: 'simple', interactive: true });
+  assert.equal(preview._fastPreview, true);
+  const origTopology = cad.bodyFaces.topology;
+  let topoCalls = 0;
+  cad.bodyFaces.topology = (...args) => { topoCalls++; return origTopology(...args); };
+  try {
+    const prepared = cad.bodyRenderer.mesh(preview, true);
+    assert.equal(prepared.isFastPreview, true);
+    assert.ok(prepared.triData.length > 0);
+    assert.ok(prepared.previewLineData.length > 0);
+    assert.equal(topoCalls, 0, 'fast interactive preview does not invoke bodyFaces.topology()');
+  } finally {
+    cad.bodyFaces.topology = origTopology;
+  }
+});

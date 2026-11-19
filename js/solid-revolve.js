@@ -37,6 +37,7 @@
       this.operation = 'new';
       this.preview = null;
       this.pickingAxis = false;
+      this.rangeFrame = 0;
 
       this.initElements();
       this.bindEvents();
@@ -86,7 +87,27 @@
         const val = Number(e.target.value);
         this.angle = val;
         if (this.angleInput) this.angleInput.value = String(val);
-        this.updatePreview();
+        if (typeof requestAnimationFrame === 'function') {
+          if (!this.rangeFrame) {
+            this.rangeFrame = requestAnimationFrame(() => {
+              this.rangeFrame = 0;
+              if (this.active) this.updatePreview({ interactive: true });
+            });
+          }
+        } else {
+          this.updatePreview({ interactive: true });
+        }
+      });
+
+      this.angleRange?.addEventListener('change', e => {
+        if (this.rangeFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this.rangeFrame);
+        this.rangeFrame = 0;
+        const val = Number(e.target.value);
+        if (Number.isFinite(val)) {
+          this.angle = val;
+          if (this.angleInput) this.angleInput.value = String(val);
+        }
+        this.updatePreview({ interactive: false });
       });
 
       this.angleChips?.forEach(chip => {
@@ -188,6 +209,8 @@
 
     close() {
       if (!this.active) return;
+      if (this.rangeFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this.rangeFrame);
+      this.rangeFrame = 0;
       this.active = false;
       this.preview = null;
       this.pickingAxis = false;
@@ -226,7 +249,7 @@
       }
     }
 
-    updatePreview() {
+    updatePreview({ interactive = false } = {}) {
       if (!this.active) return;
       this.preview = null;
       if (!this.selectedProfile) {
@@ -240,6 +263,8 @@
         this.preview = cad.solidKernel.revolveProfile(this.selectedProfile, {
           axisLine: this.axisLine,
           angle: this.angle,
+          slices: interactive ? 24 : 64,
+          interactive,
           operation: this.operation,
           targetBody: target
         });
@@ -267,6 +292,10 @@
 
     commit() {
       if (!this.active || !this.preview) return false;
+      if (this.preview._fastPreview) {
+        this.updatePreview({ interactive: false });
+        if (!this.preview) return false;
+      }
       const created = this.preview;
       const op = this.operation;
       const prevBodies = [...this.extrudeController.bodies];

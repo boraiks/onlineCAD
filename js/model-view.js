@@ -35,41 +35,6 @@
     ]));
   }
 
-  function drawPlaneText(context, project, text, origin3D, dirU3D, dirV3D, color = '#60788a') {
-    const p0 = project(origin3D);
-    const pU = project(addScaled(origin3D, dirU3D, 1));
-    const pV = project(addScaled(origin3D, dirV3D, 1));
-
-    const du = [pU[0] - p0[0], pU[1] - p0[1]];
-    const dv = [pV[0] - p0[0], pV[1] - p0[1]];
-
-    const lenU = Math.hypot(du[0], du[1]);
-    const lenV = Math.hypot(dv[0], dv[1]);
-    if (lenU < 0.05 || lenV < 0.05) return;
-
-    let normU = [du[0] / lenU, du[1] / lenU];
-    let normV = [dv[0] / lenV, dv[1] / lenV];
-
-    const det = normU[0] * normV[1] - normU[1] * normV[0];
-    if (det < 0) {
-      normV = [-normV[0], -normV[1]];
-    }
-
-    if (normU[0] < -0.3 || (Math.abs(normU[0]) <= 0.3 && normU[1] < 0)) {
-      normU = [-normU[0], -normU[1]];
-      normV = [-normV[0], -normV[1]];
-    }
-
-    context.save();
-    context.transform(normU[0], normU[1], normV[0], normV[1], p0[0], p0[1]);
-    context.font = '600 11px Consolas, monospace';
-    context.fillStyle = color;
-    context.textAlign = 'left';
-    context.textBaseline = 'middle';
-    context.fillText(text, 0, 0);
-    context.restore();
-  }
-
   class ModelView {
     constructor({ canvas, pane, camera, onPlaneSelect, onCameraChange, getFaceAt = null, getBodyAt = null, getBodies = null, getActiveSketch = null }) {
       this.canvas = canvas;
@@ -355,15 +320,12 @@
       const origin = project(gridOrigin);
       const projectedU = project(world(1, 0));
       const projectedV = project(world(0, 1));
-      const ux = projectedU[0] - origin[0], uy = projectedU[1] - origin[1];
-      const vx = projectedV[0] - origin[0], vy = projectedV[1] - origin[1];
-      const screenPoint = (alongU, alongV) => [
-        origin[0] + alongU * ux + alongV * vx,
-        origin[1] + alongU * uy + alongV * vy,
-      ];
-      const addGridLine = (start, end) => {
-        context.moveTo(start[0], start[1]);
-        context.lineTo(end[0], end[1]);
+      const ox = origin[0], oy = origin[1];
+      const ux = projectedU[0] - ox, uy = projectedU[1] - oy;
+      const vx = projectedV[0] - ox, vy = projectedV[1] - oy;
+      const addGridLine = (u0, v0, u1, v1) => {
+        context.moveTo(ox + u0 * ux + v0 * vx, oy + u0 * uy + v0 * vy);
+        context.lineTo(ox + u1 * ux + v1 * vx, oy + u1 * uy + v1 * vy);
       };
 
       // 1. Minor 5x5 grid lines (faint, thin: 0.5px)
@@ -376,10 +338,10 @@
           const pos = +(i * minorStep).toFixed(4);
           if (Math.abs(pos) > range + 1e-4) continue;
           if (this.visibility[axisU]) {
-            addGridLine(screenPoint(pos, -range), screenPoint(pos, range));
+            addGridLine(pos, -range, pos, range);
           }
           if (this.visibility[axisV]) {
-            addGridLine(screenPoint(-range, pos), screenPoint(range, pos));
+            addGridLine(-range, pos, range, pos);
           }
         }
         context.strokeStyle = '#edf2f5';
@@ -396,10 +358,10 @@
         if (Math.abs(pos) > range + 1e-4) continue;
         if (Math.abs(pos) < 1e-4) continue; // Skip axis line
         if (this.visibility[axisU]) {
-          addGridLine(screenPoint(pos, -range), screenPoint(pos, range));
+          addGridLine(pos, -range, pos, range);
         }
         if (this.visibility[axisV]) {
-          addGridLine(screenPoint(-range, pos), screenPoint(range, pos));
+          addGridLine(-range, pos, range, pos);
         }
       }
       context.strokeStyle = '#d0dce4';
@@ -409,19 +371,19 @@
       // 3. Primary axes with solid positive and dashed negative up to range (max 1000mm)
       // Positive & negative U axis
       if (this.visibility[axisU]) {
-        line(context, origin, screenPoint(range, 0), colors[0], 1.2);
+        line(context, origin, [ox + range * ux, oy + range * uy], colors[0], 1.2);
         context.save();
         context.setLineDash([4, 3]);
-        line(context, origin, screenPoint(-range, 0), colors[0], 1.0);
+        line(context, origin, [ox - range * ux, oy - range * uy], colors[0], 1.0);
         context.restore();
       }
 
       // Positive & negative V axis
       if (this.visibility[axisV]) {
-        line(context, origin, screenPoint(0, range), colors[1], 1.2);
+        line(context, origin, [ox + range * vx, oy + range * vy], colors[1], 1.2);
         context.save();
         context.setLineDash([4, 3]);
-        line(context, origin, screenPoint(0, -range), colors[1], 1.0);
+        line(context, origin, [ox - range * vx, oy - range * vy], colors[1], 1.0);
         context.restore();
       }
 
@@ -434,33 +396,51 @@
         context.restore();
       }
 
-      // 4. Coordinate indicators:
+      // 4. Coordinate indicators: precompute affine bases once and cull off-screen labels
       const labelLimit = Math.min(range, majorStep <= 2.5 ? 20 : majorStep * 20);
       const labelMaxIdx = Math.floor(labelLimit / majorStep);
       const offset = 6 / unit;
-
-      for (let i = 1; i <= labelMaxIdx; i++) {
-        const val = +(i * majorStep).toFixed(4);
-        if (val > labelLimit + 1e-4) break;
-        const textPos = String(val);
-        const textNeg = `-${val}`;
-
-        // Along U axis
-        if (this.visibility[axisU]) {
-          const posU = world(val, offset);
-          drawPlaneText(context, project, textPos, posU, v, u.map(x => -x), '#60788a');
-
-          const negU = world(-val, offset);
-          drawPlaneText(context, project, textNeg, negU, v, u.map(x => -x), '#60788a');
+      const labelBasis = (dux, duy, dvx, dvy) => {
+        const lenU = Math.hypot(dux, duy);
+        const lenV = Math.hypot(dvx, dvy);
+        if (lenU < 0.05 || lenV < 0.05) return null;
+        let nu0 = dux / lenU, nu1 = duy / lenU;
+        let nv0 = dvx / lenV, nv1 = dvy / lenV;
+        if (nu0 * nv1 - nu1 * nv0 < 0) { nv0 = -nv0; nv1 = -nv1; }
+        if (nu0 < -0.3 || (Math.abs(nu0) <= 0.3 && nu1 < 0)) {
+          nu0 = -nu0; nu1 = -nu1; nv0 = -nv0; nv1 = -nv1;
         }
-
-        // Along V axis
-        if (this.visibility[axisV]) {
-          const posV = world(offset, val);
-          drawPlaneText(context, project, textPos, posV, u, v.map(x => -x), '#60788a');
-
-          const negV = world(offset, -val);
-          drawPlaneText(context, project, textNeg, negV, u, v.map(x => -x), '#60788a');
+        return { nu0, nu1, nv0, nv1 };
+      };
+      const uBasis = this.visibility[axisU] ? labelBasis(vx, vy, -ux, -uy) : null;
+      const vBasis = this.visibility[axisV] ? labelBasis(ux, uy, -vx, -vy) : null;
+      if (uBasis || vBasis) {
+        context.font = '600 11px Consolas, monospace';
+        context.fillStyle = '#60788a';
+        context.textAlign = 'left';
+        context.textBaseline = 'middle';
+        const drawAt = (b, sx, sy, text) => {
+          if (sx < -40 || sx > width + 40 || sy < -40 || sy > height + 40) return;
+          context.save();
+          context.transform(b.nu0, b.nu1, b.nv0, b.nv1, sx, sy);
+          context.fillText(text, 0, 0);
+          context.restore();
+        };
+        const offVx = offset * vx, offVy = offset * vy;
+        const offUx = offset * ux, offUy = offset * uy;
+        for (let i = 1; i <= labelMaxIdx; i++) {
+          const val = +(i * majorStep).toFixed(4);
+          if (val > labelLimit + 1e-4) break;
+          const textPos = String(val);
+          const textNeg = `-${val}`;
+          if (uBasis) {
+            drawAt(uBasis, ox + val * ux + offVx, oy + val * uy + offVy, textPos);
+            drawAt(uBasis, ox - val * ux + offVx, oy - val * uy + offVy, textNeg);
+          }
+          if (vBasis) {
+            drawAt(vBasis, ox + offUx + val * vx, oy + offUy + val * vy, textPos);
+            drawAt(vBasis, ox + offUx - val * vx, oy + offUy - val * vy, textNeg);
+          }
         }
       }
     }
@@ -488,7 +468,7 @@
 
       // Only draw grid if master origin visibility is true
       if (this.visibility.origin) {
-        if (this.gridMotion) this.drawGrid(context, project, unit, width, height);
+        if (this.gridMotion || this.drag) this.drawGrid(context, project, unit, width, height);
         else {
           const key = [this.canvas.width, this.canvas.height, width, height, this.gridPlane,
           this.camera.zoom, this.camera.panX, this.camera.panY,

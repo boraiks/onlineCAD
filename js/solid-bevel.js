@@ -27,6 +27,7 @@
       this.edgeCache = new WeakMap();
       this.generation = 0;
       this.previewTimer = null;
+      this.dragFrame = 0;
       this.drag = null;
       this.suppressClick = false;
       this.bind();
@@ -81,6 +82,8 @@
       if (!this.active) return;
       this.generation++;
       clearTimeout(this.previewTimer);
+      if (this.dragFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this.dragFrame);
+      this.dragFrame = 0;
       this.active = false;
       this.mode = null;
       this.selected = null;
@@ -146,7 +149,8 @@
           ? edge.ring.normal3D.map(v => -v)
           : (edge.ring.cap !== undefined && edge.body.normal ? (Math.abs(edge.ring.cap - edge.body.end) < 0.001 ? edge.body.normal.map(v => -v) : edge.body.normal) : [0, 0, -1]);
         const sign = edge.convex === false ? -1 : 1;
-        axis = radial.map((value, index) => sign * (-value / radialLength + inwardNormal[index]));
+        const radialSign = edge.ring.isHole ? 1 : -1;
+        axis = radial.map((value, index) => sign * (radialSign * value / radialLength + inwardNormal[index]));
       } else {
         const sign = edge.convex ? -1 : 1;
         axis = edge.normals[0].map((value, index) =>
@@ -169,13 +173,13 @@
       return { base, tip, unit: delta.map(value => value / pixelsPerMm), pixelsPerMm, scale };
     }
 
-    updatePreview() {
+    updatePreview({ interactive = false } = {}) {
       if (!this.active) return;
       this.preview = null;
       const amount = Number(this.valueInput.value);
       if (this.selected && Number.isFinite(amount) && amount >= 0.001) {
         try {
-          this.preview = cad.solidKernel.bevelBody(this.selected.body, this.selected, this.mode, amount);
+          this.preview = cad.solidKernel.bevelBody(this.selected.body, this.selected, this.mode, amount, { interactive });
         } catch (error) {
           this.onError?.({ code: 'CAD-C009', title: 'Compute error',
             reason: `3D ${this.mode} failed: ${error?.message || 'invalid edge size'}` });
@@ -195,6 +199,10 @@
 
     commit() {
       if (!this.active || !this.preview || !this.selected) return false;
+      if (this.preview._fastPreview) {
+        this.updatePreview({ interactive: false });
+        if (!this.preview) return false;
+      }
       const before = [...this.extrudeController.bodies];
       const after = before.map(body => body === this.selected.body ? this.preview : body);
       const apply = bodies => {
@@ -308,7 +316,20 @@
           const rounded = (Math.round(amount * 1000) / 1000).toFixed(3);
           if (this.valueInput.value !== rounded) {
             this.valueInput.value = rounded;
-            this.updatePreview();
+            clearTimeout(this.previewTimer);
+            if (typeof requestAnimationFrame === 'function') {
+              if (!this.dragFrame) {
+                this.dragFrame = requestAnimationFrame(() => {
+                  this.dragFrame = 0;
+                  if (this.active && this.drag) {
+                    this.updatePreview({ interactive: true });
+                  }
+                });
+              }
+              this.onChange();
+            } else {
+              this.updatePreview({ interactive: true });
+            }
           }
           this.suppressClick = true;
           return;
@@ -322,8 +343,14 @@
       this.canvas.addEventListener('pointerup', event => {
         if (!this.drag) return;
         this.drag = null;
+        if (this.dragFrame && typeof cancelAnimationFrame === 'function') {
+          cancelAnimationFrame(this.dragFrame);
+        }
+        this.dragFrame = 0;
+        clearTimeout(this.previewTimer);
         if (this.canvas.hasPointerCapture?.(event.pointerId))
           this.canvas.releasePointerCapture(event.pointerId);
+        this.updatePreview({ interactive: false });
         setTimeout(() => { this.suppressClick = false; }, 0);
       });
       this.canvas.addEventListener('pointerleave', () => {

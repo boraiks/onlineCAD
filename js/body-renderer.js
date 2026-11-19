@@ -308,6 +308,193 @@
       triData, triVertexCount: triangles.length, baseColor: color };
   }
 
+  function prepareFastPreviewMesh(body, sourceMesh) {
+    const { vertices, triangles } = sourceMesh;
+    const vertCount = Math.floor(vertices.length / 3);
+    const triCount = Math.floor(triangles.length / 3);
+    const triNormals = new Float32Array(triCount * 3);
+    const triValid = new Uint8Array(triCount);
+    const vertTriCount = new Int32Array(vertCount);
+
+    for (let t = 0; t < triCount; t++) {
+      const off = t * 3;
+      const i0 = triangles[off], i1 = triangles[off + 1], i2 = triangles[off + 2];
+      if (i0 === i1 || i1 === i2 || i2 === i0) continue;
+      const a = i0 * 3, b = i1 * 3, c = i2 * 3;
+      const ax = vertices[a], ay = vertices[a + 1], az = vertices[a + 2];
+      const e1x = vertices[b] - ax, e1y = vertices[b + 1] - ay, e1z = vertices[b + 2] - az;
+      const e2x = vertices[c] - ax, e2y = vertices[c + 1] - ay, e2z = vertices[c + 2] - az;
+      const nx = e1y * e2z - e1z * e2y;
+      const ny = e1z * e2x - e1x * e2z;
+      const nz = e1x * e2y - e1y * e2x;
+      const len = Math.hypot(nx, ny, nz);
+      if (len <= 1e-10) continue;
+      const inv = 1 / len;
+      const nt = t * 3;
+      triNormals[nt] = nx * inv;
+      triNormals[nt + 1] = ny * inv;
+      triNormals[nt + 2] = nz * inv;
+      triValid[t] = 1;
+      vertTriCount[i0]++;
+      vertTriCount[i1]++;
+      vertTriCount[i2]++;
+    }
+
+    const vertTriOffset = new Int32Array(vertCount + 1);
+    for (let v = 0; v < vertCount; v++) {
+      vertTriOffset[v + 1] = vertTriOffset[v] + vertTriCount[v];
+    }
+    const vertTris = new Int32Array(vertTriOffset[vertCount]);
+    const writePos = new Int32Array(vertTriOffset);
+    for (let t = 0; t < triCount; t++) {
+      if (!triValid[t]) continue;
+      const off = t * 3;
+      vertTris[writePos[triangles[off]]++] = t;
+      vertTris[writePos[triangles[off + 1]]++] = t;
+      vertTris[writePos[triangles[off + 2]]++] = t;
+    }
+
+    const baseColor = materialColor();
+    const r0 = baseColor[0], g0 = baseColor[1], b0 = baseColor[2], a0 = baseColor[3];
+    const triData = new Float32Array(triCount * 30);
+    let ptr = 0;
+
+    // Extract sharp feature edges (dot < 0.965) with open-addressed typed hash table
+    const estEdges = Math.max(64, Math.ceil(triCount * 1.55));
+    let cap = 64;
+    while (cap < estEdges * 2) cap <<= 1;
+    let mask = cap - 1;
+    let buckets = new Int32Array(cap).fill(-1);
+    let maxEdges = cap >> 1;
+    let eLo = new Uint32Array(maxEdges);
+    let eHi = new Uint32Array(maxEdges);
+    let eTri = new Int32Array(maxEdges);
+    let eSharp = new Uint8Array(maxEdges);
+    let used = 0;
+    let sharpCount = 0;
+
+    const addEdge = (from, to, t, tnx, tny, tnz) => {
+      if (from === to) return;
+      const lo = from < to ? from : to;
+      const hi = from < to ? to : from;
+      if (used * 10 >= cap * 7) {
+        cap <<= 1;
+        mask = cap - 1;
+        buckets = new Int32Array(cap).fill(-1);
+        for (let e = 0; e < used; e++) {
+          let eh = Math.imul(eLo[e] ^ Math.imul(eHi[e], 0x9e3779b1), 0x85ebca6b);
+          eh = ((eh ^ (eh >>> 15)) >>> 0) & mask;
+          while (buckets[eh] !== -1) eh = (eh + 1) & mask;
+          buckets[eh] = e;
+        }
+      }
+      let h = Math.imul(lo ^ Math.imul(hi, 0x9e3779b1), 0x85ebca6b);
+      h = ((h ^ (h >>> 15)) >>> 0) & mask;
+      while (true) {
+        const slot = buckets[h];
+        if (slot === -1) break;
+        if (eLo[slot] === lo && eHi[slot] === hi) {
+          const ot = eTri[slot] * 3;
+          const dotN = tnx * triNormals[ot] + tny * triNormals[ot + 1] + tnz * triNormals[ot + 2];
+          if (dotN < 0.965 && !eSharp[slot]) {
+            eSharp[slot] = 1;
+            sharpCount++;
+          }
+          return;
+        }
+        h = (h + 1) & mask;
+      }
+      if (used === maxEdges) {
+        maxEdges <<= 1;
+        const nLo = new Uint32Array(maxEdges); nLo.set(eLo); eLo = nLo;
+        const nHi = new Uint32Array(maxEdges); nHi.set(eHi); eHi = nHi;
+        const nTri = new Int32Array(maxEdges); nTri.set(eTri); eTri = nTri;
+        const nSharp = new Uint8Array(maxEdges); nSharp.set(eSharp); eSharp = nSharp;
+      }
+      const id = used++;
+      eLo[id] = lo;
+      eHi[id] = hi;
+      eTri[id] = t;
+      buckets[h] = id;
+    };
+
+    for (let t = 0; t < triCount; t++) {
+      const off = t * 3;
+      const i0 = triangles[off], i1 = triangles[off + 1], i2 = triangles[off + 2];
+      const valid = triValid[t] === 1;
+      const tnx = valid ? triNormals[off] : 0;
+      const tny = valid ? triNormals[off + 1] : 0;
+      const tnz = valid ? triNormals[off + 2] : 1;
+
+      if (valid) {
+        addEdge(i0, i1, t, tnx, tny, tnz);
+        addEdge(i1, i2, t, tnx, tny, tnz);
+        addEdge(i2, i0, t, tnx, tny, tnz);
+      }
+
+      for (let c = 0; c < 3; c++) {
+        const vId = triangles[off + c];
+        const vBase = vId * 3;
+        let nx = tnx, ny = tny, nz = tnz;
+        if (valid) {
+          let sumX = 0, sumY = 0, sumZ = 0;
+          const start = vertTriOffset[vId], end = vertTriOffset[vId + 1];
+          for (let k = start; k < end; k++) {
+            const on = vertTris[k] * 3;
+            const onx = triNormals[on], ony = triNormals[on + 1], onz = triNormals[on + 2];
+            if (tnx * onx + tny * ony + tnz * onz >= COS_CREASE) {
+              sumX += onx;
+              sumY += ony;
+              sumZ += onz;
+            }
+          }
+          const len = Math.hypot(sumX, sumY, sumZ);
+          if (len > 1e-6) {
+            const inv = 1 / len;
+            nx = sumX * inv;
+            ny = sumY * inv;
+            nz = sumZ * inv;
+          }
+        }
+        triData[ptr++] = vertices[vBase];
+        triData[ptr++] = vertices[vBase + 1];
+        triData[ptr++] = vertices[vBase + 2];
+        triData[ptr++] = nx;
+        triData[ptr++] = ny;
+        triData[ptr++] = nz;
+        triData[ptr++] = r0;
+        triData[ptr++] = g0;
+        triData[ptr++] = b0;
+        triData[ptr++] = a0;
+      }
+    }
+
+    const previewLineData = new Float32Array(sharpCount * 20);
+    let lPtr = 0;
+    for (let e = 0; e < used; e++) {
+      if (!eSharp[e]) continue;
+      const a = eLo[e] * 3, b = eHi[e] * 3;
+      previewLineData[lPtr++] = vertices[a]; previewLineData[lPtr++] = vertices[a + 1]; previewLineData[lPtr++] = vertices[a + 2];
+      previewLineData[lPtr++] = 0; previewLineData[lPtr++] = 0; previewLineData[lPtr++] = 0;
+      previewLineData[lPtr++] = 0.08; previewLineData[lPtr++] = 0.10; previewLineData[lPtr++] = 0.14; previewLineData[lPtr++] = 1;
+      previewLineData[lPtr++] = vertices[b]; previewLineData[lPtr++] = vertices[b + 1]; previewLineData[lPtr++] = vertices[b + 2];
+      previewLineData[lPtr++] = 0; previewLineData[lPtr++] = 0; previewLineData[lPtr++] = 0;
+      previewLineData[lPtr++] = 0.08; previewLineData[lPtr++] = 0.10; previewLineData[lPtr++] = 0.14; previewLineData[lPtr++] = 1;
+    }
+
+    return {
+      mesh: sourceMesh,
+      points: [],
+      faces: [],
+      edges: [],
+      triData,
+      triVertexCount: triCount * 3,
+      previewLineData,
+      baseColor,
+      isFastPreview: true,
+    };
+  }
+
   function prepareMesh(body, sourceMesh = body.mesh, ignoreFinish = false, finish = null) {
     const { vertices, triangles } = sourceMesh;
     if (!ignoreFinish && body.surfaceFinishAngle > 0 &&
@@ -318,16 +505,17 @@
     }
     if (triangles.length > 24000 && (body.meshSource === 'import' || body.meshSource === 'solid'))
       return prepareDenseImportedMesh(body, sourceMesh);
-    const points = [];
-    const pointKeys = [];
-    const spatialIds = new Int32Array(Math.floor(vertices.length / 3));
+    const vertCount = Math.floor(vertices.length / 3);
+    const points = new Array(vertCount);
+    const pointKeys = new Array(vertCount);
+    const spatialIds = new Int32Array(vertCount);
     const spatialMap = new Map();
     let spatialCount = 0;
-    for (let index = 0, vIdx = 0; index < vertices.length; index += 3, vIdx++) {
-      const pt = [vertices[index], vertices[index + 1], vertices[index + 2]];
-      points.push(pt);
-      const pk = pointKey(pt);
-      pointKeys.push(pk);
+    for (let index = 0, vIdx = 0; vIdx < vertCount; index += 3, vIdx++) {
+      const x = vertices[index], y = vertices[index + 1], z = vertices[index + 2];
+      points[vIdx] = [x, y, z];
+      const pk = `${Math.round(x * 1e4)},${Math.round(y * 1e4)},${Math.round(z * 1e4)}`;
+      pointKeys[vIdx] = pk;
       let sId = spatialMap.get(pk);
       if (sId === undefined) {
         sId = spatialCount++;
@@ -336,121 +524,193 @@
       spatialIds[vIdx] = sId;
     }
 
+    let spatialKeys = null;
+    let parent = null;
+    const find = s => {
+      while (parent[s] !== s) {
+        parent[s] = parent[parent[s]];
+        s = parent[s];
+      }
+      return s;
+    };
+    const weldEdge = (ia, ib) => {
+      if (ia === ib) return;
+      const a = points[ia], b = points[ib];
+      if (!a || !b) return;
+      const dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
+      if (dx * dx + dy * dy + dz * dz >= 2.5e-9) return;
+      if (!parent) {
+        parent = new Int32Array(spatialCount);
+        for (let s = 0; s < spatialCount; s++) parent[s] = s;
+      }
+      const sa = find(spatialIds[ia]);
+      const sb = find(spatialIds[ib]);
+      if (sa !== sb) {
+        if (sa < sb) parent[sb] = sa;
+        else parent[sa] = sb;
+      }
+    };
+    for (let t = 0; t < triangles.length; t += 3) {
+      const i0 = triangles[t], i1 = triangles[t + 1], i2 = triangles[t + 2];
+      weldEdge(i0, i1);
+      weldEdge(i1, i2);
+      weldEdge(i2, i0);
+    }
+    if (parent) {
+      spatialKeys = new Array(spatialCount);
+      for (let vIdx = 0; vIdx < vertCount; vIdx++) {
+        const root = find(spatialIds[vIdx]);
+        spatialIds[vIdx] = root;
+        if (!spatialKeys[root]) spatialKeys[root] = pointKeys[vIdx];
+      }
+    }
+
     const triCount = Math.floor(triangles.length / 3);
-    const triNormals = [];
+    const triNormals = new Array(triCount);
+    const triNormalsFlat = new Float32Array(triCount * 3);
     const triValid = new Uint8Array(triCount);
     const isImportedDense = triCount > 8000 && (body.meshSource === 'import' || body.meshSource === 'solid');
     const isDenseMesh = isImportedDense || triCount > 30000;
 
     for (let t = 0; t < triCount; t++) {
-      const i0 = triangles[t * 3], i1 = triangles[t * 3 + 1], i2 = triangles[t * 3 + 2];
+      const off = t * 3;
+      const i0 = triangles[off], i1 = triangles[off + 1], i2 = triangles[off + 2];
       const a = points[i0], b = points[i1], c = points[i2];
       if (!a || !b || !c) {
-        triNormals.push([0, 0, 1]);
+        triNormals[t] = [0, 0, 1];
+        triNormalsFlat[off + 2] = 1;
         continue;
       }
-      const collapsed = spatialIds[i0] === spatialIds[i1] ||
-        spatialIds[i1] === spatialIds[i2] ||
-        spatialIds[i2] === spatialIds[i0];
-      const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-      const e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
-      const n = cross(e1, e2);
-      const length = Math.hypot(...n);
+      const s0 = spatialIds[i0], s1 = spatialIds[i1], s2 = spatialIds[i2];
+      const collapsed = s0 === s1 || s1 === s2 || s2 === s0;
+      const e1x = b[0] - a[0], e1y = b[1] - a[1], e1z = b[2] - a[2];
+      const e2x = c[0] - a[0], e2y = c[1] - a[1], e2z = c[2] - a[2];
+      const nx = e1y * e2z - e1z * e2y;
+      const ny = e1z * e2x - e1x * e2z;
+      const nz = e1x * e2y - e1y * e2x;
+      const length = Math.hypot(nx, ny, nz);
       if (collapsed || length <= 1e-10) {
-        triNormals.push([0, 0, 1]);
+        triNormals[t] = [0, 0, 1];
+        triNormalsFlat[off + 2] = 1;
         continue;
       }
+      const inv = 1 / length;
+      const unx = nx * inv, uny = ny * inv, unz = nz * inv;
       triValid[t] = 1;
-      triNormals.push(n.map(v => v / length));
+      triNormals[t] = [unx, uny, unz];
+      triNormalsFlat[off] = unx;
+      triNormalsFlat[off + 1] = uny;
+      triNormalsFlat[off + 2] = unz;
     }
 
-    const faces = [];
+    const faces = new Array(triCount);
     const edges = new Map();
     const bodyNormal = body.normal || [0, 0, 1];
+    const bnx = bodyNormal[0], bny = bodyNormal[1], bnz = bodyNormal[2];
 
     if (isDenseMesh) {
       // Fast O(N) vertex normal accumulation for dense meshes / 3D scans
       const vertNormals = new Float32Array(points.length * 3);
       for (let t = 0; t < triCount; t++) {
         if (!triValid[t]) continue;
-        const n = triNormals[t];
+        const off = t * 3;
+        const nx = triNormalsFlat[off], ny = triNormalsFlat[off + 1], nz = triNormalsFlat[off + 2];
         for (let c = 0; c < 3; c++) {
-          const vIdx = triangles[t * 3 + c] * 3;
-          vertNormals[vIdx] += n[0];
-          vertNormals[vIdx + 1] += n[1];
-          vertNormals[vIdx + 2] += n[2];
+          const vIdx = triangles[off + c] * 3;
+          vertNormals[vIdx] += nx;
+          vertNormals[vIdx + 1] += ny;
+          vertNormals[vIdx + 2] += nz;
         }
       }
       for (let i = 0; i < points.length; i++) {
         const idx = i * 3;
         const len = Math.hypot(vertNormals[idx], vertNormals[idx + 1], vertNormals[idx + 2]);
         if (len > 1e-6) {
-          vertNormals[idx] /= len;
-          vertNormals[idx + 1] /= len;
-          vertNormals[idx + 2] /= len;
+          const inv = 1 / len;
+          vertNormals[idx] *= inv;
+          vertNormals[idx + 1] *= inv;
+          vertNormals[idx + 2] *= inv;
         }
       }
 
       for (let t = 0; t < triCount; t++) {
-        const ids = [triangles[t * 3], triangles[t * 3 + 1], triangles[t * 3 + 2]];
+        const off = t * 3;
+        const i0 = triangles[off], i1 = triangles[off + 1], i2 = triangles[off + 2];
         const unitNormal = triNormals[t];
-        const cornerNormals = ids.map(vId => [
-          vertNormals[vId * 3],
-          vertNormals[vId * 3 + 1],
-          vertNormals[vId * 3 + 2]
-        ]);
-        faces.push({
-          ids,
+        const cornerNormals = [
+          [vertNormals[i0 * 3], vertNormals[i0 * 3 + 1], vertNormals[i0 * 3 + 2]],
+          [vertNormals[i1 * 3], vertNormals[i1 * 3 + 1], vertNormals[i1 * 3 + 2]],
+          [vertNormals[i2 * 3], vertNormals[i2 * 3 + 1], vertNormals[i2 * 3 + 2]],
+        ];
+        faces[t] = {
+          ids: [i0, i1, i2],
           normal: unitNormal,
           vertexNormals: cornerNormals,
-          cap: Math.abs(dot(unitNormal, bodyNormal)) > 0.93
-        });
+          cap: Math.abs(unitNormal[0] * bnx + unitNormal[1] * bny + unitNormal[2] * bnz) > 0.93
+        };
       }
     } else {
       // Precise CAD crease smoothing for parametric bodies
       const spatialToTriangles = Array.from({ length: spatialCount }, () => []);
       for (let t = 0; t < triCount; t++) {
         if (!triValid[t]) continue;
-        spatialToTriangles[spatialIds[triangles[t * 3]]].push(t);
-        spatialToTriangles[spatialIds[triangles[t * 3 + 1]]].push(t);
-        spatialToTriangles[spatialIds[triangles[t * 3 + 2]]].push(t);
+        const off = t * 3;
+        spatialToTriangles[spatialIds[triangles[off]]].push(t);
+        spatialToTriangles[spatialIds[triangles[off + 1]]].push(t);
+        spatialToTriangles[spatialIds[triangles[off + 2]]].push(t);
       }
 
       for (let t = 0; t < triCount; t++) {
-        const ids = [triangles[t * 3], triangles[t * 3 + 1], triangles[t * 3 + 2]];
+        const off = t * 3;
+        const ids = [triangles[off], triangles[off + 1], triangles[off + 2]];
         const unitNormal = triNormals[t];
+        const tnx = triNormalsFlat[off], tny = triNormalsFlat[off + 1], tnz = triNormalsFlat[off + 2];
         const validTri = triValid[t] === 1;
-        const cornerNormals = validTri
-          ? ids.map(vertexId => {
-              let sumX = 0, sumY = 0, sumZ = 0;
-              const sharing = spatialToTriangles[spatialIds[vertexId]];
-              for (let s = 0; s < sharing.length; s++) {
-                const otherTri = sharing[s];
-                const otherNorm = triNormals[otherTri];
-                if (dot(unitNormal, otherNorm) >= COS_CREASE) {
-                  sumX += otherNorm[0];
-                  sumY += otherNorm[1];
-                  sumZ += otherNorm[2];
-                }
+        const cornerNormals = new Array(3);
+        if (validTri) {
+          for (let c = 0; c < 3; c++) {
+            let sumX = 0, sumY = 0, sumZ = 0;
+            const sharing = spatialToTriangles[spatialIds[ids[c]]];
+            for (let s = 0; s < sharing.length; s++) {
+              const ot = sharing[s] * 3;
+              const onx = triNormalsFlat[ot], ony = triNormalsFlat[ot + 1], onz = triNormalsFlat[ot + 2];
+              if (tnx * onx + tny * ony + tnz * onz >= COS_CREASE) {
+                sumX += onx;
+                sumY += ony;
+                sumZ += onz;
               }
-              const len = Math.hypot(sumX, sumY, sumZ);
-              return len > 1e-6 ? [sumX / len, sumY / len, sumZ / len] : unitNormal;
-            })
-          : [unitNormal, unitNormal, unitNormal];
+            }
+            const len = Math.hypot(sumX, sumY, sumZ);
+            if (len > 1e-6) {
+              const inv = 1 / len;
+              cornerNormals[c] = [sumX * inv, sumY * inv, sumZ * inv];
+            } else {
+              cornerNormals[c] = unitNormal;
+            }
+          }
+        } else {
+          cornerNormals[0] = cornerNormals[1] = cornerNormals[2] = unitNormal;
+        }
 
-        faces.push({
+        faces[t] = {
           ids,
           normal: unitNormal,
           vertexNormals: cornerNormals,
-          cap: Math.abs(dot(unitNormal, bodyNormal)) > 0.93
-        });
+          cap: Math.abs(tnx * bnx + tny * bny + tnz * bnz) > 0.93
+        };
 
         if (validTri) {
           for (let corner = 0; corner < 3; corner++) {
             const from = ids[corner], to = ids[(corner + 1) % 3];
-            const key = edgeKey(pointKeys[from], pointKeys[to]);
-            if (!edges.has(key)) edges.set(key, { key, from, to, normals: [], sides: [] });
-            const edge = edges.get(key);
+            const sFrom = spatialIds[from], sTo = spatialIds[to];
+            const nKey = sFrom < sTo ? sFrom * spatialCount + sTo : sTo * spatialCount + sFrom;
+            let edge = edges.get(nKey);
+            if (!edge) {
+              const kf = spatialKeys ? spatialKeys[sFrom] : pointKeys[from];
+              const kt = spatialKeys ? spatialKeys[sTo] : pointKeys[to];
+              edge = { key: edgeKey(kf, kt), from, to, normals: [], sides: [] };
+              edges.set(nKey, edge);
+            }
             edge.normals.push(unitNormal);
             edge.sides.push({ normal: unitNormal, opposite: points[ids[(corner + 2) % 3]] });
           }
@@ -460,6 +720,7 @@
 
     // Precompile static 3D vertex GPU attributes: [x,y,z, nx,ny,nz, r,g,b,a]
     const baseColor = materialColor();
+    const r0 = baseColor[0], g0 = baseColor[1], b0 = baseColor[2], a0 = baseColor[3];
 
     const triData = new Float32Array(triCount * 30);
     let ptr = 0;
@@ -475,10 +736,10 @@
         triData[ptr++] = n[0];
         triData[ptr++] = n[1];
         triData[ptr++] = n[2];
-        triData[ptr++] = baseColor[0];
-        triData[ptr++] = baseColor[1];
-        triData[ptr++] = baseColor[2];
-        triData[ptr++] = baseColor[3];
+        triData[ptr++] = r0;
+        triData[ptr++] = g0;
+        triData[ptr++] = b0;
+        triData[ptr++] = a0;
       }
     }
 
@@ -517,6 +778,8 @@
       this.vboCache = new WeakMap();
       this.faceTriCache = new WeakMap();
       this.faceHighlightBuffer = null;
+      this.previewTriBuffer = null;
+      this.previewLineBuffer = null;
       this.residentBodies = new Set();
       this.failed = false;
       this.lastKey = null;
@@ -555,6 +818,8 @@
           this.featureMeshCache = new WeakMap();
           this.faceTriCache = new WeakMap();
           this.faceHighlightBuffer = null;
+          this.previewTriBuffer = null;
+          this.previewLineBuffer = null;
           this.residentBodies.clear();
           this.lastKey = null;
           cad.app?.requestRedraw?.(false);
@@ -679,6 +944,14 @@
         return featureMesh;
       }
       const sourceMesh = body.renderMesh || body.mesh;
+      if (body._fastPreview && sourceMesh === body.mesh && !(body.surfaceFinishAngle > 0)) {
+        let cached = this.meshCache.get(body);
+        if (!cached || cached.mesh !== sourceMesh || !cached.isFastPreview) {
+          cached = prepareFastPreviewMesh(body, sourceMesh);
+          this.meshCache.set(body, cached);
+        }
+        return cached;
+      }
       let finish = this.finishCache.get(body);
       if (finish && (finish.mesh !== sourceMesh || finish.angle !== body.surfaceFinishAngle)) {
         this.finishCache.delete(body);
@@ -890,13 +1163,26 @@
                 Math.abs(distB - r.radius) <= Math.max(0.25, r.radius * 0.05) &&
                 planeDistA < 0.05 && planeDistB < 0.05) {
               ring = { ...r };
+              const [n0, n1] = edge.normals;
+              const d0 = Math.abs(dot(n0, r.normal3D));
+              const d1 = Math.abs(dot(n1, r.normal3D));
+              const capNormal = r.normal3D;
+              const wallNormal = d0 >= d1 ? n1 : n0;
+              const mx = (a[0] + b[0]) * 0.5 - r.center3D[0];
+              const my = (a[1] + b[1]) * 0.5 - r.center3D[1];
+              const mz = (a[2] + b[2]) * 0.5 - r.center3D[2];
+              const alongN = mx * capNormal[0] + my * capNormal[1] + mz * capNormal[2];
+              const rx = mx - alongN * capNormal[0];
+              const ry = my - alongN * capNormal[1];
+              const rz = mz - alongN * capNormal[2];
+              ring.isHole = (rx * wallNormal[0] + ry * wallNormal[1] + rz * wallNormal[2]) < 0;
               if (body.normal) {
                 const origin = body.origin || cad.planes.grid[body.plane]?.origin || [0, 0, 0];
                 const planeDist = dot(r.center3D.map((val, idx) => val - origin[idx]), body.normal);
                 const matchedCap = [body.start, body.end].find(val => Math.abs(planeDist - val) < 0.01);
                 ring.cap = matchedCap !== undefined ? matchedCap : planeDist;
               }
-              if (circle && convex) {
+              if (!ring.isHole && circle && convex && body.meshSource === 'profile') {
                 ring.center = circle.center;
               }
               break;
@@ -1069,6 +1355,16 @@
         gl.uniform1f(this.uSelectionMix, selMix);
         const isZebraOnBody = zebraActive && (!zebraCtrl?.selectedBody || zebraCtrl?.selectedBody === body);
         gl.uniform1f(this.uZebraActive, isZebraOnBody ? 1.0 : 0.0);
+        if (mesh.isFastPreview) {
+          this.previewTriBuffer = this.previewTriBuffer || gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, this.previewTriBuffer);
+          gl.bufferData(gl.ARRAY_BUFFER, mesh.triData, gl.DYNAMIC_DRAW);
+          gl.vertexAttribPointer(this.position, 3, gl.FLOAT, false, STRIDE, 0);
+          gl.vertexAttribPointer(this.normal, 3, gl.FLOAT, false, STRIDE, 12);
+          gl.vertexAttribPointer(this.color, 4, gl.FLOAT, false, STRIDE, 24);
+          gl.drawArrays(gl.TRIANGLES, 0, mesh.triVertexCount);
+          continue;
+        }
         let vbo = this.vboCache.get(body);
         if (!vbo || vbo.mesh !== mesh.mesh) {
           if (vbo) gl.deleteBuffer(vbo.buffer);
@@ -1132,6 +1428,18 @@
         try { gl.lineWidth?.(1.5); } catch (_) {}
         for (const body of visible) {
           const mesh = this.mesh(body);
+          if (mesh.isFastPreview && !inspectMesh) {
+            if (mesh.previewLineData?.length > 0) {
+              this.previewLineBuffer = this.previewLineBuffer || gl.createBuffer();
+              gl.bindBuffer(gl.ARRAY_BUFFER, this.previewLineBuffer);
+              gl.bufferData(gl.ARRAY_BUFFER, mesh.previewLineData, gl.DYNAMIC_DRAW);
+              gl.vertexAttribPointer(this.position, 3, gl.FLOAT, false, STRIDE, 0);
+              gl.vertexAttribPointer(this.normal, 3, gl.FLOAT, false, STRIDE, 12);
+              gl.vertexAttribPointer(this.color, 4, gl.FLOAT, false, STRIDE, 24);
+              gl.drawArrays(gl.LINES, 0, mesh.previewLineData.length / 10);
+            }
+            continue;
+          }
           const denseImported = (body.meshSource === 'import' || body.meshSource === 'solid') && !mesh.edges?.length;
           if (!denseImported && !mesh.edges?.length) continue;
           if (denseImported && !inspectMesh && !mesh.featurePairs?.length) continue;

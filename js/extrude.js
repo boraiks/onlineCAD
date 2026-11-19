@@ -246,6 +246,7 @@
   function bodyBounds(body) {
     if (!body) return null;
     if (body.mesh?.vertices?.length) {
+      if (body._extrudeBoundsMesh === body.mesh) return body._extrudeBounds;
       const v = body.mesh.vertices;
       let minX = Infinity, minY = Infinity, minZ = Infinity;
       let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
@@ -255,7 +256,10 @@
         if (y < minY) minY = y; if (y > maxY) maxY = y;
         if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
       }
-      return { minX, minY, minZ, maxX, maxY, maxZ };
+      const bounds = { minX, minY, minZ, maxX, maxY, maxZ };
+      body._extrudeBounds = bounds;
+      body._extrudeBoundsMesh = body.mesh;
+      return bounds;
     }
     if (body.cells?.length) {
       let minX = Infinity, minY = Infinity, minZ = Infinity;
@@ -331,7 +335,7 @@
       for (let index = 0; index < triangles.length; index += 3) {
         const corners = [0, 1, 2].map(offset => {
           const vertex = triangles[index + offset] * 3;
-          return vertices.slice(vertex, vertex + 3);
+          return [vertices[vertex], vertices[vertex + 1], vertices[vertex + 2]];
         });
         const a = corners[1].map((value, axis) => value - corners[0][axis]);
         const b = corners[2].map((value, axis) => value - corners[0][axis]);
@@ -511,6 +515,7 @@
       this.hoveredThinIds = new Set();
       this.hoveredArrow = null;
       this.dragArrow = null;
+      this.arrowDragFrame = 0;
       this.lastPointerEvent = null;
       this.suppressClick = false;
       this.active = false;
@@ -524,6 +529,11 @@
       this.second = panel.querySelector('#extrudeSecondDistance');
       this.hudFirst = hud?.querySelector?.('#extrudeHudFirst') || null;
       this.hudSecond = hud?.querySelector?.('#extrudeHudSecond') || null;
+      this.hudDirection = hud?.querySelector?.('#extrudeHudDirection') || null;
+      this.hudFirstLabel = hud?.querySelector?.('#extrudeHudFirstLabel') || null;
+      this.hudSecondRow = hud?.querySelector?.('#extrudeHudSecondRow') || null;
+      this.hudOperation = hud?.querySelector?.('#extrudeHudOperation') || null;
+      this.hudOperationRow = hud?.querySelector?.('#extrudeHudOperationRow') || null;
       this.distanceTouched = false;
       this.thickness = panel.querySelector('#extrudeThickness');
       this.thicknessRow = panel.querySelector('#extrudeThicknessRow');
@@ -637,6 +647,10 @@
       if (typeof document !== 'undefined' && this.panel.contains?.(document.activeElement)) this.canvas.focus();
       const capturedPointer = this.dragArrow?.pointerId;
       this.dragArrow = null;
+      if (this.arrowDragFrame && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(this.arrowDragFrame);
+      }
+      this.arrowDragFrame = 0;
       if (capturedPointer != null && this.canvas.hasPointerCapture?.(capturedPointer))
         this.canvas.releasePointerCapture(capturedPointer);
       this.active = false;
@@ -842,7 +856,7 @@
       return best;
     }
 
-    moveArrow(event) {
+    moveArrow(event, immediate = false) {
       if (!this.dragArrow || event.pointerId !== this.dragArrow.pointerId) return;
       const drag = this.dragArrow;
       const dx = event.clientX - drag.startX, dy = event.clientY - drag.startY;
@@ -867,7 +881,17 @@
         this.second.value = String(roundMillimetres(Math.max(0.001, val)));
       }
       this.distanceTouched = true;
-      this.update();
+      if (!immediate && typeof requestAnimationFrame === 'function') {
+        if (!this.arrowDragFrame) {
+          this.arrowDragFrame = requestAnimationFrame(() => {
+            this.arrowDragFrame = 0;
+            if (this.active && this.dragArrow) this.update();
+          });
+        }
+        this.onChange();
+      } else {
+        this.update();
+      }
     }
 
     renderArrows(context) {
@@ -921,21 +945,23 @@
       this.hud.hidden = !geometry;
       if (!geometry) return;
       const direction = this.direction.value;
-      this.hud.querySelector('#extrudeHudDirection').textContent =
-        direction === 'symmetric' ? 'Symmetric' : direction === 'two' ? 'Two Sides' : 'One Side';
-      this.hud.querySelector('#extrudeHudFirstLabel').textContent = direction === 'symmetric' ? 'Total distance' : 'Distance';
+      const dirEl = this.hudDirection || this.hud.querySelector('#extrudeHudDirection');
+      if (dirEl) dirEl.textContent = direction === 'symmetric' ? 'Symmetric' : direction === 'two' ? 'Two Sides' : 'One Side';
+      const firstLabel = this.hudFirstLabel || this.hud.querySelector('#extrudeHudFirstLabel');
+      if (firstLabel) firstLabel.textContent = direction === 'symmetric' ? 'Total distance' : 'Distance';
       if (typeof document === 'undefined' || document.activeElement !== this.hudFirst)
         this.hudFirst.value = String(roundMillimetres(Number(this.first.value)));
-      const secondRow = this.hud.querySelector('#extrudeHudSecondRow');
-      secondRow.hidden = direction !== 'two';
+      const secondRow = this.hudSecondRow || this.hud.querySelector('#extrudeHudSecondRow');
+      if (secondRow) secondRow.hidden = direction !== 'two';
       if (direction === 'two' && (typeof document === 'undefined' || document.activeElement !== this.hudSecond))
         this.hudSecond.value = String(roundMillimetres(Number(this.second.value)));
       const tip = geometry.handles[0].tip;
-      const bounds = this.canvas.getBoundingClientRect();
+      const viewWidth = this.canvas.clientWidth || this.canvas.getBoundingClientRect().width;
+      const viewHeight = this.canvas.clientHeight || this.canvas.getBoundingClientRect().height;
       const width = this.hud.offsetWidth || 185, height = this.hud.offsetHeight || 75;
-      const preferredX = tip[0] + width + 24 > bounds.width - 290 ? tip[0] - width - 16 : tip[0] + 16;
-      const left = Math.max(8, Math.min(bounds.width - width - 8, preferredX));
-      const top = Math.max(8, Math.min(bounds.height - height - 8, tip[1] - height / 2));
+      const preferredX = tip[0] + width + 24 > viewWidth - 290 ? tip[0] - width - 16 : tip[0] + 16;
+      const left = Math.max(8, Math.min(viewWidth - width - 8, preferredX));
+      const top = Math.max(8, Math.min(viewHeight - height - 8, tip[1] - height / 2));
       const x = `${left}px`, y = `${top}px`;
       if (this.hud.style.left !== x) this.hud.style.left = x;
       if (this.hud.style.top !== y) this.hud.style.top = y;
@@ -1012,8 +1038,8 @@
       this.ok?.classList?.toggle?.('is-cut', isCut);
       if (this.hud) {
         this.hud.classList?.toggle?.('is-cut', isCut);
-        const hudOp = this.hud.querySelector?.('#extrudeHudOperation');
-        const hudOpRow = this.hud.querySelector?.('#extrudeHudOperationRow');
+        const hudOp = this.hudOperation || this.hud.querySelector?.('#extrudeHudOperation');
+        const hudOpRow = this.hudOperationRow || this.hud.querySelector?.('#extrudeHudOperationRow');
         if (hudOp) {
           hudOp.textContent = isCut ? 'CUT' : this.operation?.value?.toUpperCase() || 'NEW';
           if (hudOpRow) hudOpRow.hidden = false;
@@ -1352,10 +1378,14 @@
 
       const endArrow = (event, cancelled = false) => {
         if (!this.dragArrow || event.pointerId !== this.dragArrow.pointerId) return;
+        if (this.arrowDragFrame && typeof cancelAnimationFrame === 'function') {
+          cancelAnimationFrame(this.arrowDragFrame);
+        }
+        this.arrowDragFrame = 0;
         if (cancelled) {
           this.first.value = this.dragArrow.first;
           this.second.value = this.dragArrow.second;
-        } else this.moveArrow(event);
+        } else this.moveArrow(event, true);
         this.dragArrow = null;
         this.canvas.classList.remove('is-extrude-arrow-dragging');
         this.suppressClick = true;

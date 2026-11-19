@@ -7,12 +7,19 @@
   const length = value => Math.hypot(value[0], value[1], value[2]);
   const unit = value => {
     const len = Math.hypot(value[0], value[1], value[2]);
-    return [value[0] / len, value[1] / len, value[2] / len];
+    return len > 1e-12 ? [value[0] / len, value[1] / len, value[2] / len] : [0, 0, 1];
+  };
+  const faceBasis = normal => {
+    const cx = -normal[1], cy = normal[0];
+    const cl = Math.hypot(cx, cy);
+    const u = cl > 1e-4 ? [cx / cl, cy / cl, 0] : [1, 0, 0];
+    const v = unit(cross(normal, u));
+    return { u, v };
   };
   const keyOf = point => point.map(value => Math.round(value * 1e4)).join(',');
-  const edgeKey = (a, b) => a < b ? `${a}:${b}` : `${b}:${a}`;
   const cache = new WeakMap();
   const facetCache = new WeakMap();
+  const projectedMeshCache = new WeakMap();
   let nextPlane = 1;
 
   function displayBounds(body) {
@@ -55,7 +62,8 @@
     const stored = cache.get(body);
     if (stored?.mesh === body.mesh) return stored.topology;
     const coordinates = body.mesh.vertices;
-    const rawTriCount = Math.floor((body.mesh.triangles?.length || 0) / 3);
+    const rawTris = body.mesh.triangles;
+    const rawTriCount = Math.floor((rawTris?.length || 0) / 3);
     if (body.meshSource === 'import' ||
         (body.meshSource === 'solid' &&
           (coordinates.length / 3 > 8000 || rawTriCount > 2000))) {
@@ -63,35 +71,58 @@
       cache.set(body, { mesh: body.mesh, topology: empty });
       return empty;
     }
-    const unique = new Map(), points = [], pointKeys = [], indexMap = [];
-    for (let index = 0; index < coordinates.length; index += 3) {
-      const point = coordinates.slice(index, index + 3);
-      const key = keyOf(point);
-      if (!unique.has(key)) {
-        unique.set(key, points.length);
-        points.push(point);
+    const unique = new Map(), points = [], pointKeys = [];
+    const indexMap = new Int32Array(Math.floor(coordinates.length / 3));
+    for (let index = 0, v = 0; index < coordinates.length; index += 3, v++) {
+      const x = coordinates[index], y = coordinates[index + 1], z = coordinates[index + 2];
+      const key = `${Math.round(x * 1e4)},${Math.round(y * 1e4)},${Math.round(z * 1e4)}`;
+      let id = unique.get(key);
+      if (id === undefined) {
+        id = points.length;
+        unique.set(key, id);
+        points.push([x, y, z]);
         pointKeys.push(key);
       }
-      indexMap.push(unique.get(key));
+      indexMap[v] = id;
     }
+    const pointCount = points.length;
+    const numEdgeKey = (a, b) => a < b ? a * pointCount + b : b * pointCount + a;
     const triangles = [], edgeToTriangles = new Map();
-    for (let index = 0; index < body.mesh.triangles.length; index += 3) {
-      const ids = Array.from(body.mesh.triangles.slice(index, index + 3), id => indexMap[id]);
-      if (new Set(ids).size < 3) continue;
-      const normal = cross(sub(points[ids[1]], points[ids[0]]), sub(points[ids[2]], points[ids[0]]));
-      const area2 = length(normal);
+    for (let index = 0; index < rawTris.length; index += 3) {
+      const i0 = indexMap[rawTris[index]];
+      const i1 = indexMap[rawTris[index + 1]];
+      const i2 = indexMap[rawTris[index + 2]];
+      if (i0 === i1 || i1 === i2 || i2 === i0) continue;
+      const p0 = points[i0], p1 = points[i1], p2 = points[i2];
+      const ux = p1[0] - p0[0], uy = p1[1] - p0[1], uz = p1[2] - p0[2];
+      const vx = p2[0] - p0[0], vy = p2[1] - p0[1], vz = p2[2] - p0[2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const area2 = Math.hypot(nx, ny, nz);
       if (area2 < 1e-9) continue;
-      const unitNormal = [normal[0] / area2, normal[1] / area2, normal[2] / area2];
-      const triangle = { ids, normal: unitNormal, offset: dot(unitNormal, points[ids[0]]), area: area2 * 0.5, rawTriIndex: index / 3 };
+      const invArea2 = 1 / area2;
+      const unx = nx * invArea2, uny = ny * invArea2, unz = nz * invArea2;
+      const unitNormal = [unx, uny, unz];
+      const triangle = {
+        ids: [i0, i1, i2],
+        normal: unitNormal,
+        offset: unx * p0[0] + uny * p0[1] + unz * p0[2],
+        area: area2 * 0.5,
+        rawTriIndex: index / 3,
+      };
       const number = triangles.length;
       triangles.push(triangle);
       for (let side = 0; side < 3; side++) {
-        const key = edgeKey(ids[side], ids[(side + 1) % 3]);
-        if (!edgeToTriangles.has(key)) edgeToTriangles.set(key, []);
-        edgeToTriangles.get(key).push(number);
+        const a = triangle.ids[side], b = triangle.ids[(side + 1) % 3];
+        const key = numEdgeKey(a, b);
+        let owners = edgeToTriangles.get(key);
+        if (!owners) {
+          owners = [];
+          edgeToTriangles.set(key, owners);
+        }
+        owners.push(number);
       }
     }
-    const neighbors = triangles.map(() => []);
+    const neighbors = Array.from({ length: triangles.length }, () => []);
     for (const indexes of edgeToTriangles.values()) if (indexes.length === 2) {
       neighbors[indexes[0]].push(indexes[1]);
       neighbors[indexes[1]].push(indexes[0]);
@@ -106,6 +137,8 @@
       if (triToPatch[seed] !== -1) continue;
       const patchIdx = rawPatches.length;
       const first = triangles[seed];
+      const fn = first.normal;
+      const fnx = fn[0], fny = fn[1], fnz = fn[2], foff = first.offset;
       const pSeed = points[first.ids[0]];
       const scale = Math.max(1, Math.abs(pSeed[0]), Math.abs(pSeed[1]), Math.abs(pSeed[2]));
       const planeTol = Math.max(2e-4, scale * 2e-5);
@@ -114,14 +147,17 @@
       while (queue.length) {
         const current = queue.pop();
         group.push(current);
-        for (const adjacent of neighbors[current]) {
+        const adj = neighbors[current];
+        for (let k = 0; k < adj.length; k++) {
+          const adjacent = adj[k];
           if (triToPatch[adjacent] !== -1) continue;
           const second = triangles[adjacent];
-          if (dot(first.normal, second.normal) < 0.9995) continue;
+          const sn = second.normal;
+          if (fnx * sn[0] + fny * sn[1] + fnz * sn[2] < 0.9995) continue;
           const a0 = points[second.ids[0]], a1 = points[second.ids[1]], a2 = points[second.ids[2]];
-          if (Math.abs(dot(first.normal, a0) - first.offset) > planeTol ||
-              Math.abs(dot(first.normal, a1) - first.offset) > planeTol ||
-              Math.abs(dot(first.normal, a2) - first.offset) > planeTol) continue;
+          if (Math.abs(fnx * a0[0] + fny * a0[1] + fnz * a0[2] - foff) > planeTol ||
+              Math.abs(fnx * a1[0] + fny * a1[1] + fnz * a1[2] - foff) > planeTol ||
+              Math.abs(fnx * a2[0] + fny * a2[1] + fnz * a2[2] - foff) > planeTol) continue;
           triToPatch[adjacent] = patchIdx;
           queue.push(adjacent);
         }
@@ -129,17 +165,24 @@
       const vertSet = new Set();
       const boundary = new Map();
       let totalArea = 0;
-      for (const index of group) {
-        const ids = triangles[index].ids;
+      let nxSum = 0, nySum = 0, nzSum = 0;
+      for (let gi = 0; gi < group.length; gi++) {
+        const tri = triangles[group[gi]];
+        const ids = tri.ids;
         vertSet.add(ids[0]); vertSet.add(ids[1]); vertSet.add(ids[2]);
-        totalArea += triangles[index].area;
+        totalArea += tri.area;
+        nxSum += tri.normal[0] * tri.area;
+        nySum += tri.normal[1] * tri.area;
+        nzSum += tri.normal[2] * tri.area;
         for (let side = 0; side < 3; side++) {
-          const a = ids[side], b = ids[(side + 1) % 3], key = edgeKey(a, b);
+          const a = ids[side], b = ids[(side + 1) % 3], key = numEdgeKey(a, b);
           if (boundary.has(key)) boundary.delete(key);
           else boundary.set(key, [a, b]);
         }
       }
-      rawPatches.push({ idx: patchIdx, normal: first.normal, group, vertIds: [...vertSet], boundary, totalArea });
+      const nLen = Math.hypot(nxSum, nySum, nzSum);
+      const patchNormal = nLen > 1e-12 ? [nxSum / nLen, nySum / nLen, nzSum / nLen] : first.normal;
+      rawPatches.push({ idx: patchIdx, normal: patchNormal, group, vertIds: [...vertSet], boundary, totalArea });
     }
 
     // Separate tessellated curved-surface facets (cylinders, cones, fillets, spheres)
@@ -227,26 +270,22 @@
       }
       const loops = [], used = new Set();
       for (const [startA, startB] of boundary.values()) {
-        const firstKey = `${startA}:${startB}`;
+        const firstKey = startA * pointCount + startB;
         if (used.has(firstKey)) continue;
         const loop = [startA];
         let a = startA, b = startB;
         for (let step = 0; step <= boundary.size; step++) {
-          used.add(`${a}:${b}`);
+          used.add(a * pointCount + b);
           if (b === startA) break;
           loop.push(b);
-          const next = (outgoing.get(b) || []).find(candidate => !used.has(`${b}:${candidate}`));
+          const next = (outgoing.get(b) || []).find(candidate => !used.has(b * pointCount + candidate));
           if (next == null) { loop.length = 0; break; }
           a = b; b = next;
         }
         if (loop.length >= 3) loops.push(loop);
       }
       if (!loops.length) continue;
-      const longest = [...boundary.values()].sort((first, second) =>
-        length(sub(points[second[1]], points[second[0]])) -
-        length(sub(points[first[1]], points[first[0]])))[0];
-      const u = unit(sub(points[longest[1]], points[longest[0]]));
-      const v = unit(cross(normal, u));
+      const { u, v } = faceBasis(normal);
       const area = loop => loop.reduce((sum, id, index) => {
         const a = points[id], b = points[loop[(index + 1) % loop.length]];
         return sum + dot(a, u) * dot(b, v) - dot(b, u) * dot(a, v);
@@ -386,8 +425,12 @@
     // Loaded projects bring their own FACE-n planes; never overwrite one.
     let name = `FACE-${nextPlane++}`;
     while (cad.planes.grid[name]) name = `FACE-${nextPlane++}`;
+    const an = face.normal || [0, 0, 1];
+    const axes = Math.abs(an[1]) > 0.999 ? ['X', 'Z', 'Y']
+      : Math.abs(an[0]) > 0.999 ? ['Y', 'Z', 'X']
+      : ['X', 'Y', 'Z'];
     const entry = { u: [...face.u], v: [...face.v], origin: [...face.origin],
-      axes: ['X', 'Y', 'Z'] };
+      axes };
     cad.planes.grid[name] = entry;
     cad.planes.sketch[name] = { ...entry, view: null };
     face._planeName = name;
@@ -506,8 +549,16 @@
     if (typeof camera?.origin !== 'function' || typeof camera?.unit !== 'function' ||
         !camera.right || !camera.up || !camera.depth) return false;
     const sx = screen[0], sy = screen[1];
+    const D = camera.depth;
     for (const body of bodies) {
       if (body.visible === false || !body.mesh) continue;
+      const b = displayBounds(body);
+      if (b) {
+        const maxDepth = (D[0] >= 0 ? b.maxX : b.minX) * D[0] +
+          (D[1] >= 0 ? b.maxY : b.minY) * D[1] +
+          (D[2] >= 0 ? b.maxZ : b.minZ) * D[2];
+        if (maxDepth <= bestDepth + 1e-3) continue;
+      }
       const sBox = screenBoundsOf(body, camera, width, height);
       if (sBox && (sx < sBox.minX - 6 || sx > sBox.maxX + 6 || sy < sBox.minY - 6 || sy > sBox.maxY + 6)) {
         continue;
@@ -518,10 +569,8 @@
     return false;
   }
 
-  let _pickProjected = new Float64Array(0);
-
   // Exact screen-space picking is done on click, using the same display mesh as WebGL.
-  // Project vertices once and scan triangle indices without allocating per triangle.
+  // Cache projected vertices per mesh + camera state and scan triangles without allocations.
   function pickMeshTriangle(body, screen, camera, width, height, frontOnly = false) {
     // A converted body's editable faces must come from its solid geometry.
     // Its optional decimated render mesh is only a visual preview.
@@ -534,31 +583,40 @@
     const R = camera.right, U = camera.up, D = camera.depth;
     const baseX = originX - dot(R, pivot) * unit;
     const baseY = originY + dot(U, pivot) * unit;
-    if (_pickProjected.length < vertices.length) {
-      _pickProjected = new Float64Array(vertices.length);
-    }
-    const projected = _pickProjected;
-    for (let i = 0; i < vertices.length; i += 3) {
-      const x = vertices[i], y = vertices[i + 1], z = vertices[i + 2];
-      projected[i] = baseX + (R[0] * x + R[1] * y + R[2] * z) * unit;
-      projected[i + 1] = baseY - (U[0] * x + U[1] * y + U[2] * z) * unit;
-      projected[i + 2] = D[0] * x + D[1] * y + D[2] * z;
+    const camKey = `${width}|${height}|${unit}|${baseX}|${baseY}|${R[0]},${R[1]},${R[2]}|${U[0]},${U[1]},${U[2]}|${D[0]},${D[1]},${D[2]}`;
+    let cached = projectedMeshCache.get(mesh);
+    let projected;
+    if (cached && cached.key === camKey) {
+      projected = cached.projected;
+    } else {
+      projected = cached && cached.projected.length >= vertices.length
+        ? cached.projected
+        : new Float64Array(vertices.length);
+      const rx = R[0] * unit, ry = R[1] * unit, rz = R[2] * unit;
+      const ux = U[0] * unit, uy = U[1] * unit, uz = U[2] * unit;
+      const dx = D[0], dy = D[1], dz = D[2];
+      for (let i = 0; i < vertices.length; i += 3) {
+        const x = vertices[i], y = vertices[i + 1], z = vertices[i + 2];
+        projected[i] = baseX + rx * x + ry * y + rz * z;
+        projected[i + 1] = baseY - (ux * x + uy * y + uz * z);
+        projected[i + 2] = dx * x + dy * y + dz * z;
+      }
+      projectedMeshCache.set(mesh, { key: camKey, projected });
     }
     const sx = screen[0], sy = screen[1];
     let best = null;
     for (let i = 0; i < triangles.length; i += 3) {
       const a = triangles[i] * 3, b = triangles[i + 1] * 3, c = triangles[i + 2] * 3;
-      if (sx < Math.min(projected[a], projected[b], projected[c]) - 1 ||
-          sx > Math.max(projected[a], projected[b], projected[c]) + 1 ||
-          sy < Math.min(projected[a + 1], projected[b + 1], projected[c + 1]) - 1 ||
-          sy > Math.max(projected[a + 1], projected[b + 1], projected[c + 1]) + 1) continue;
-      const area = (projected[b] - projected[a]) * (projected[c + 1] - projected[a + 1]) -
-        (projected[b + 1] - projected[a + 1]) * (projected[c] - projected[a]);
+      const ax = projected[a], ay = projected[a + 1];
+      const bx = projected[b], by = projected[b + 1];
+      const cx = projected[c], cy = projected[c + 1];
+      if (sx < Math.min(ax, bx, cx) - 1 || sx > Math.max(ax, bx, cx) + 1 ||
+          sy < Math.min(ay, by, cy) - 1 || sy > Math.max(ay, by, cy) + 1) continue;
+      const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
       if (Math.abs(area) < 1e-7) continue;
-      const wa = ((projected[b] - sx) * (projected[c + 1] - sy) -
-        (projected[b + 1] - sy) * (projected[c] - sx)) / area;
-      const wb = ((projected[c] - sx) * (projected[a + 1] - sy) -
-        (projected[c + 1] - sy) * (projected[a] - sx)) / area;
+      const invArea = 1 / area;
+      const wa = ((bx - sx) * (cy - sy) - (by - sy) * (cx - sx)) * invArea;
+      const wb = ((cx - sx) * (ay - sy) - (cy - sy) * (ax - sx)) * invArea;
       const wc = 1 - wa - wb;
       if (Math.min(wa, wb, wc) < -0.001) continue;
       if (frontOnly) {
@@ -583,12 +641,17 @@
       facetCache.set(body, stored);
     }
     if (stored.faces.has(triangle)) return stored.faces.get(triangle);
-    const ids = mesh.triangles.slice(triangle * 3, triangle * 3 + 3);
-    const points3D = Array.from(ids, id => Array.from(mesh.vertices.slice(id * 3, id * 3 + 3)));
+    const triOff = triangle * 3;
+    const iA = mesh.triangles[triOff], iB = mesh.triangles[triOff + 1], iC = mesh.triangles[triOff + 2];
+    const vs = mesh.vertices;
+    const points3D = [
+      [vs[iA * 3], vs[iA * 3 + 1], vs[iA * 3 + 2]],
+      [vs[iB * 3], vs[iB * 3 + 1], vs[iB * 3 + 2]],
+      [vs[iC * 3], vs[iC * 3 + 1], vs[iC * 3 + 2]],
+    ];
     const [a, b, c] = points3D;
     const normal = unit(cross(sub(b, a), sub(c, a)));
-    const u = unit(sub(b, a));
-    const v = unit(cross(normal, u));
+    const { u, v } = faceBasis(normal);
     const local = point => [dot(sub(point, a), u), dot(sub(point, a), v)];
     let face = { body, id: `${body.id}:facet-${triangle}`, normal, origin: a, u, v,
       triangles: [points3D], points: points3D.map(local), holes: [], isFacet: true };
@@ -666,7 +729,7 @@
           }
           if (current === first && loop.length >= 3) loops.push(loop);
         }
-        const asPoint = id => Array.from(vertices.slice(id * 3, id * 3 + 3));
+        const asPoint = id => [vertices[id * 3], vertices[id * 3 + 1], vertices[id * 3 + 2]];
         const localLoop = loop => loop.map(id => local(asPoint(id)));
         const loopArea = loop => loop.reduce((sum, point, i) => {
           const next = loop[(i + 1) % loop.length];
@@ -686,7 +749,10 @@
         if (localLoops.length) {
           face = { ...face, id: `${body.id}:patch-${triangle}`, isFacet: false,
             points: localLoops[0], holes: localLoops.slice(1),
-            triangles: group.map(t => Array.from(triangles.slice(t * 3, t * 3 + 3), asPoint)) };
+            triangles: group.map(t => {
+              const o = t * 3;
+              return [asPoint(triangles[o]), asPoint(triangles[o + 1]), asPoint(triangles[o + 2])];
+            }) };
           for (const t of group) stored.faces.set(t, face);
         }
       }
@@ -921,8 +987,9 @@
     }
 
     bind() {
-      this.canvas.addEventListener('pointermove', event => {
-        this.lastPointerEvent = event;
+      this._hoverFrame = 0;
+      this._pendingHoverEvent = null;
+      const runHover = event => {
         if (typeof document !== 'undefined' && document.body?.classList?.contains('is-dragging-dialog')) return;
         if (event.buttons || !this.isAvailable()) {
           if (this.hovered) {
@@ -938,9 +1005,44 @@
           this.canvas.classList.toggle('over-face', Boolean(face));
           this.onChange();
         }
+      };
+      const cancelPendingHover = () => {
+        if (this._hoverFrame && typeof cancelAnimationFrame === 'function') {
+          cancelAnimationFrame(this._hoverFrame);
+        }
+        this._hoverFrame = 0;
+        this._pendingHoverEvent = null;
+      };
+
+      this.canvas.addEventListener('pointermove', event => {
+        this.lastPointerEvent = event;
+        if (typeof document !== 'undefined' && document.body?.classList?.contains('is-dragging-dialog')) return;
+        if (event.buttons || !this.isAvailable()) {
+          cancelPendingHover();
+          if (this.hovered) {
+            this.hovered = null;
+            this.canvas.classList.remove('over-face');
+            this.onChange();
+          }
+          return;
+        }
+        if (typeof requestAnimationFrame === 'function') {
+          this._pendingHoverEvent = event;
+          if (!this._hoverFrame) {
+            this._hoverFrame = requestAnimationFrame(() => {
+              this._hoverFrame = 0;
+              const ev = this._pendingHoverEvent;
+              this._pendingHoverEvent = null;
+              if (ev) runHover(ev);
+            });
+          }
+        } else {
+          runHover(event);
+        }
       });
 
       this.canvas.addEventListener('pointerleave', () => {
+        cancelPendingHover();
         if (this.hovered) {
           this.hovered = null;
           this.canvas.classList.remove('over-face');
@@ -975,6 +1077,7 @@
       });
 
       this.canvas.addEventListener('click', event => {
+        cancelPendingHover();
         if (event.button !== 0 || event.defaultPrevented || !this.isAvailable()) return;
         if (event.detail >= 2) {
           const body = this.bodyAt(event);
@@ -1035,14 +1138,21 @@
     let best = null;
     for (const body of bodies) {
       if (body.visible === false || !body.mesh) continue;
+      if (fastProj) {
+        const sBox = screenBoundsOf(body, camera, bounds.width, bounds.height);
+        if (sBox && (sx < sBox.minX - 6 || sx > sBox.maxX + 6 || sy < sBox.minY - 6 || sy > sBox.maxY + 6)) {
+          continue;
+        }
+      }
       const bodyPatches = patches(body);
       if (includeFacets && body.meshSource === 'solid' && !bodyPatches.length) {
         const hit = pickMeshTriangle(body, screen, camera, bounds.width, bounds.height, true);
         if (hit && (!best || hit.depth > best.depth)) {
           const face = facetFace(hit);
-          const ids = hit.mesh.triangles.slice(hit.triangle * 3, hit.triangle * 3 + 3);
+          const triOff = hit.triangle * 3;
+          const ts = hit.mesh.triangles;
           const v = hit.mesh.vertices, w = hit.weights;
-          const a = ids[0] * 3, b = ids[1] * 3, c = ids[2] * 3;
+          const a = ts[triOff] * 3, b = ts[triOff + 1] * 3, c = ts[triOff + 2] * 3;
           const point = [
             w[0] * v[a] + w[1] * v[b] + w[2] * v[c],
             w[0] * v[a + 1] + w[1] * v[b + 1] + w[2] * v[c + 1],
