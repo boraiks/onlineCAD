@@ -71,13 +71,14 @@
   }
 
   class ModelView {
-    constructor({ canvas, pane, camera, onPlaneSelect, onCameraChange, getFaceAt = null, getBodies = null, getActiveSketch = null }) {
+    constructor({ canvas, pane, camera, onPlaneSelect, onCameraChange, getFaceAt = null, getBodyAt = null, getBodies = null, getActiveSketch = null }) {
       this.canvas = canvas;
       this.pane = pane;
       this.camera = camera;
       this.onPlaneSelect = onPlaneSelect;
       this.onCameraChange = onCameraChange;
       this.getFaceAt = getFaceAt;
+      this.getBodyAt = getBodyAt;
       this.getBodies = getBodies;
       this.getActiveSketch = getActiveSketch;
       this.picking = false;
@@ -281,6 +282,9 @@
       if (this.getFaceAt) {
         const faceHit = this.getFaceAt(clientX, clientY);
         if (faceHit) return faceHit;
+      }
+      if (this.getBodyAt && this.getBodyAt(clientX, clientY)) {
+        return null;
       }
       if (!this.visibility.origin) return null;
 
@@ -717,7 +721,8 @@
           return;
         }
         const hitFace = this.getFaceAt?.(event.clientX, event.clientY);
-        if (!hitFace && !this.activeSketchPlane) {
+        const hitBody = !hitFace && this.getBodyAt?.(event.clientX, event.clientY);
+        if (!hitFace && !hitBody && !this.activeSketchPlane) {
           this.fitToScene(true);
         }
       });

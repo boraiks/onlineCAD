@@ -1091,6 +1091,7 @@
     onPlaneSelect: startSketch,
     onCameraChange: () => requestRedraw(false),
     getFaceAt: (clientX, clientY) => faceSelection?.faceAt({ clientX, clientY }),
+    getBodyAt: (clientX, clientY) => faceSelection?.bodyAt({ clientX, clientY }),
     getBodies: () => extrudeController?.bodies || [],
     getActiveSketch: () => activeSketch,
   });

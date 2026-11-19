@@ -9,7 +9,7 @@
     const len = Math.hypot(value[0], value[1], value[2]);
     return [value[0] / len, value[1] / len, value[2] / len];
   };
-  const keyOf = point => point.map(value => Math.round(value * 1e5)).join(',');
+  const keyOf = point => point.map(value => Math.round(value * 1e4)).join(',');
   const edgeKey = (a, b) => a < b ? `${a}:${b}` : `${b}:${a}`;
   const cache = new WeakMap();
   const facetCache = new WeakMap();
@@ -68,8 +68,10 @@
       const ids = Array.from(body.mesh.triangles.slice(index, index + 3), id => indexMap[id]);
       if (new Set(ids).size < 3) continue;
       const normal = cross(sub(points[ids[1]], points[ids[0]]), sub(points[ids[2]], points[ids[0]]));
-      if (length(normal) < 1e-9) continue;
-      const triangle = { ids, normal: unit(normal), offset: dot(unit(normal), points[ids[0]]) };
+      const area2 = length(normal);
+      if (area2 < 1e-9) continue;
+      const unitNormal = [normal[0] / area2, normal[1] / area2, normal[2] / area2];
+      const triangle = { ids, normal: unitNormal, offset: dot(unitNormal, points[ids[0]]), area: area2 * 0.5 };
       const number = triangles.length;
       triangles.push(triangle);
       for (let side = 0; side < 3; side++) {
@@ -83,32 +85,126 @@
       neighbors[indexes[0]].push(indexes[1]);
       neighbors[indexes[1]].push(indexes[0]);
     }
-    const visited = new Set(), result = [];
-    for (let seed = 0; seed < triangles.length; seed++) {
-      if (visited.has(seed)) continue;
+
+    // Seed from largest triangles first so the seed normal is well-conditioned.
+    const order = Array.from({ length: triangles.length }, (_, i) => i)
+      .sort((a, b) => triangles[b].area - triangles[a].area);
+    const triToPatch = new Int32Array(triangles.length).fill(-1);
+    const rawPatches = [];
+    for (const seed of order) {
+      if (triToPatch[seed] !== -1) continue;
+      const patchIdx = rawPatches.length;
+      const first = triangles[seed];
+      const pSeed = points[first.ids[0]];
+      const scale = Math.max(1, Math.abs(pSeed[0]), Math.abs(pSeed[1]), Math.abs(pSeed[2]));
+      const planeTol = Math.max(2e-4, scale * 2e-5);
       const group = [], queue = [seed];
-      visited.add(seed);
+      triToPatch[seed] = patchIdx;
       while (queue.length) {
         const current = queue.pop();
         group.push(current);
         for (const adjacent of neighbors[current]) {
-          if (visited.has(adjacent)) continue;
-          const first = triangles[seed], second = triangles[adjacent];
-          if (dot(first.normal, second.normal) < 0.9999 ||
-            Math.abs(first.offset - second.offset) > 0.0001) continue;
-          visited.add(adjacent);
+          if (triToPatch[adjacent] !== -1) continue;
+          const second = triangles[adjacent];
+          if (dot(first.normal, second.normal) < 0.9995) continue;
+          const a0 = points[second.ids[0]], a1 = points[second.ids[1]], a2 = points[second.ids[2]];
+          if (Math.abs(dot(first.normal, a0) - first.offset) > planeTol ||
+              Math.abs(dot(first.normal, a1) - first.offset) > planeTol ||
+              Math.abs(dot(first.normal, a2) - first.offset) > planeTol) continue;
+          triToPatch[adjacent] = patchIdx;
           queue.push(adjacent);
         }
       }
+      const vertSet = new Set();
       const boundary = new Map();
+      let totalArea = 0;
       for (const index of group) {
         const ids = triangles[index].ids;
+        vertSet.add(ids[0]); vertSet.add(ids[1]); vertSet.add(ids[2]);
+        totalArea += triangles[index].area;
         for (let side = 0; side < 3; side++) {
           const a = ids[side], b = ids[(side + 1) % 3], key = edgeKey(a, b);
           if (boundary.has(key)) boundary.delete(key);
           else boundary.set(key, [a, b]);
         }
       }
+      rawPatches.push({ idx: patchIdx, normal: first.normal, group, vertIds: [...vertSet], boundary, totalArea });
+    }
+
+    // Filter out tessellated curved-surface facets (cylinders, cones, fillets, spheres)
+    // while keeping genuine planar faces (including filleted caps and flat walls).
+    const SMOOTH_COS = 0.965;
+    const smoothAdj = rawPatches.map(() => []);
+    const smoothEdgeList = rawPatches.map(() => []);
+    for (const p of rawPatches) {
+      for (const [key, [a, b]] of p.boundary.entries()) {
+        const owners = edgeToTriangles.get(key);
+        if (!owners || owners.length !== 2) continue;
+        const p0 = triToPatch[owners[0]], p1 = triToPatch[owners[1]];
+        const otherIdx = p0 === p.idx ? p1 : p0;
+        if (otherIdx === -1 || otherIdx === p.idx) continue;
+        const d = dot(p.normal, rawPatches[otherIdx].normal);
+        if (d >= SMOOTH_COS && d < 0.99999) {
+          smoothAdj[p.idx].push(otherIdx);
+          smoothEdgeList[p.idx].push({ otherIdx, a, b });
+        }
+      }
+    }
+    const spanPerp = (patch, eDir) => {
+      const perp = cross(patch.normal, eDir);
+      const pl = length(perp);
+      if (pl < 1e-9) return 0;
+      const px = perp[0] / pl, py = perp[1] / pl, pz = perp[2] / pl;
+      let lo = Infinity, hi = -Infinity;
+      for (const id of patch.vertIds) {
+        const pt = points[id];
+        const proj = pt[0] * px + pt[1] * py + pt[2] * pz;
+        if (proj < lo) lo = proj;
+        if (proj > hi) hi = proj;
+      }
+      return hi - lo;
+    };
+    const curvedCandidate = new Uint8Array(rawPatches.length);
+    for (const p of rawPatches) {
+      if (!smoothEdgeList[p.idx].length) continue;
+      for (const { otherIdx, a, b } of smoothEdgeList[p.idx]) {
+        const edgeVec = sub(points[b], points[a]);
+        const el = length(edgeVec);
+        if (el < 1e-7) continue;
+        const eDir = [edgeVec[0] / el, edgeVec[1] / el, edgeVec[2] / el];
+        const sp = spanPerp(p, eDir);
+        const sq = spanPerp(rawPatches[otherIdx], eDir);
+        if (sq > 1e-7 && sp <= sq * 2.5) {
+          curvedCandidate[p.idx] = 1;
+          break;
+        }
+      }
+    }
+    const compVisited = new Uint8Array(rawPatches.length);
+    const isCurved = new Uint8Array(rawPatches.length);
+    for (let i = 0; i < rawPatches.length; i++) {
+      if (!curvedCandidate[i] || compVisited[i]) continue;
+      const comp = [], q = [i];
+      compVisited[i] = 1;
+      while (q.length) {
+        const cur = q.pop();
+        comp.push(cur);
+        for (const nxt of smoothAdj[cur]) {
+          if (curvedCandidate[nxt] && !compVisited[nxt]) {
+            compVisited[nxt] = 1;
+            q.push(nxt);
+          }
+        }
+      }
+      if (comp.length >= 4) {
+        for (const idx of comp) isCurved[idx] = 1;
+      }
+    }
+
+    const result = [];
+    for (const raw of rawPatches) {
+      if (isCurved[raw.idx] || raw.totalArea < 1e-4) continue;
+      const { boundary, group, normal } = raw;
       const outgoing = new Map();
       for (const [a, b] of boundary.values()) {
         if (!outgoing.has(a)) outgoing.set(a, []);
@@ -131,7 +227,6 @@
         if (loop.length >= 3) loops.push(loop);
       }
       if (!loops.length) continue;
-      const normal = triangles[seed].normal;
       const longest = [...boundary.values()].sort((first, second) =>
         length(sub(points[second[1]], points[second[0]])) -
         length(sub(points[first[1]], points[first[0]])))[0];
@@ -143,7 +238,7 @@
       }, 0) / 2;
       loops.sort((first, second) => Math.abs(area(second)) - Math.abs(area(first)));
       const outer = loops[0];
-      if (Math.abs(area(outer)) < 1e-6) continue;
+      if (Math.abs(area(outer)) < 1e-4) continue;
       const origin = [0, 1, 2].map(axis => outer.reduce((sum, id) => sum + points[id][axis], 0) / outer.length);
       const local = loop => loop.map(id => [dot(sub(points[id], origin), u), dot(sub(points[id], origin), v)]);
       result.push({ body, id: `${body.id || 'body'}:face-${result.length}`, normal, origin, u, v,
@@ -251,6 +346,44 @@
       context.fill();
     }
     context.restore();
+  }
+
+  function screenBoundsOf(body, camera, width, height) {
+    const b = displayBounds(body);
+    if (!b) return null;
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    const xs = [b.minX, b.maxX];
+    const ys = [b.minY, b.maxY];
+    const zs = [b.minZ, b.maxZ];
+    for (let xi = 0; xi < 2; xi++) {
+      for (let yi = 0; yi < 2; yi++) {
+        for (let zi = 0; zi < 2; zi++) {
+          const p = camera.project([xs[xi], ys[yi], zs[zi]], width, height);
+          if (p[0] < minX) minX = p[0];
+          if (p[0] > maxX) maxX = p[0];
+          if (p[1] < minY) minY = p[1];
+          if (p[1] > maxY) maxY = p[1];
+        }
+      }
+    }
+    return { minX, maxX, minY, maxY };
+  }
+
+  function isOccludedByMesh(bestDepth, screen, bodies, camera, width, height) {
+    if (typeof camera?.origin !== 'function' || typeof camera?.unit !== 'function' ||
+        !camera.right || !camera.up || !camera.depth) return false;
+    const sx = screen[0], sy = screen[1];
+    for (const body of bodies) {
+      if (body.visible === false || !body.mesh) continue;
+      const sBox = screenBoundsOf(body, camera, width, height);
+      if (sBox && (sx < sBox.minX - 6 || sx > sBox.maxX + 6 || sy < sBox.minY - 6 || sy > sBox.maxY + 6)) {
+        continue;
+      }
+      const hit = pickMeshTriangle(body, screen, camera, width, height, true);
+      if (hit && hit.depth > bestDepth + 1e-3) return true;
+    }
+    return false;
   }
 
   let _pickProjected = new Float64Array(0);
@@ -538,29 +671,14 @@
           }
         }
       }
+      if (best && isOccludedByMesh(best.depth, screen, this.extrudeController.bodies, camera, bounds.width, bounds.height)) {
+        return null;
+      }
       return best?.face || null;
     }
 
     screenBounds(body, width, height) {
-      const b = displayBounds(body);
-      if (!b) return null;
-      let minX = Infinity, maxX = -Infinity;
-      let minY = Infinity, maxY = -Infinity;
-      const xs = [b.minX, b.maxX];
-      const ys = [b.minY, b.maxY];
-      const zs = [b.minZ, b.maxZ];
-      for (let xi = 0; xi < 2; xi++) {
-        for (let yi = 0; yi < 2; yi++) {
-          for (let zi = 0; zi < 2; zi++) {
-            const p = this.camera.project([xs[xi], ys[yi], zs[zi]], width, height);
-            if (p[0] < minX) minX = p[0];
-            if (p[0] > maxX) maxX = p[0];
-            if (p[1] < minY) minY = p[1];
-            if (p[1] > maxY) maxY = p[1];
-          }
-        }
-      }
-      return { minX, maxX, minY, maxY };
+      return screenBoundsOf(body, this.camera, width, height);
     }
 
     bodyAt(event) {
@@ -797,6 +915,9 @@
           }
         }
       }
+    }
+    if (best && isOccludedByMesh(best.depth, screen, bodies, camera, bounds.width, bounds.height)) {
+      return null;
     }
     return best;
   }

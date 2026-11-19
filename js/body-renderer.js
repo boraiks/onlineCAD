@@ -114,6 +114,16 @@
   const edgeKey = (k1, k2) => k1 < k2 ? `${k1}|${k2}` : `${k2}|${k1}`;
   const pointKey = p => `${Math.round(p[0] * 1e4)},${Math.round(p[1] * 1e4)},${Math.round(p[2] * 1e4)}`;
 
+  function isSmoothFeatureEdge(normals) {
+    if (!normals || normals.length < 2) return false;
+    for (let i = 0; i < normals.length; i++) {
+      for (let j = i + 1; j < normals.length; j++) {
+        if (dot(normals[i], normals[j]) < 0.965) return false;
+      }
+    }
+    return true;
+  }
+
   // Crease threshold: angles < 42° (cos >= 0.743) are smoothed together across vertices;
   // sharp edges >= 42° (e.g. 90° corners, cylinder caps) remain razor-sharp flat creases.
   const COS_CREASE = 0.743;
@@ -282,11 +292,26 @@
     if (triangles.length > 24000 && (body.meshSource === 'import' || body.meshSource === 'solid'))
       return prepareDenseImportedMesh(body, sourceMesh);
     const points = [];
-    for (let index = 0; index < vertices.length; index += 3)
-      points.push([vertices[index], vertices[index + 1], vertices[index + 2]]);
+    const pointKeys = [];
+    const spatialIds = new Int32Array(Math.floor(vertices.length / 3));
+    const spatialMap = new Map();
+    let spatialCount = 0;
+    for (let index = 0, vIdx = 0; index < vertices.length; index += 3, vIdx++) {
+      const pt = [vertices[index], vertices[index + 1], vertices[index + 2]];
+      points.push(pt);
+      const pk = pointKey(pt);
+      pointKeys.push(pk);
+      let sId = spatialMap.get(pk);
+      if (sId === undefined) {
+        sId = spatialCount++;
+        spatialMap.set(pk, sId);
+      }
+      spatialIds[vIdx] = sId;
+    }
 
     const triCount = Math.floor(triangles.length / 3);
     const triNormals = [];
+    const triValid = new Uint8Array(triCount);
     const isDenseMesh = triCount > 8000;
     const isImportedDense = isDenseMesh && (body.meshSource === 'import' || body.meshSource === 'solid');
 
@@ -297,12 +322,19 @@
         triNormals.push([0, 0, 1]);
         continue;
       }
+      const collapsed = spatialIds[i0] === spatialIds[i1] ||
+        spatialIds[i1] === spatialIds[i2] ||
+        spatialIds[i2] === spatialIds[i0];
       const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
       const e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
       const n = cross(e1, e2);
       const length = Math.hypot(...n);
-      const unitNormal = length > 1e-10 ? n.map(v => v / length) : [0, 0, 1];
-      triNormals.push(unitNormal);
+      if (collapsed || length <= 1e-10) {
+        triNormals.push([0, 0, 1]);
+        continue;
+      }
+      triValid[t] = 1;
+      triNormals.push(n.map(v => v / length));
     }
 
     const faces = [];
@@ -313,6 +345,7 @@
       // Fast O(N) vertex normal accumulation for dense meshes / 3D scans
       const vertNormals = new Float32Array(points.length * 3);
       for (let t = 0; t < triCount; t++) {
+        if (!triValid[t]) continue;
         const n = triNormals[t];
         for (let c = 0; c < 3; c++) {
           const vIdx = triangles[t * 3 + c] * 3;
@@ -348,31 +381,35 @@
       }
     } else {
       // Precise CAD crease smoothing for parametric bodies
-      const vertexToTriangles = points.map(() => []);
+      const spatialToTriangles = Array.from({ length: spatialCount }, () => []);
       for (let t = 0; t < triCount; t++) {
-        vertexToTriangles[triangles[t * 3]].push(t);
-        vertexToTriangles[triangles[t * 3 + 1]].push(t);
-        vertexToTriangles[triangles[t * 3 + 2]].push(t);
+        if (!triValid[t]) continue;
+        spatialToTriangles[spatialIds[triangles[t * 3]]].push(t);
+        spatialToTriangles[spatialIds[triangles[t * 3 + 1]]].push(t);
+        spatialToTriangles[spatialIds[triangles[t * 3 + 2]]].push(t);
       }
 
       for (let t = 0; t < triCount; t++) {
         const ids = [triangles[t * 3], triangles[t * 3 + 1], triangles[t * 3 + 2]];
         const unitNormal = triNormals[t];
-        const cornerNormals = ids.map(vertexId => {
-          let sumX = 0, sumY = 0, sumZ = 0;
-          const sharing = vertexToTriangles[vertexId];
-          for (let s = 0; s < sharing.length; s++) {
-            const otherTri = sharing[s];
-            const otherNorm = triNormals[otherTri];
-            if (dot(unitNormal, otherNorm) >= COS_CREASE) {
-              sumX += otherNorm[0];
-              sumY += otherNorm[1];
-              sumZ += otherNorm[2];
-            }
-          }
-          const len = Math.hypot(sumX, sumY, sumZ);
-          return len > 1e-6 ? [sumX / len, sumY / len, sumZ / len] : unitNormal;
-        });
+        const validTri = triValid[t] === 1;
+        const cornerNormals = validTri
+          ? ids.map(vertexId => {
+              let sumX = 0, sumY = 0, sumZ = 0;
+              const sharing = spatialToTriangles[spatialIds[vertexId]];
+              for (let s = 0; s < sharing.length; s++) {
+                const otherTri = sharing[s];
+                const otherNorm = triNormals[otherTri];
+                if (dot(unitNormal, otherNorm) >= COS_CREASE) {
+                  sumX += otherNorm[0];
+                  sumY += otherNorm[1];
+                  sumZ += otherNorm[2];
+                }
+              }
+              const len = Math.hypot(sumX, sumY, sumZ);
+              return len > 1e-6 ? [sumX / len, sumY / len, sumZ / len] : unitNormal;
+            })
+          : [unitNormal, unitNormal, unitNormal];
 
         faces.push({
           ids,
@@ -381,13 +418,15 @@
           cap: Math.abs(dot(unitNormal, bodyNormal)) > 0.93
         });
 
-        for (let corner = 0; corner < 3; corner++) {
-          const from = ids[corner], to = ids[(corner + 1) % 3];
-          const key = edgeKey(pointKey(points[from]), pointKey(points[to]));
-          if (!edges.has(key)) edges.set(key, { from, to, normals: [], sides: [] });
-          const edge = edges.get(key);
-          edge.normals.push(unitNormal);
-          edge.sides.push({ normal: unitNormal, opposite: points[ids[(corner + 2) % 3]] });
+        if (validTri) {
+          for (let corner = 0; corner < 3; corner++) {
+            const from = ids[corner], to = ids[(corner + 1) % 3];
+            const key = edgeKey(pointKeys[from], pointKeys[to]);
+            if (!edges.has(key)) edges.set(key, { from, to, normals: [], sides: [] });
+            const edge = edges.get(key);
+            edge.normals.push(unitNormal);
+            edge.sides.push({ normal: unitNormal, opposite: points[ids[(corner + 2) % 3]] });
+          }
         }
       }
     }
@@ -1028,7 +1067,7 @@
               const color = inspectMesh ? [0.18, 0.39, 0.51, 1] : [0.08, 0.10, 0.14, 1];
               for (const edge of mesh.edges) {
                 if (!inspectMesh) {
-                  if (edge.normals.length === 2 && dot(edge.normals[0], edge.normals[1]) >= 0.965) continue;
+                  if (isSmoothFeatureEdge(edge.normals)) continue;
                 }
                 const a = mesh.points[edge.from], b = mesh.points[edge.to];
                 lineArr.push(a[0], a[1], a[2], 0, 0, 0, color[0], color[1], color[2], 1);

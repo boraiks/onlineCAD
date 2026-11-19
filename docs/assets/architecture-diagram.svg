@@ -1,80 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 540" width="1120" height="540" role="img" aria-label="onlineCAD System Architecture Diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" width="960" height="420" role="img" aria-label="onlineCAD System Architecture">
   <defs>
-    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0b1520"/>
-      <stop offset="100%" stop-color="#112233"/>
-    </linearGradient>
-    <linearGradient id="cardGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#162a3d"/>
-      <stop offset="100%" stop-color="#102030"/>
-    </linearGradient>
-    <linearGradient id="accentGrad" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#0ea5e9"/>
-      <stop offset="100%" stop-color="#38bdf8"/>
-    </linearGradient>
-    <marker id="arrowBlue" viewBox="0 0 10 10" refX="5" refY="7" markerWidth="7" markerHeight="7" orient="auto">
-      <path d="M 1 2 L 5 8 L 9 2 z" fill="#38bdf8"/>
-    </marker>
-    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
-      <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#1e364d" stroke-width="0.6" opacity="0.45"/>
+    <pattern id="bpGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#7dd3fc" stroke-width="0.6" stroke-opacity="0.055"/>
     </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto">
+      <path d="M 1 1.5 L 8.5 5 L 1 8.5 z" fill="#38bdf8"/>
+    </marker>
   </defs>
 
-  <!-- Canvas & Grid -->
-  <rect width="1120" height="540" rx="16" fill="url(#bgGrad)"/>
-  <rect width="1120" height="540" rx="16" fill="url(#grid)"/>
-  <rect x="0.5" y="0.5" width="1119" height="539" rx="15.5" fill="none" stroke="#223e57" stroke-width="1.2"/>
+  <rect x="0.5" y="0.5" width="959" height="419" rx="12" fill="#0c2340" stroke="#1e436e" stroke-width="1"/>
+  <rect x="1" y="1" width="958" height="418" rx="12" fill="url(#bpGrid)"/>
 
   <!-- Header -->
-  <text x="48" y="48" fill="#f1f5f9" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="18" font-weight="700" letter-spacing="0.02em">CLIENT-SIDE ZERO-BUILD ARCHITECTURE</text>
-  <text x="48" y="69" fill="#7fa3bf" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12">100% browser-native execution - Vanilla ES Modules - WebGL2 - Manifold WASM</text>
-  <rect x="926" y="34" width="146" height="28" rx="14" fill="#0f293e" stroke="#38bdf8" stroke-opacity="0.45"/>
-  <text x="999" y="52" text-anchor="middle" fill="#38bdf8" font-family="ui-monospace, Consolas, monospace" font-size="11" font-weight="700">NO SERVER NEEDED</text>
+  <text x="36" y="42" fill="#f8fafc" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="16" font-weight="600" letter-spacing="0.01em">System Architecture</text>
+  <rect x="794" y="23" width="130" height="26" rx="13" fill="#102d52" stroke="#254d7a" stroke-width="1"/>
+  <text x="859" y="40" text-anchor="middle" fill="#7dd3fc" font-family="ui-monospace, Consolas, Menlo, monospace" font-size="11" font-weight="500">100% Client-Side</text>
 
   <!-- Layer 1: Workspace UI -->
-  <rect x="48" y="96" width="1024" height="82" rx="10" fill="url(#cardGrad)" stroke="#2b4f6e" stroke-width="1.2"/>
-  <rect x="48" y="96" width="6" height="82" rx="3" fill="#38bdf8"/>
-  <text x="72" y="124" fill="#e2edf5" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="700">1. Workspace UI &amp; Interaction Layer</text>
-  <text x="72" y="146" fill="#9ab5c9" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="12.5">SOLID / MESH / UTILITIES / SKETCH Ribbon  -  Draggable Tool Dialogs  -  Browser Tree  -  ViewCube  -  Cursor Tool Search (S)</text>
-  <text x="72" y="164" fill="#5e87a6" font-family="ui-monospace, Consolas, monospace" font-size="11">index.html  |  js/draggable-panels.js  |  js/tool-search.js  |  js/view-cube.js  |  js/tooltips.js</text>
+  <rect x="36" y="68" width="888" height="58" rx="8" fill="#102d52" stroke="#254d7a" stroke-width="1"/>
+  <rect x="46" y="79" width="3" height="36" rx="1.5" fill="#38bdf8"/>
+  <text x="64" y="92" fill="#f8fafc" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="14" font-weight="600">Workspace UI</text>
+  <text x="64" y="113" fill="#94b8db" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="12.5">Ribbon  ·  Draggable Dialogs  ·  ViewCube  ·  Tool Search</text>
 
-  <!-- Connector 1 -> 2 -->
-  <line x1="560" y1="178" x2="560" y2="206" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <!-- Arrow 1 -> 2 -->
+  <line x1="480" y1="126" x2="480" y2="148" stroke="#38bdf8" stroke-width="1.4" stroke-opacity="0.85" marker-end="url(#arrow)"/>
 
-  <!-- Layer 2: Application & State Core -->
-  <rect x="48" y="210" width="1024" height="82" rx="10" fill="url(#cardGrad)" stroke="#2b4f6e" stroke-width="1.2"/>
-  <rect x="48" y="210" width="6" height="82" rx="3" fill="#22c55e"/>
-  <text x="72" y="238" fill="#e2edf5" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="700">2. Document State, History &amp; Interop Core</text>
-  <text x="72" y="260" fill="#9ab5c9" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="12.5">Feature-Grouped Timeline &amp; Undo/Redo  -  IndexedDB Autosave &amp; Recovery  -  .ocad / STL / 3MF / OBJ / DXF / STEP I/O</text>
-  <text x="72" y="278" fill="#5e87a6" font-family="ui-monospace, Consolas, monospace" font-size="11">app.js  |  js/history.js  |  js/timeline.js  |  js/project-io.js  |  js/project-store.js  |  js/importers.js</text>
+  <!-- Layer 2: Document & History -->
+  <rect x="36" y="152" width="888" height="58" rx="8" fill="#102d52" stroke="#254d7a" stroke-width="1"/>
+  <rect x="46" y="163" width="3" height="36" rx="1.5" fill="#38bdf8"/>
+  <text x="64" y="176" fill="#f8fafc" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="14" font-weight="600">Document &amp; History</text>
+  <text x="64" y="197" fill="#94b8db" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="12.5">Feature Timeline  ·  IndexedDB Autosave  ·  .ocad / STL / 3MF / STEP / DXF</text>
 
-  <!-- Connectors 2 -> 3L & 3R -->
-  <line x1="304" y1="292" x2="304" y2="320" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowBlue)"/>
-  <line x1="816" y1="292" x2="816" y2="320" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <!-- Split Connectors 2 -> 3A & 3B -->
+  <path d="M 480 210 L 480 222 L 252 222 L 252 232" fill="none" stroke="#38bdf8" stroke-width="1.4" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+  <path d="M 480 222 L 708 222 L 708 232" fill="none" stroke="#38bdf8" stroke-width="1.4" stroke-opacity="0.85" marker-end="url(#arrow)"/>
 
-  <!-- Layer 3 Left: 2D Sketch Engine -->
-  <rect x="48" y="324" width="496" height="94" rx="10" fill="url(#cardGrad)" stroke="#2b4f6e" stroke-width="1.2"/>
-  <rect x="48" y="324" width="6" height="94" rx="3" fill="#0ea5e9"/>
-  <text x="72" y="352" fill="#e2edf5" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="700">3A. 2D Constraint Sketch Engine</text>
-  <text x="72" y="374" fill="#9ab5c9" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="12">Magnetic Snapping  -  Geometric Constraint Solver</text>
-  <text x="72" y="392" fill="#9ab5c9" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="12">Closed Cycle &amp; Island Profile Solver  -  Fillet / Trim / Offset</text>
-  <text x="72" y="409" fill="#5e87a6" font-family="ui-monospace, Consolas, monospace" font-size="10.5">sketch-tool.js  |  sketch-constraints.js  |  sketch-profiles.js</text>
+  <!-- Layer 3A: 2D Sketch Engine -->
+  <rect x="36" y="236" width="432" height="64" rx="8" fill="#102d52" stroke="#254d7a" stroke-width="1"/>
+  <rect x="46" y="247" width="3" height="42" rx="1.5" fill="#38bdf8"/>
+  <text x="64" y="263" fill="#f8fafc" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="14" font-weight="600">2D Sketch Engine</text>
+  <text x="64" y="285" fill="#94b8db" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="12.5">Constraints  ·  Snapping  ·  Profiles</text>
 
-  <!-- Layer 3 Right: 3D Solid & Mesh Kernel -->
-  <rect x="576" y="324" width="496" height="94" rx="10" fill="url(#cardGrad)" stroke="#2b4f6e" stroke-width="1.2"/>
-  <rect x="576" y="324" width="6" height="94" rx="3" fill="#f59e0b"/>
-  <text x="600" y="352" fill="#e2edf5" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="700">3B. Solid Kernel &amp; Background Workers</text>
-  <text x="600" y="374" fill="#9ab5c9" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="12">Manifold WASM Booleans (Extrude, Revolve, Hole, Fillet)</text>
-  <text x="600" y="392" fill="#9ab5c9" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="12">Workers: Auto-Repair, Fill Hollow, Decimate, CAD Surface</text>
-  <text x="600" y="409" fill="#5e87a6" font-family="ui-monospace, Consolas, monospace" font-size="10.5">solid-kernel.js  |  manifold.wasm  |  mesh-solid-worker.js  |  mesh-worker.js</text>
+  <!-- Layer 3B: Manifold WASM & Workers -->
+  <rect x="492" y="236" width="432" height="64" rx="8" fill="#102d52" stroke="#254d7a" stroke-width="1"/>
+  <rect x="502" y="247" width="3" height="42" rx="1.5" fill="#38bdf8"/>
+  <text x="520" y="263" fill="#f8fafc" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="14" font-weight="600">Manifold WASM &amp; Workers</text>
+  <text x="520" y="285" fill="#94b8db" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="12.5">CSG Booleans  ·  Repair  ·  Fill Hollow</text>
 
   <!-- Connectors 3 -> 4 -->
-  <line x1="304" y1="418" x2="304" y2="444" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowBlue)"/>
-  <line x1="816" y1="418" x2="816" y2="444" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <line x1="252" y1="300" x2="252" y2="324" stroke="#38bdf8" stroke-width="1.4" stroke-opacity="0.85" marker-end="url(#arrow)"/>
+  <line x1="708" y1="300" x2="708" y2="324" stroke="#38bdf8" stroke-width="1.4" stroke-opacity="0.85" marker-end="url(#arrow)"/>
 
-  <!-- Layer 4: Rendering Engine -->
-  <rect x="48" y="448" width="1024" height="68" rx="10" fill="url(#cardGrad)" stroke="#38bdf8" stroke-opacity="0.5" stroke-width="1.3"/>
-  <rect x="48" y="448" width="1024" height="4" rx="2" fill="url(#accentGrad)"/>
-  <text x="72" y="476" fill="#e2edf5" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" font-weight="700">4. Real-Time WebGL2 Studio &amp; 2D Overlay Renderer</text>
-  <text x="72" y="498" fill="#9ab5c9" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="12">Hardware VBO Caching  -  Key/Fill Studio Shading  -  Visible Crease Edges  -  Orthogonal Zebra Curvature Shader  -  Face Hit-Testing</text>
+  <!-- Layer 4: WebGL2 Studio Renderer -->
+  <rect x="36" y="328" width="888" height="58" rx="8" fill="#102d52" stroke="#254d7a" stroke-width="1"/>
+  <rect x="46" y="339" width="3" height="36" rx="1.5" fill="#38bdf8"/>
+  <text x="64" y="352" fill="#f8fafc" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="14" font-weight="600">WebGL2 Studio Renderer</text>
+  <text x="64" y="373" fill="#94b8db" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="12.5">VBO Shading  ·  Crease Edges  ·  Zebra Curvature</text>
 </svg>

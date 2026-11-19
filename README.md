@@ -1,160 +1,133 @@
 <p align="center">
-  <img src="docs/assets/hero-banner.png" alt="onlineCAD - Browser-Native 3D CAD" width="100%" />
+  <img src="docs/assets/hero-banner.png" alt="onlineCAD - Browser-native 3D CAD" width="100%" />
 </p>
 
 <h1 align="center">onlineCAD</h1>
 
 <p align="center">
-  <strong>Zero-install, client-side 3D CAD modeling in modern web browsers.</strong><br/>
-  Parametric 2D sketching, Manifold WebAssembly solid modeling, STL mesh repair, and real-time WebGL2 shading with zero server dependencies.
+  <strong>Zero-install parametric 2D sketching, Manifold WASM solid modeling, and STL mesh repair in the browser.</strong>
 </p>
 
 <p align="center">
-  <a href="https://cad.borakosalay.me"><strong>Launch Live App (cad.borakosalay.me)</strong></a>
+  <a href="https://cad.borakosalay.me"><strong>Launch Live App</strong></a>
+  &nbsp;-&nbsp;
+  <a href="#workspace">Workspace</a>
   &nbsp;-&nbsp;
   <a href="#capabilities">Capabilities</a>
   &nbsp;-&nbsp;
   <a href="#architecture">Architecture</a>
   &nbsp;-&nbsp;
-  <a href="#getting-started">Quick Start</a>
+  <a href="#performance">Performance</a>
   &nbsp;-&nbsp;
-  <a href="#keyboard-shortcuts">Shortcuts</a>
+  <a href="#quick-start">Quick Start</a>
   &nbsp;-&nbsp;
   <a href="#testing">Testing</a>
 </p>
 
 ---
 
-## Workspace Overview
-
-**onlineCAD** brings mechanical 2D sketching, Constructive Solid Geometry (CSG) solid modeling, and heavy STL/mesh preparation into a fast, zero-build browser workspace. Every boolean operation, voxel fill, mesh repair, and studio shading pass executes locally on the user's machine via WebAssembly, Web Workers, and WebGL2.
+## Workspace
 
 <p align="center">
-  <img src="docs/assets/workspace-showcase.png" alt="onlineCAD Workspace Showcase" width="100%" />
+  <img src="docs/assets/workspace-showcase.png" alt="onlineCAD Live Browser Workspace" width="100%" />
 </p>
 
-- **Clean Studio Interface**: Tabbed `SOLID`, `MESH`, `UTILITIES`, and `SKETCH` workspaces with crisp 24x24 geometric CAD iconography, ViewCube camera navigation, and an integrated Browser tree.
-- **Movable Floating Tool Dialogs**: Every modeling, mesh, and inspection palette (Extrude, Revolve, Fillet/Chamfer, Hole, Move/Rotate, Pattern, Mesh tools, Zebra, Interference) can be freely dragged across the viewport, clamped automatically on resize, and reset with a double-click.
-- **Cursor Tool Search (`S`)**: Fuzzy command palette positioned right next to your cursor for instant keyboard-first tool launching.
+- **Clean CAD Workspace**: Tabbed `SOLID`, `MESH`, `UTILITIES`, and `SKETCH` toolbars with unified 24x24 icons, interactive ViewCube, Browser feature tree, and front-layered `XY` / `XZ` / `YZ` origin planes.
+- **Draggable Tool Panels**: Every tool dialog (`Extrude`, `Revolve`, `Fillet`, `Chamfer`, `Hole`, `Move/Rotate`, `Pattern`, `Decimate`, `Mesh to Solid`, `Fill Hollow`, `CAD Surface`, `Zebra`, `Interference`) moves freely across the viewport, stays clamped inside bounds, and resets on double-click or via the reset button.
+- **Cursor Tool Search (`S`)**: Fuzzy command palette opens next to the pointer for fast keyboard-first modeling.
 
 ---
 
 ## Capabilities
 
 <p align="center">
-  <img src="docs/assets/feature-pillars.png" alt="2D Parametric Sketching, Solid Modeling, and Mesh Inspection" width="100%" />
+  <img src="docs/assets/feature-pillars.svg" alt="2D Sketch, 3D Solids, and Mesh & Inspect" width="100%" />
 </p>
 
-### 1. Constraint-Driven 2D Sketching
-- **Planes & Planar Faces**: Sketch directly on Cartesian planes (`XY`, `XZ`, `YZ`) or onto any planar face of an existing 3D solid body.
-- **Drawing & Editing**: Lines, 2-point rectangles, center circles, points, construction geometry (`X`), dynamic Trim (`T`), corner and curve-curve Fillet (`F`), Offset (`O`), Mirror, and Circular/Rectangular Patterns.
-- **Constraints & Magnetic Snapping**: Coincident, Horizontal/Vertical (`H`), Tangent (`G`), Equal, Midpoint, and Fix constraints with live dimensional HUD inputs (`Tab` to lock values) and a right-click shortcut wheel.
-- **Cycle Profile Solver**: Automatic closed-loop and nested island detection for clean multi-region solid extrusions and revolutions.
-
-### 2. Solid 3D Modeling (Manifold WASM)
-- **Extrude (`E`)**: Solid and thin-wall extrusions supporting `New Body`, `Join`, `Cut`, and `Intersect` operations across one-sided, two-sided, and symmetric extents with auto-cut overlap detection and interactive 3D arrow dragging.
-- **Revolve (`V`)**: Partial (`1` to `360` deg) and full revolutions around `X`, `Y`, or any picked sketch line axis with live boolean integration.
-- **3D Hole (`H`)**: Interactive face-placed Simple, Counterbore, and Countersink holes with Through-All or Blind depth controls and live 3D HUD editing.
-- **Fillet (`F`) & Chamfer**: Constant-radius rounding and 45-degree beveling across straight solid edges and continuous circular rims.
-- **Move / Rotate (`M`) & Patterns**: 3D translation and rotation gizmo with custom pivot selection, center-and-ground (`Z = 0`), Copy mode, and Rectangular/Circular body arrays.
-
-### 3. Mesh Repair, Simplification & Diagnostics
-- **Automatic Mesh Repair**: Non-manifold edges, stray degenerate facets, inconsistent winding, and small boundary holes in imported STL files are automatically repaired before boolean and solid conversion operations.
-- **Mesh to Solid**: Reconstructs analytic primitives (planes, cylinders, holes, spheres) or adapts watertight meshes into editable solid bodies.
-- **Fill Hollow**: Converts hollow shells into solid bodies. Fully enclosed cavities are filled cleanly at the shell level; shells open through vents or windows are bridged via a worker-backed voxel flood fill while preserving the outer skin.
-- **Decimate & CAD Surface Finish**: Worker-accelerated spatial clustering mesh simplification for viewport display and crease-angle smoothing (`42` deg default or custom) without altering source export geometry.
-- **Inspection Tools**: Orthogonal Horizontal/Vertical Zebra curvature reflection shaders, 3D multi-body Interference volume clash detection, and Show Mesh wireframe overlay.
-
-### 4. Timeline History, Autosave & Interoperability
-- **Interactive Feature Timeline**: Step-by-step undo/redo history grouped into clean design features for visual inspection and one-click rollback (`Ctrl+Z` / `Ctrl+Y`).
-- **Native Persistence & Crash Recovery**: Native `.ocad` project files plus automatic IndexedDB browser drafts (`FILE > Open Browser Draft`) with unsaved-changes warnings and crash recovery prompts.
-- **Import & Export**: Drag-and-drop import for `STL`, `STEP` (`.step`, `.stp`), `OBJ`, and `DXF`; export to binary/ASCII `STL`, `3MF` (one object per body in millimetres for Bambu Studio, PrusaSlicer, Cura, and OrcaSlicer), `OBJ`, `.ocad`, and layered AutoCAD R12 `DXF`.
+- **2D Constraint Sketching**: Sketch on origin planes or planar solid faces (curved walls are excluded automatically). Supports lines, rectangles, center circles, points, construction toggle (`X`), Trim (`T`), Fillet (`F`), Offset (`O`), Mirror, Patterns, live HUD dimensions (`Tab`), constraint relaxation, and nested cycle/island profile solving.
+- **Solid 3D Modeling (Manifold WASM)**: `Extrude` (`E`) with Solid/Thin modes and `New` / `Join` / `Cut` / `Intersect` auto-detection, `Revolve` (`V`) 1-360 deg around custom axes, `Hole` (`H`) for Simple/Counterbore/Countersink cuts, edge/circular-rim `Fillet` (`F`) and `Chamfer`, plus `Move/Rotate` (`M`) with 3D gizmo and `Pattern` arrays.
+- **Mesh Repair & Analysis**: Welded boundary repair for raw STL/OBJ imports, `Mesh to Solid` analytic primitive fitting, `Fill Hollow` shell closing + cropped voxel flood fill, worker-threaded `Decimate` clustering, non-destructive `CAD Surface` crease smoothing, `Zebra` reflection stripes, and 3D `Interference` clash detection.
+- **History & File Interop**: Feature timeline undo/redo (`Ctrl+Z` / `Ctrl+Y`), zero-copy TypedArray IndexedDB autosave with crash recovery, drag-and-drop `STL` / `STEP` / `OBJ` / `DXF` import, and `STL` / `3MF` / `OBJ` / `DXF` / `.ocad` export.
 
 ---
 
 ## Architecture
 
 <p align="center">
-  <img src="docs/assets/architecture-diagram.svg" alt="onlineCAD Architecture Diagram" width="100%" />
+  <img src="docs/assets/architecture-diagram.svg" alt="onlineCAD System Architecture" width="100%" />
 </p>
 
 | Layer | Technology | Role |
 | :--- | :--- | :--- |
-| **Solid Geometry Kernel** | [Manifold](https://github.com/elalish/manifold) (`manifold.wasm`) | Watertight CSG booleans, extrusions, revolutions, interference checks |
-| **2D Sketch Engine** | Custom Vanilla JS (`js/sketch-*.js`) | Constraint relaxation, magnetic snapping, closed-loop profile solving |
-| **Background Compute** | Dedicated Web Workers (`js/*-worker.js`) | Non-blocking STL parsing, mesh decimation, Fill Hollow, CAD surface normals |
-| **3D Studio Renderer** | Custom WebGL2 + GLSL (`js/body-renderer.js`) | VBO-cached triangles, key/fill studio lighting, crease silhouettes, Zebra shaders |
-| **Storage & Runtime** | IndexedDB + Native ES Modules | Zero build step, zero bundler overhead, offline-capable client persistence |
+| **Solid Kernel** | [Manifold](https://github.com/elalish/manifold) (`manifold.wasm`) | Watertight CSG booleans, extrusions, revolutions, clash volumes |
+| **2D Sketch Engine** | Custom Vanilla JS (`js/sketch-*.js`) | Magnetic snapping, constraint solver, closed-loop profiles |
+| **Mesh Workers** | Web Workers + TypedArrays (`js/*-core.js`) | Non-blocking STL/OBJ parsing, repair, Fill Hollow, decimation, BVH checks |
+| **3D Renderer** | Custom WebGL2 + GLSL (`js/body-renderer.js`) | Cached VBO shading, crease silhouette lines, Zebra curvature shader |
+| **Persistence** | IndexedDB + ES/IIFE Modules | Zero build tooling, TypedArray browser drafts, `.ocad` storage |
 
 ---
 
-## Getting Started
+## Performance
 
-### Prerequisites
-A modern browser with WebGL2 and WebAssembly support (Chrome, Edge, Firefox, or Safari).
+Mesh, voxel, BVH, and autosave hot paths use open-addressed TypedArray hash tables, flat BVH buffers, and zero-copy structured cloning (measured on Node v24 with synthetic 40k-500k triangle benchmarks):
 
-### Local Development
-Because onlineCAD loads WebAssembly (`.wasm`) modules and Web Workers, serve the repository over a local HTTP server:
+| Operation | Before | After | Speedup |
+| :--- | :--- | :--- | :--- |
+| Binary STL parse (100k tris) | 118.7 ms | 18.2 ms | 6.5x |
+| Grid clustering decimation (100k -> 25k tris) | 201.2 ms | 39.1 ms | 5.1x |
+| Surface repair `repairMesh` (100k tris) | 263.3 ms | 43.7 ms | 6.0x |
+| Unwelded solid prep `prepareSolidMesh` (100k tris) | 299.5 ms | 96.3 ms | 3.1x |
+| CAD surface normals `surfaceFinish.compute` (100k) | 241.9 ms | 76.8 ms | 3.1x |
+| Flat BVH deviation `sampledDeviation` (40k tris) | 169.2 ms | 39.6 ms | 4.3x |
+| Cropped `Fill Hollow` (`cup`, res=140, gap=32) | 6299.0 ms | 3523.7 ms | 1.8x |
+| IndexedDB autosave `serializeProject` (500k tris) | 49.5 ms | 1.5 ms | 33.0x |
+
+---
+
+## Quick Start
+
+Serve the directory over a local HTTP server (required for WebAssembly and Web Workers):
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/boraiks/onlineCAD.git
 cd onlineCAD
-
-# 2. (Optional) Enable the pre-commit build-stamp hook
-git config core.hooksPath .githooks
-
-# 3. Start a local static server
-python -m http.server 8080
-# Or with Node.js:
-npx serve .
+git config core.hooksPath .githooks   # optional version-stamp pre-commit hook
+python -m http.server 8080            # or: npx serve .
 ```
 
-Open `http://localhost:8080` in your browser.
+Then open `http://localhost:8080` in any WebGL2 + WASM browser.
 
 ---
 
-## Keyboard Shortcuts
+## Shortcuts
 
-| Shortcut | Action | Scope |
+| Key | Action | Context |
 | :--- | :--- | :--- |
-| `S` | Open Tool Search Palette | Global |
-| `E` | Extrude | Solid Workspace |
-| `V` | Revolve | Solid Workspace |
-| `H` | 3D Hole | Solid Workspace |
-| `M` | Move / Rotate | Solid / Mesh Workspace |
+| `S` | Open Cursor Tool Search | Global |
+| `E` / `V` / `H` / `M` | Extrude / Revolve / Hole / Move & Rotate | Solid |
 | `F` | 3D Fillet / Sketch Fillet | Solid / Sketch |
-| `L` | Line (opens plane picker outside sketch) | Global / Sketch |
-| `R` | 2-Point Rectangle (opens plane picker) | Global / Sketch |
-| `C` | Circle (opens plane picker) | Global / Sketch |
-| `T` | Trim | Sketch |
-| `O` | Offset | Sketch |
+| `L` / `R` / `C` | Line / 2-Point Rectangle / Circle | Sketch |
+| `T` / `O` / `X` | Trim / Offset / Construction Toggle | Sketch |
 | `D` / `A` | Distance / Angle Dimension | Sketch |
-| `X` | Toggle Construction Geometry | Sketch |
-| `Home` | Fit Scene to View | Viewport |
-| `Delete` | Delete selected sketch entities or body | Sketch / Solid |
+| `Home` / `Escape` | Fit View / Cancel Active Tool | Viewport / Global |
 | `Ctrl+Z` / `Ctrl+Y` | Undo / Redo | Global |
-| `Ctrl+S` / `Ctrl+O` | Save / Open `.ocad` Project | Global |
-| `Escape` | Cancel active tool or clear selection | Global |
-| `MMB Drag` | Pan Camera | Viewport |
-| `Shift + MMB Drag` | Orbit Camera | Viewport |
-| `Mouse Wheel` | Zoom In / Out | Viewport |
+| `Ctrl+S` / `Ctrl+O` | Save / Open `.ocad` | Global |
 
 ---
 
 ## Testing
 
-onlineCAD includes an automated test suite covering the solid kernel, sketch constraint solver, importers/exporters, mesh repair and feature fit, draggable tool dialogs, and UI state workflows:
+Run the full test suite with Node.js (zero npm install required):
 
 ```bash
 node --test tests/*.test.mjs
 ```
 
-All `217` unit and integration tests run directly on the Node.js native test runner.
+All `229` automated tests cover the Manifold solid kernel, 2D constraint and profile solver, STL/OBJ/STEP/DXF/3MF I/O, mesh repair and feature fit, planar face filtering, circular bevel edge generation, draggable dialogs, and optimization invariants.
 
 ---
 
 ## License
 
-- Application code is licensed under the [MIT License](LICENSE).
-- Bundled [Manifold](https://github.com/elalish/manifold) geometry library is licensed under the Apache License 2.0.
+- Application code: [MIT License](LICENSE).
+- Bundled [Manifold](https://github.com/elalish/manifold) kernel: Apache License 2.0.

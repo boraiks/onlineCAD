@@ -168,11 +168,21 @@
     }
 
     const nz = normal3D;
-    let ux = Math.abs(nz[0]) < 0.8 ? [1, 0, 0] : [0, 1, 0];
-    const dotU = ux[0] * nz[0] + ux[1] * nz[1] + ux[2] * nz[2];
-    let u = [ux[0] - dotU * nz[0], ux[1] - dotU * nz[1], ux[2] - dotU * nz[2]];
-    const uLen = Math.hypot(...u);
-    u = u.map(x => x / (uLen || 1));
+    let ux = null;
+    if (ring.points3D?.length) {
+      const p0 = ring.points3D[0];
+      const rx = p0[0] - center3D[0], ry = p0[1] - center3D[1], rz = p0[2] - center3D[2];
+      const d = rx * nz[0] + ry * nz[1] + rz * nz[2];
+      const px = rx - d * nz[0], py = ry - d * nz[1], pz = rz - d * nz[2];
+      if (Math.hypot(px, py, pz) > 1e-6) ux = [px, py, pz];
+    }
+    if (!ux) {
+      const fallback = Math.abs(nz[0]) < 0.8 ? [1, 0, 0] : [0, 1, 0];
+      const dotU = fallback[0] * nz[0] + fallback[1] * nz[1] + fallback[2] * nz[2];
+      ux = [fallback[0] - dotU * nz[0], fallback[1] - dotU * nz[1], fallback[2] - dotU * nz[2]];
+    }
+    const uLen = Math.hypot(...ux);
+    const u = ux.map(x => x / (uLen || 1));
     const v = cad.math.cross(nz, u);
 
     const matrix = [
