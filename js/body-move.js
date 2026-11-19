@@ -38,23 +38,58 @@
     return min.map((value, axis) => (value + max[axis]) / 2);
   }
 
+  function rotationMatrix(degrees) {
+    const rad = Math.PI / 180;
+    const rx = (degrees[0] || 0) * rad;
+    const ry = (degrees[1] || 0) * rad;
+    const rz = (degrees[2] || 0) * rad;
+    const cx = Math.cos(rx), sx = Math.sin(rx);
+    const cy = Math.cos(ry), sy = Math.sin(ry);
+    const cz = Math.cos(rz), sz = Math.sin(rz);
+    return [
+      cz * cy, cz * sx * sy - sz * cx, cz * cx * sy + sz * sx,
+      sz * cy, sz * sx * sy + cz * cx, sz * cx * sy - cz * sx,
+      -sy, sx * cy, cx * cy,
+    ];
+  }
+
+  function transformPositions(source, pivot, translation, m) {
+    const px = pivot[0], py = pivot[1], pz = pivot[2];
+    const ox = px + translation[0], oy = py + translation[1], oz = pz + translation[2];
+    const [m00, m01, m02, m10, m11, m12, m20, m21, m22] = m;
+    const out = ArrayBuffer.isView(source) ? new Float32Array(source.length) : new Array(source.length);
+    for (let i = 0; i < source.length; i += 3) {
+      const dx = source[i] - px;
+      const dy = source[i + 1] - py;
+      const dz = source[i + 2] - pz;
+      out[i] = m00 * dx + m01 * dy + m02 * dz + ox;
+      out[i + 1] = m10 * dx + m11 * dy + m12 * dz + oy;
+      out[i + 2] = m20 * dx + m21 * dy + m22 * dz + oz;
+    }
+    return out;
+  }
+
   function transformBody(body, translation, rotation = [0, 0, 0], pivot = meshCenter(body)) {
     if (!body.mesh) throw new Error('Body mesh is required for Move/Rotate');
-    const vertices = body.mesh.vertices;
-    const moved = new Array(vertices.length);
-    for (let i = 0; i < vertices.length; i += 3) {
-      const point = add(add(rotate(subtract(vertices.slice(i, i + 3), pivot), rotation), pivot), translation);
-      moved[i] = point[0]; moved[i + 1] = point[1]; moved[i + 2] = point[2];
-    }
+    const matrix = rotationMatrix(rotation);
+    const moved = transformPositions(body.mesh.vertices, pivot, translation, matrix);
     const display = body.renderMesh?.vertices;
-    const movedDisplay = display ? new Array(display.length) : null;
-    if (display) for (let i = 0; i < display.length; i += 3) {
-      const point = add(add(rotate(subtract(display.slice(i, i + 3), pivot), rotation), pivot), translation);
-      movedDisplay[i] = point[0]; movedDisplay[i + 1] = point[1]; movedDisplay[i + 2] = point[2];
-    }
-    return { ...body, cells: null, meshSource: body.meshSource === 'solid' ? 'solid' : 'mesh', normal: rotate(body.normal || [0, 0, 1], rotation),
+    const movedDisplay = display ? transformPositions(display, pivot, translation, matrix) : null;
+    const meshSource = body.meshSource === 'import'
+      ? 'import'
+      : body.meshSource === 'solid'
+        ? 'solid'
+        : 'mesh';
+    return {
+      ...body,
+      cells: null,
+      _aabb: null,
+      _aabbMesh: null,
+      meshSource,
+      normal: rotate(body.normal || [0, 0, 1], rotation),
       mesh: { vertices: moved, triangles: body.mesh.triangles },
-      renderMesh: movedDisplay ? { vertices: movedDisplay, triangles: body.renderMesh.triangles } : null };
+      renderMesh: movedDisplay ? { vertices: movedDisplay, triangles: body.renderMesh.triangles } : null,
+    };
   }
 
   function containsTriangle(point, a, b, c) {

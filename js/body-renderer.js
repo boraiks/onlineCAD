@@ -119,15 +119,27 @@
   const COS_CREASE = 0.743;
   const CAD_MATERIAL = [0.65, 0.64, 0.61, 1];
 
+  function maxAbsDiff(values, mean) {
+    let best = 0;
+    for (let i = 0; i < values.length; i++) {
+      const diff = Math.abs(values[i] - mean);
+      if (diff > best) best = diff;
+    }
+    return best;
+  }
+
   function materialColor() {
     return CAD_MATERIAL;
   }
 
   function studioDirection(camera, right, up, towardViewer) {
-    const direction = [0, 1, 2].map(axis =>
-      camera.right[axis] * right + camera.up[axis] * up + camera.depth[axis] * towardViewer);
-    const length = Math.hypot(...direction) || 1;
-    return direction.map(value => value / length);
+    const r = camera.right, u = camera.up, d = camera.depth;
+    const dx = r[0] * right + u[0] * up + d[0] * towardViewer;
+    const dy = r[1] * right + u[1] * up + d[1] * towardViewer;
+    const dz = r[2] * right + u[2] * up + d[2] * towardViewer;
+    const length = Math.hypot(dx, dy, dz) || 1;
+    const inv = 1 / length;
+    return [dx * inv, dy * inv, dz * inv];
   }
 
   function prepareDenseImportedMesh(body, sourceMesh) {
@@ -141,9 +153,9 @@
       let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
       const length = Math.hypot(nx, ny, nz) || 1;
       nx /= length; ny /= length; nz /= length;
-      for (const index of [a, b, c]) {
-        normals[index] += nx; normals[index + 1] += ny; normals[index + 2] += nz;
-      }
+      normals[a] += nx; normals[a + 1] += ny; normals[a + 2] += nz;
+      normals[b] += nx; normals[b + 1] += ny; normals[b + 2] += nz;
+      normals[c] += nx; normals[c + 1] += ny; normals[c + 2] += nz;
     }
     for (let i = 0; i < normals.length; i += 3) {
       const length = Math.hypot(normals[i], normals[i + 1], normals[i + 2]) || 1;
@@ -166,26 +178,65 @@
   function denseWireframeData(sourceMesh) {
     const { vertices, triangles } = sourceMesh;
     const vertexCount = Math.floor(vertices.length / 3);
-    const seen = new Set();
-    const pairs = [];
+    const triCount = Math.floor(triangles.length / 3);
+    const estEdges = Math.max(64, Math.ceil(triCount * 1.55));
+    let cap = 64;
+    while (cap < estEdges * 2) cap <<= 1;
+    let mask = cap - 1;
+    let buckets = new Int32Array(cap).fill(-1);
+    let maxEdges = cap >> 1;
+    let eLo = new Uint32Array(maxEdges);
+    let eHi = new Uint32Array(maxEdges);
+    let used = 0;
+
     const addEdge = (from, to) => {
       if (from === to || from >= vertexCount || to >= vertexCount) return;
-      const lo = Math.min(from, to), hi = Math.max(from, to);
-      const key = lo * vertexCount + hi;
-      if (seen.has(key)) return;
-      seen.add(key);
-      pairs.push(from, to);
+      const lo = from < to ? from : to;
+      const hi = from < to ? to : from;
+      if (used * 10 >= cap * 7) {
+        cap <<= 1;
+        mask = cap - 1;
+        buckets = new Int32Array(cap).fill(-1);
+        for (let e = 0; e < used; e++) {
+          let eh = Math.imul(eLo[e] ^ Math.imul(eHi[e], 0x9e3779b1), 0x85ebca6b);
+          eh = ((eh ^ (eh >>> 15)) >>> 0) & mask;
+          while (buckets[eh] !== -1) eh = (eh + 1) & mask;
+          buckets[eh] = e;
+        }
+      }
+      let h = Math.imul(lo ^ Math.imul(hi, 0x9e3779b1), 0x85ebca6b);
+      h = ((h ^ (h >>> 15)) >>> 0) & mask;
+      while (true) {
+        const slot = buckets[h];
+        if (slot === -1) break;
+        if (eLo[slot] === lo && eHi[slot] === hi) return;
+        h = (h + 1) & mask;
+      }
+      if (used === maxEdges) {
+        maxEdges <<= 1;
+        const nLo = new Uint32Array(maxEdges); nLo.set(eLo); eLo = nLo;
+        const nHi = new Uint32Array(maxEdges); nHi.set(eHi); eHi = nHi;
+      }
+      const id = used++;
+      eLo[id] = lo;
+      eHi[id] = hi;
+      buckets[h] = id;
     };
+
     for (let i = 0; i < triangles.length; i += 3) {
       const a = triangles[i], b = triangles[i + 1], c = triangles[i + 2];
       addEdge(a, b);
       addEdge(b, c);
       addEdge(c, a);
     }
-    const data = new Float32Array(pairs.length * 10);
-    for (let i = 0, out = 0; i < pairs.length; i++) {
-      const index = pairs[i] * 3;
-      data[out++] = vertices[index]; data[out++] = vertices[index + 1]; data[out++] = vertices[index + 2];
+
+    const data = new Float32Array(used * 20);
+    for (let e = 0, out = 0; e < used; e++) {
+      const a = eLo[e] * 3, b = eHi[e] * 3;
+      data[out++] = vertices[a]; data[out++] = vertices[a + 1]; data[out++] = vertices[a + 2];
+      data[out++] = 0; data[out++] = 0; data[out++] = 0;
+      data[out++] = 0.18; data[out++] = 0.39; data[out++] = 0.51; data[out++] = 1;
+      data[out++] = vertices[b]; data[out++] = vertices[b + 1]; data[out++] = vertices[b + 2];
       data[out++] = 0; data[out++] = 0; data[out++] = 0;
       data[out++] = 0.18; data[out++] = 0.39; data[out++] = 0.51; data[out++] = 1;
     }
@@ -427,6 +478,18 @@
           this.lastKey = null;
         });
 
+        canvas.addEventListener('webglcontextrestored', () => {
+          this.gl = null;
+          this.program = null;
+          this.failed = false;
+          this.vboCache = new WeakMap();
+          this.meshCache = new WeakMap();
+          this.featureMeshCache = new WeakMap();
+          this.residentBodies.clear();
+          this.lastKey = null;
+          cad.app?.requestRedraw?.(false);
+        });
+
         const vertex = compile(gl, gl.VERTEX_SHADER, vertexSource);
         const fragment = compile(gl, gl.FRAGMENT_SHADER, fragmentSource);
         const program = gl.createProgram();
@@ -547,10 +610,14 @@
       }
       const sourceMesh = body.renderMesh || body.mesh;
       let finish = this.finishCache.get(body);
-      if (finish && (finish.mesh !== sourceMesh || finish.angle !== body.surfaceFinishAngle)) finish = null;
+      if (finish && (finish.mesh !== sourceMesh || finish.angle !== body.surfaceFinishAngle)) {
+        this.finishCache.delete(body);
+        finish = null;
+      }
       if (!finish && body.surfaceFinishAngle > 0 && sourceMesh.triangles.length > 12000)
         this.scheduleFinish(body, sourceMesh);
       finish = this.finishCache.get(body);
+      if (finish && (finish.mesh !== sourceMesh || finish.angle !== body.surfaceFinishAngle)) finish = null;
       let cached = this.meshCache.get(body);
       if (!cached || cached.mesh !== sourceMesh) {
         if (cached) this.releaseBody(body);
@@ -570,12 +637,12 @@
       // Canvas Y points down, while WebGL clip-space Y points up.
       const m13 = 1 - 2 * (origY + dot(U, pivot) * unit) / height;
       const m23 = 0.98 + 1.96 * near / range;
-      return new Float32Array([
-        2 * unit * R[0] / width, 2 * unit * U[0] / height, -1.96 * D[0] / range, 0,
-        2 * unit * R[1] / width, 2 * unit * U[1] / height, -1.96 * D[1] / range, 0,
-        2 * unit * R[2] / width, 2 * unit * U[2] / height, -1.96 * D[2] / range, 0,
-        m03, m13, m23, 1
-      ]);
+      const out = this._mvp || (this._mvp = new Float32Array(16));
+      out[0] = 2 * unit * R[0] / width; out[1] = 2 * unit * U[0] / height; out[2] = -1.96 * D[0] / range; out[3] = 0;
+      out[4] = 2 * unit * R[1] / width; out[5] = 2 * unit * U[1] / height; out[6] = -1.96 * D[1] / range; out[7] = 0;
+      out[8] = 2 * unit * R[2] / width; out[9] = 2 * unit * U[2] / height; out[10] = -1.96 * D[2] / range; out[11] = 0;
+      out[12] = m03; out[13] = m13; out[14] = m23; out[15] = 1;
+      return out;
     }
 
     selectableEdges(body) {
@@ -597,7 +664,7 @@
               const radii = loop.map(p => Math.hypot(p[0] - cx, p[1] - cy));
               const r_mean = radii.reduce((sum, r) => sum + r, 0) / radii.length;
               if (r_mean < 0.1) continue;
-              const maxDev = Math.max(...radii.map(r => Math.abs(r - r_mean)));
+              const maxDev = maxAbsDiff(radii, r_mean);
               if (maxDev / r_mean > 0.05) continue;
               const center3D = face.origin.map((val, axis) => val + face.u[axis] * cx + face.v[axis] * cy);
               const points3D = loop.map(p => face.origin.map((val, axis) => val + face.u[axis] * p[0] + face.v[axis] * p[1]));
@@ -676,7 +743,7 @@
             const c = [0, 1, 2].map(axis => pts.reduce((s, p) => s + p[axis], 0) / pts.length);
             const radii = pts.map(p => Math.hypot(...sub(p, c)));
             const r_mean = radii.reduce((s, r) => s + r, 0) / radii.length;
-            const maxDev = Math.max(...radii.map(r => Math.abs(r - r_mean)));
+            const maxDev = maxAbsDiff(radii, r_mean);
             if (r_mean >= 0.1 && (maxDev / r_mean) <= 0.05) {
               loopEdges.forEach(e => usedEdges.add(e.index));
               let n = [0, 0, 0];
@@ -711,7 +778,7 @@
         const center = [0, 1].map(axis => body.points.reduce((sum, point) => sum + point[axis], 0) / body.points.length);
         const radii = body.points.map(point => Math.hypot(point[0] - center[0], point[1] - center[1]));
         const radius = radii.reduce((sum, value) => sum + value, 0) / radii.length;
-        if (Math.max(...radii.map(value => Math.abs(value - radius))) < 0.001) {
+        if (maxAbsDiff(radii, radius) < 0.001) {
           circle = { center, radius, count: body.points.length };
         }
       }
@@ -809,13 +876,14 @@
       const decimateSelected = cad.app?.meshDecimate?.active ? (cad.app.meshDecimate.selectedBody) : null;
       const finishSelected = cad.app?.surfaceFinish?.active ? (cad.app.surfaceFinish.selectedBody) : null;
       const toSolidSelected = cad.app?.meshToSolid?.active ? (cad.app.meshToSolid.selectedBody) : null;
+      const fillSelected = cad.app?.meshFill?.active ? (cad.app.meshFill.selectedBody) : null;
       const zebraCtrl = cad.app?.zebraAnalysis || cad.zebraAnalysisController;
       const zebraActive = Boolean(zebraCtrl?.active);
       const zebraRepeats = zebraCtrl?.repeats || 30.0;
       const zebraDir = zebraCtrl?.direction === 'vertical' ? 1.0 : 0.0;
       const zebraOpacity = zebraCtrl?.opacity ?? 0.85;
       const zebraTargetId = zebraCtrl?.selectedBody?.id || null;
-      const selectedBody = cad.app?.faceSelection?.selectedBody || moveSelected || decimateSelected || finishSelected || toSolidSelected;
+      const selectedBody = cad.app?.faceSelection?.selectedBody || moveSelected || decimateSelected || finishSelected || toSolidSelected || fillSelected;
       const isBodySelected = body => Boolean(
         body.convertSelected ||
         (selectedBody && selectedBody === body) ||
@@ -851,9 +919,9 @@
       const fillLight = studioDirection(camera, 0.90, 0.20, 0.60);
       gl.uniform3f(this.uKeyLightDir, ...keyLight);
       gl.uniform3f(this.uFillLightDir, ...fillLight);
-      gl.uniform3fv(this.uCameraDepth, new Float32Array(camera.depth));
-      gl.uniform3fv(this.uCameraRight, new Float32Array(camera.right));
-      gl.uniform3fv(this.uCameraUp, new Float32Array(camera.up));
+      gl.uniform3f(this.uCameraDepth, camera.depth[0], camera.depth[1], camera.depth[2]);
+      gl.uniform3f(this.uCameraRight, camera.right[0], camera.right[1], camera.right[2]);
+      gl.uniform3f(this.uCameraUp, camera.up[0], camera.up[1], camera.up[2]);
       gl.uniform1f(this.uZebraRepeats, zebraRepeats);
       gl.uniform1f(this.uZebraDirection, zebraDir);
       gl.uniform1f(this.uZebraOpacity, zebraOpacity);

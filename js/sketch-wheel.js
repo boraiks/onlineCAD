@@ -2,15 +2,15 @@
   'use strict';
 
   const entries = [
-    ['mirror', 'Mirror', '<path d="M12 3v18" stroke-dasharray="2 2"/><path d="M9 7 4 10v4l5 3m6-10 5 3v4l-5 3"/>', 0, -105],
-    ['distance', 'Distance', '<path d="M4 6v12m16-12v12M4 12h16m-16 0 3-2m-3 2 3 2m13-2-3-2m3 2-3 2"/>', -150, -60],
-    ['angle', 'Angle', '<path d="M4 19h16M4 19 17 5M10 19a6 6 0 0 0-2-4"/>', 150, -60],
-    ['midpoint', 'Midpoint', '<path d="M3 16h18M12 6l5 8H7z"/>', -150, -18],
-    ['axis', 'Horizontal / Vertical', '<path d="M4 12h16M12 4v16"/><path d="M6 9v6m12-6v6M9 6h6m-6 12h6"/>', 150, -18],
-    ['fix', 'Fix / Unfix', '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3m-4 4v2"/>', -150, 24],
-    ['tangent', 'Tangent', '<circle cx="14" cy="14" r="6"/><path d="M3 8h18"/>', 150, 24],
-    ['coincident', 'Coincident', '<path d="M3 18 15 6M9 20 21 8"/><circle cx="12" cy="13" r="2"/>', -150, 66],
-    ['equal', 'Equal', '<path d="M4 9h16M4 15h16"/>', 150, 66],
+    ['mirror', 'Mirror', '<line x1="12" y1="3.5" x2="12" y2="20.5" stroke="#f59e0b" stroke-dasharray="2.5 2"/><polygon points="4,7 9.5,12 4,17" fill="#38bdf8" stroke="#38bdf8"/><polygon points="20,7 14.5,12 20,17"/>', 0, -105],
+    ['distance', 'Distance', '<path d="M4.5 5v14M19.5 5v14"/><path d="M5.5 12h13M8.5 9.5 5.5 12l3 2.5M15.5 9.5l3 2.5-3 2.5" stroke="#38bdf8"/>', -150, -60],
+    ['angle', 'Angle', '<path d="M20 19H4.5L17 6.5"/><path d="M12.5 19a8 8 0 0 0-2.3-5.7" stroke="#38bdf8"/>', 150, -60],
+    ['midpoint', 'Midpoint', '<line x1="3.5" y1="16" x2="20.5" y2="16"/><polygon points="12,7 16.5,15.5 7.5,15.5" stroke="#38bdf8"/>', -150, -18],
+    ['axis', 'Horizontal / Vertical', '<path d="M4 12h16M12 4v16" stroke="#38bdf8"/><path d="M4 9.5v5M20 9.5v5M9.5 4h5M9.5 20h5"/>', 150, -18],
+    ['fix', 'Fix / Unfix', '<path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><rect x="5.5" y="10.5" width="13" height="9.5" rx="2" stroke="#38bdf8"/><circle cx="12" cy="15.2" r="1.3" fill="#38bdf8" stroke="none"/>', -150, 24],
+    ['tangent', 'Tangent', '<circle cx="13.5" cy="13.5" r="5.5"/><line x1="4" y1="8" x2="20" y2="8" stroke="#38bdf8"/><circle cx="13.5" cy="8" r="1.6" fill="#38bdf8" stroke="none"/>', 150, 24],
+    ['coincident', 'Coincident', '<path d="M4 19l8-7M20 19l-8-7"/><circle cx="12" cy="12" r="2.2" fill="#38bdf8" stroke="none"/>', -150, 66],
+    ['equal', 'Equal', '<path d="M5 9h14M5 15h14" stroke="#38bdf8" stroke-width="2.2"/>', 150, 66],
     [null, 'Cancel', '<path d="M6 6 18 18M18 6 6 18"/>', 0, 110],
   ];
 

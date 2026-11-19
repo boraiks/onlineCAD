@@ -21,12 +21,17 @@
     return clean || fallback;
   }
 
+  const cloneData = value => (typeof structuredClone === 'function'
+    ? structuredClone(value)
+    : JSON.parse(JSON.stringify(value)));
+
   function serializeProject({
     documentName = 'Untitled Design',
     sketchDocument = null,
     extrudeController = null,
     camera = null,
     settings = null,
+    preserveTypedArrays = false,
   } = {}) {
     const sketches = (sketchDocument?.sketches || []).map(sketch => ({
       id: sketch.id,
@@ -36,12 +41,19 @@
       faceNormal: sketch.faceNormal ? [...sketch.faceNormal] : null,
       visible: sketch.visible !== false,
       units: sketch.units || 'mm',
-      entities: JSON.parse(JSON.stringify(sketch.entities || [])),
-      measurements: JSON.parse(JSON.stringify(sketch.measurements || [])),
-      constraints: JSON.parse(JSON.stringify(sketch.constraints || [])),
-      midpoints: JSON.parse(JSON.stringify(sketch.midpoints || [])),
+      entities: cloneData(sketch.entities || []),
+      measurements: cloneData(sketch.measurements || []),
+      constraints: cloneData(sketch.constraints || []),
+      midpoints: cloneData(sketch.midpoints || []),
       revision: sketch.revision || 0,
     }));
+
+    const copyVerts = verts => preserveTypedArrays
+      ? (verts instanceof Float32Array ? new Float32Array(verts) : Float32Array.from(verts))
+      : Array.from(verts);
+    const copyTris = tris => preserveTypedArrays
+      ? (tris instanceof Uint32Array ? new Uint32Array(tris) : Uint32Array.from(tris))
+      : Array.from(tris);
 
     const bodies = (extrudeController?.bodies || []).map(body => {
       const copy = {
@@ -53,9 +65,9 @@
         normal: body.normal ? [...body.normal] : [0, 0, 1],
         start: Number.isFinite(body.start) ? body.start : 0,
         end: Number.isFinite(body.end) ? body.end : 0,
-        points: body.points ? JSON.parse(JSON.stringify(body.points)) : null,
-        holes: body.holes ? JSON.parse(JSON.stringify(body.holes)) : [],
-        cells: body.cells ? JSON.parse(JSON.stringify(body.cells)) : null,
+        points: body.points ? cloneData(body.points) : null,
+        holes: body.holes ? cloneData(body.holes) : [],
+        cells: body.cells ? cloneData(body.cells) : null,
         meshSource: body.meshSource || 'mesh',
         displayReduction: body.displayReduction || 0,
         surfaceFinishAngle: body.surfaceFinishAngle || 0,
@@ -64,15 +76,15 @@
       };
       if (body.mesh?.vertices && body.mesh?.triangles) {
         copy.mesh = {
-          vertices: Array.from(body.mesh.vertices),
-          triangles: Array.from(body.mesh.triangles),
+          vertices: copyVerts(body.mesh.vertices),
+          triangles: copyTris(body.mesh.triangles),
         };
       }
       if (body.rebuildSourceMesh?.vertices && body.rebuildSourceMesh?.triangles &&
           body.rebuildResultMesh === body.mesh) {
         copy.rebuildSourceMesh = {
-          vertices: Array.from(body.rebuildSourceMesh.vertices),
-          triangles: Array.from(body.rebuildSourceMesh.triangles),
+          vertices: copyVerts(body.rebuildSourceMesh.vertices),
+          triangles: copyTris(body.rebuildSourceMesh.triangles),
         };
       }
       return copy;
@@ -415,10 +427,11 @@
     }
 
     lines.push(`endsolid ${safeName}`);
+    const text = lines.join('\n');
     return {
-      blob: new Blob([lines.join('\n')], { type: 'text/plain' }),
+      blob: new Blob([text], { type: 'text/plain' }),
       triangleCount: totalTriangles,
-      byteLength: lines.join('\n').length,
+      byteLength: text.length,
     };
   }
 

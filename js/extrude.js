@@ -790,10 +790,14 @@
       if (!source?.points?.length) return null;
       const { u, v } = cad.planes.grid[source.sketch.plane];
       const normal = cross(u, v);
-      const xs = source.points.map(point => point[0]);
-      const ys = source.points.map(point => point[1]);
-      const center = [(Math.min(...xs) + Math.max(...xs)) / 2,
-      (Math.min(...ys) + Math.max(...ys)) / 2];
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const point of source.points) {
+        if (point[0] < minX) minX = point[0];
+        if (point[0] > maxX) maxX = point[0];
+        if (point[1] < minY) minY = point[1];
+        if (point[1] > maxY) maxY = point[1];
+      }
+      const center = [(minX + maxX) / 2, (minY + maxY) / 2];
       const world = this.document.toWorld(source.sketch, center);
       const bounds = this.canvas.getBoundingClientRect();
       const base = this.camera.project(world, bounds.width, bounds.height);

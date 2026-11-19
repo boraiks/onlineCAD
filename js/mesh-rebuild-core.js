@@ -5,108 +5,255 @@
   // surfaces, including triangle interiors, before accepting an edit.
   function meshBounds(mesh) {
     const v = mesh.vertices;
-    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-    for (let i = 0; i < v.length; i += 3) for (let axis = 0; axis < 3; axis++) {
-      min[axis] = Math.min(min[axis], v[i + axis]);
-      max[axis] = Math.max(max[axis], v[i + axis]);
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < v.length; i += 3) {
+      const x = v[i], y = v[i + 1], z = v[i + 2];
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
     }
-    return { min, max, extent: Math.max(...max.map((x, i) => x - min[i])) };
+    return {
+      min: [minX, minY, minZ],
+      max: [maxX, maxY, maxZ],
+      extent: Math.max(maxX - minX, maxY - minY, maxZ - minZ),
+    };
   }
 
-  function closestTriangleDistanceSq(p, a, b, c) {
-    const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
-    const acx = c[0] - a[0], acy = c[1] - a[1], acz = c[2] - a[2];
-    const apx = p[0] - a[0], apy = p[1] - a[1], apz = p[2] - a[2];
+  function closestTriangleDistanceSq(px, py, pz, ax, ay, az, bx, by, bz, cx, cy, cz) {
+    const abx = bx - ax, aby = by - ay, abz = bz - az;
+    const acx = cx - ax, acy = cy - ay, acz = cz - az;
+    const apx = px - ax, apy = py - ay, apz = pz - az;
     const d1 = abx * apx + aby * apy + abz * apz;
     const d2 = acx * apx + acy * apy + acz * apz;
-    const distanceTo = (x, y, z) =>
-      (p[0] - x) ** 2 + (p[1] - y) ** 2 + (p[2] - z) ** 2;
-    if (d1 <= 0 && d2 <= 0) return distanceTo(a[0], a[1], a[2]);
-    const bpx = p[0] - b[0], bpy = p[1] - b[1], bpz = p[2] - b[2];
+    if (d1 <= 0 && d2 <= 0) return apx * apx + apy * apy + apz * apz;
+    const bpx = px - bx, bpy = py - by, bpz = pz - bz;
     const d3 = abx * bpx + aby * bpy + abz * bpz;
     const d4 = acx * bpx + acy * bpy + acz * bpz;
-    if (d3 >= 0 && d4 <= d3) return distanceTo(b[0], b[1], b[2]);
+    if (d3 >= 0 && d4 <= d3) return bpx * bpx + bpy * bpy + bpz * bpz;
     const vc = d1 * d4 - d3 * d2;
     if (vc <= 0 && d1 >= 0 && d3 <= 0) {
-      const t = d1 / (d1 - d3);
-      return distanceTo(a[0] + t * abx, a[1] + t * aby, a[2] + t * abz);
+      const s = d1 / (d1 - d3);
+      const dx = apx - s * abx, dy = apy - s * aby, dz = apz - s * abz;
+      return dx * dx + dy * dy + dz * dz;
     }
-    const cpx = p[0] - c[0], cpy = p[1] - c[1], cpz = p[2] - c[2];
+    const cpx = px - cx, cpy = py - cy, cpz = pz - cz;
     const d5 = abx * cpx + aby * cpy + abz * cpz;
     const d6 = acx * cpx + acy * cpy + acz * cpz;
-    if (d6 >= 0 && d5 <= d6) return distanceTo(c[0], c[1], c[2]);
+    if (d6 >= 0 && d5 <= d6) return cpx * cpx + cpy * cpy + cpz * cpz;
     const vb = d5 * d2 - d1 * d6;
     if (vb <= 0 && d2 >= 0 && d6 <= 0) {
-      const t = d2 / (d2 - d6);
-      return distanceTo(a[0] + t * acx, a[1] + t * acy, a[2] + t * acz);
+      const s = d2 / (d2 - d6);
+      const dx = apx - s * acx, dy = apy - s * acy, dz = apz - s * acz;
+      return dx * dx + dy * dy + dz * dz;
     }
     const va = d3 * d6 - d5 * d4;
     if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
-      const t = (d4 - d3) / (d4 - d3 + d5 - d6);
-      return distanceTo(b[0] + t * (c[0] - b[0]),
-        b[1] + t * (c[1] - b[1]), b[2] + t * (c[2] - b[2]));
+      const s = (d4 - d3) / (d4 - d3 + d5 - d6);
+      const dx = px - (bx + s * (cx - bx));
+      const dy = py - (by + s * (cy - by));
+      const dz = pz - (bz + s * (cz - bz));
+      return dx * dx + dy * dy + dz * dz;
     }
     const denom = 1 / (va + vb + vc), v = vb * denom, w = vc * denom;
-    return distanceTo(a[0] + v * abx + w * acx,
-      a[1] + v * aby + w * acy, a[2] + v * abz + w * acz);
+    const dx = apx - v * abx - w * acx;
+    const dy = apy - v * aby - w * acy;
+    const dz = apz - v * abz - w * acz;
+    return dx * dx + dy * dy + dz * dz;
   }
 
   function buildIndex(mesh) {
-    const { vertices: v, triangles: t } = mesh;
-    const faces = new Array(t.length / 3);
-    for (let f = 0; f < faces.length; f++) {
-      const ids = [t[f * 3], t[f * 3 + 1], t[f * 3 + 2]];
-      const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-      for (const id of ids) for (let axis = 0; axis < 3; axis++) {
-        const x = v[id * 3 + axis];
-        lo[axis] = Math.min(lo[axis], x); hi[axis] = Math.max(hi[axis], x);
-      }
-      faces[f] = { ids, lo, hi, center: lo.map((x, axis) => (x + hi[axis]) * 0.5),
-        a: [v[ids[0] * 3], v[ids[0] * 3 + 1], v[ids[0] * 3 + 2]],
-        b: [v[ids[1] * 3], v[ids[1] * 3 + 1], v[ids[1] * 3 + 2]],
-        c: [v[ids[2] * 3], v[ids[2] * 3 + 1], v[ids[2] * 3 + 2]] };
-    }
-    const build = list => {
-      const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-      for (const face of list) for (let axis = 0; axis < 3; axis++) {
-        lo[axis] = Math.min(lo[axis], face.lo[axis]);
-        hi[axis] = Math.max(hi[axis], face.hi[axis]);
-      }
-      if (list.length <= 12) return { lo, hi, faces: list };
-      const axis = hi.map((x, i) => x - lo[i]).indexOf(Math.max(...hi.map((x, i) => x - lo[i])));
-      list.sort((a, b) => a.center[axis] - b.center[axis]);
-      const mid = list.length >>> 1;
-      return { lo, hi, left: build(list.slice(0, mid)), right: build(list.slice(mid)) };
-    };
-    const tree = build(faces);
-    const boxDistance = (p, node) => {
-      const dx = p[0] < node.lo[0] ? node.lo[0] - p[0] : p[0] > node.hi[0] ? p[0] - node.hi[0] : 0;
-      const dy = p[1] < node.lo[1] ? node.lo[1] - p[1] : p[1] > node.hi[1] ? p[1] - node.hi[1] : 0;
-      const dz = p[2] < node.lo[2] ? node.lo[2] - p[2] : p[2] > node.hi[2] ? p[2] - node.hi[2] : 0;
-      return dx * dx + dy * dy + dz * dz;
-    };
-    const nearest = (p, limit = Infinity) => {
-      let best = limit * limit, bestFace = null;
-      const visit = node => {
-        if (boxDistance(p, node) > best) return;
-        if (node.faces) {
-          for (const face of node.faces) {
-            const distance = closestTriangleDistanceSq(p, face.a, face.b, face.c);
-            if (distance <= best) { best = distance; bestFace = face; }
-          }
-          return;
-        }
-        const dl = boxDistance(p, node.left), dr = boxDistance(p, node.right);
-        if (dl < dr) { visit(node.left); visit(node.right); }
-        else { visit(node.right); visit(node.left); }
+    const v = mesh.vertices;
+    const t = mesh.triangles;
+    const faceCount = (t.length / 3) | 0;
+    if (faceCount === 0) {
+      return {
+        query: (_p, limit = Infinity) => limit + Number.EPSILON * Math.max(1, limit),
+        nearest: (_p, limit = Infinity) => ({ distance: limit + Number.EPSILON * Math.max(1, limit), face: null }),
+        distanceToFace: () => Infinity,
       };
-      visit(tree);
-      return { distance: bestFace ? Math.sqrt(best) : limit + Number.EPSILON * Math.max(1, limit),
-        face: bestFace };
+    }
+
+    const triMinX = new Float64Array(faceCount), triMaxX = new Float64Array(faceCount);
+    const triMinY = new Float64Array(faceCount), triMaxY = new Float64Array(faceCount);
+    const triMinZ = new Float64Array(faceCount), triMaxZ = new Float64Array(faceCount);
+    const triCx = new Float64Array(faceCount), triCy = new Float64Array(faceCount), triCz = new Float64Array(faceCount);
+    const order = new Uint32Array(faceCount);
+
+    for (let f = 0; f < faceCount; f++) {
+      order[f] = f;
+      const tb = f * 3;
+      const i0 = t[tb] * 3, i1 = t[tb + 1] * 3, i2 = t[tb + 2] * 3;
+      const x0 = v[i0], y0 = v[i0 + 1], z0 = v[i0 + 2];
+      const x1 = v[i1], y1 = v[i1 + 1], z1 = v[i1 + 2];
+      const x2 = v[i2], y2 = v[i2 + 1], z2 = v[i2 + 2];
+      const loX = x0 < x1 ? (x0 < x2 ? x0 : x2) : (x1 < x2 ? x1 : x2);
+      const hiX = x0 > x1 ? (x0 > x2 ? x0 : x2) : (x1 > x2 ? x1 : x2);
+      const loY = y0 < y1 ? (y0 < y2 ? y0 : y2) : (y1 < y2 ? y1 : y2);
+      const hiY = y0 > y1 ? (y0 > y2 ? y0 : y2) : (y1 > y2 ? y1 : y2);
+      const loZ = z0 < z1 ? (z0 < z2 ? z0 : z2) : (z1 < z2 ? z1 : z2);
+      const hiZ = z0 > z1 ? (z0 > z2 ? z0 : z2) : (z1 > z2 ? z1 : z2);
+      triMinX[f] = loX; triMaxX[f] = hiX;
+      triMinY[f] = loY; triMaxY[f] = hiY;
+      triMinZ[f] = loZ; triMaxZ[f] = hiZ;
+      triCx[f] = (loX + hiX) * 0.5;
+      triCy[f] = (loY + hiY) * 0.5;
+      triCz[f] = (loZ + hiZ) * 0.5;
+    }
+
+    let nodeCap = Math.max(64, Math.ceil(faceCount / 3) + 16);
+    let nodeMinX = new Float64Array(nodeCap), nodeMaxX = new Float64Array(nodeCap);
+    let nodeMinY = new Float64Array(nodeCap), nodeMaxY = new Float64Array(nodeCap);
+    let nodeMinZ = new Float64Array(nodeCap), nodeMaxZ = new Float64Array(nodeCap);
+    let nodeLeft = new Int32Array(nodeCap);
+    let nodeRight = new Int32Array(nodeCap);
+    let nodeStart = new Int32Array(nodeCap);
+    let nodeCount = new Int32Array(nodeCap);
+    let usedNodes = 0;
+
+    const allocNode = () => {
+      if (usedNodes === nodeCap) {
+        nodeCap <<= 1;
+        const gF = a => { const n = new Float64Array(nodeCap); n.set(a); return n; };
+        const gI = a => { const n = new Int32Array(nodeCap); n.set(a); return n; };
+        nodeMinX = gF(nodeMinX); nodeMaxX = gF(nodeMaxX);
+        nodeMinY = gF(nodeMinY); nodeMaxY = gF(nodeMaxY);
+        nodeMinZ = gF(nodeMinZ); nodeMaxZ = gF(nodeMaxZ);
+        nodeLeft = gI(nodeLeft); nodeRight = gI(nodeRight);
+        nodeStart = gI(nodeStart); nodeCount = gI(nodeCount);
+      }
+      return usedNodes++;
     };
-    const distanceToFace = (p, face) => {
-      return Math.sqrt(closestTriangleDistanceSq(p, face.a, face.b, face.c));
+
+    const buildNode = (start, end) => {
+      const id = allocNode();
+      let loX = Infinity, loY = Infinity, loZ = Infinity;
+      let hiX = -Infinity, hiY = -Infinity, hiZ = -Infinity;
+      for (let i = start; i < end; i++) {
+        const f = order[i];
+        if (triMinX[f] < loX) loX = triMinX[f]; if (triMaxX[f] > hiX) hiX = triMaxX[f];
+        if (triMinY[f] < loY) loY = triMinY[f]; if (triMaxY[f] > hiY) hiY = triMaxY[f];
+        if (triMinZ[f] < loZ) loZ = triMinZ[f]; if (triMaxZ[f] > hiZ) hiZ = triMaxZ[f];
+      }
+      nodeMinX[id] = loX; nodeMaxX[id] = hiX;
+      nodeMinY[id] = loY; nodeMaxY[id] = hiY;
+      nodeMinZ[id] = loZ; nodeMaxZ[id] = hiZ;
+
+      const count = end - start;
+      if (count <= 12) {
+        nodeLeft[id] = -1;
+        nodeRight[id] = -1;
+        nodeStart[id] = start;
+        nodeCount[id] = count;
+        return id;
+      }
+
+      const dx = hiX - loX, dy = hiY - loY, dz = hiZ - loZ;
+      const cArr = dx >= dy && dx >= dz ? triCx : (dy >= dz ? triCy : triCz);
+      const midVal = dx >= dy && dx >= dz ? (loX + hiX) * 0.5
+        : (dy >= dz ? (loY + hiY) * 0.5 : (loZ + hiZ) * 0.5);
+
+      let l = start, r = end - 1;
+      while (l <= r) {
+        while (l <= r && cArr[order[l]] < midVal) l++;
+        while (l <= r && cArr[order[r]] >= midVal) r--;
+        if (l < r) {
+          const tmp = order[l]; order[l] = order[r]; order[r] = tmp;
+          l++; r--;
+        }
+      }
+      const split = (l === start || l === end) ? ((start + end) >>> 1) : l;
+      nodeStart[id] = 0;
+      nodeCount[id] = 0;
+      nodeLeft[id] = buildNode(start, split);
+      nodeRight[id] = buildNode(split, end);
+      return id;
     };
+
+    buildNode(0, faceCount);
+
+    let stack = new Int32Array(128);
+    const nearest = (p, limit = Infinity) => {
+      const px = p[0], py = p[1], pz = p[2];
+      let best = limit * limit;
+      let bestFace = -1;
+
+      const rdx = px < nodeMinX[0] ? nodeMinX[0] - px : (px > nodeMaxX[0] ? px - nodeMaxX[0] : 0);
+      const rdy = py < nodeMinY[0] ? nodeMinY[0] - py : (py > nodeMaxY[0] ? py - nodeMaxY[0] : 0);
+      const rdz = pz < nodeMinZ[0] ? nodeMinZ[0] - pz : (pz > nodeMaxZ[0] ? pz - nodeMaxZ[0] : 0);
+      if (rdx * rdx + rdy * rdy + rdz * rdz > best) {
+        return { distance: limit + Number.EPSILON * Math.max(1, limit), face: null };
+      }
+
+      let sp = 0;
+      stack[sp++] = 0;
+      while (sp > 0) {
+        const node = stack[--sp];
+        const ldx = px < nodeMinX[node] ? nodeMinX[node] - px : (px > nodeMaxX[node] ? px - nodeMaxX[node] : 0);
+        const ldy = py < nodeMinY[node] ? nodeMinY[node] - py : (py > nodeMaxY[node] ? py - nodeMaxY[node] : 0);
+        const ldz = pz < nodeMinZ[node] ? nodeMinZ[node] - pz : (pz > nodeMaxZ[node] ? pz - nodeMaxZ[node] : 0);
+        if (ldx * ldx + ldy * ldy + ldz * ldz > best) continue;
+
+        const left = nodeLeft[node];
+        if (left === -1) {
+          const s = nodeStart[node], e = s + nodeCount[node];
+          for (let i = s; i < e; i++) {
+            const f = order[i];
+            const tb = f * 3;
+            const i0 = t[tb] * 3, i1 = t[tb + 1] * 3, i2 = t[tb + 2] * 3;
+            const distSq = closestTriangleDistanceSq(
+              px, py, pz,
+              v[i0], v[i0 + 1], v[i0 + 2],
+              v[i1], v[i1 + 1], v[i1 + 2],
+              v[i2], v[i2 + 1], v[i2 + 2]
+            );
+            if (distSq <= best) { best = distSq; bestFace = f; }
+          }
+          continue;
+        }
+
+        const right = nodeRight[node];
+        const dxL = px < nodeMinX[left] ? nodeMinX[left] - px : (px > nodeMaxX[left] ? px - nodeMaxX[left] : 0);
+        const dyL = py < nodeMinY[left] ? nodeMinY[left] - py : (py > nodeMaxY[left] ? py - nodeMaxY[left] : 0);
+        const dzL = pz < nodeMinZ[left] ? nodeMinZ[left] - pz : (pz > nodeMaxZ[left] ? pz - nodeMaxZ[left] : 0);
+        const dLeft = dxL * dxL + dyL * dyL + dzL * dzL;
+
+        const dxR = px < nodeMinX[right] ? nodeMinX[right] - px : (px > nodeMaxX[right] ? px - nodeMaxX[right] : 0);
+        const dyR = py < nodeMinY[right] ? nodeMinY[right] - py : (py > nodeMaxY[right] ? py - nodeMaxY[right] : 0);
+        const dzR = pz < nodeMinZ[right] ? nodeMinZ[right] - pz : (pz > nodeMaxZ[right] ? pz - nodeMaxZ[right] : 0);
+        const dRight = dxR * dxR + dyR * dyR + dzR * dzR;
+
+        if (sp + 2 > stack.length) {
+          const nextStack = new Int32Array(stack.length << 1);
+          nextStack.set(stack);
+          stack = nextStack;
+        }
+        if (dLeft < dRight) {
+          if (dRight <= best) stack[sp++] = right;
+          if (dLeft <= best) stack[sp++] = left;
+        } else {
+          if (dLeft <= best) stack[sp++] = left;
+          if (dRight <= best) stack[sp++] = right;
+        }
+      }
+
+      return {
+        distance: bestFace >= 0 ? Math.sqrt(best) : limit + Number.EPSILON * Math.max(1, limit),
+        face: bestFace >= 0 ? bestFace : null,
+      };
+    };
+
+    const distanceToFace = (p, faceIndex) => {
+      const tb = faceIndex * 3;
+      const i0 = t[tb] * 3, i1 = t[tb + 1] * 3, i2 = t[tb + 2] * 3;
+      return Math.sqrt(closestTriangleDistanceSq(
+        p[0], p[1], p[2],
+        v[i0], v[i0 + 1], v[i0 + 2],
+        v[i1], v[i1 + 1], v[i1 + 2],
+        v[i2], v[i2 + 1], v[i2 + 2]
+      ));
+    };
+
     return { query: (p, limit) => nearest(p, limit).distance, nearest, distanceToFace };
   }
 
@@ -116,16 +263,19 @@
     // Deterministic surface samples bound work for very large imported meshes.
     // This is an estimate, not a mathematical Hausdorff proof.
     const vertexStride = Math.max(1, Math.ceil(v.length / 3 / 2500));
+    const pt = [0, 0, 0];
     for (let i = 0; i < v.length; i += 3 * vertexStride) {
-      maximum = Math.max(maximum, index.query([v[i], v[i + 1], v[i + 2]], limit));
+      pt[0] = v[i]; pt[1] = v[i + 1]; pt[2] = v[i + 2];
+      maximum = Math.max(maximum, index.query(pt, limit));
       if (maximum > limit) return maximum;
     }
     const stride = Math.max(1, Math.ceil(t.length / 3 / 2500));
     for (let face = 0; face < t.length / 3; face += stride) {
-      const p = [0, 0, 0];
-      for (let corner = 0; corner < 3; corner++) for (let axis = 0; axis < 3; axis++)
-        p[axis] += v[t[face * 3 + corner] * 3 + axis] / 3;
-      maximum = Math.max(maximum, index.query(p, limit));
+      const b0 = t[face * 3] * 3, b1 = t[face * 3 + 1] * 3, b2 = t[face * 3 + 2] * 3;
+      pt[0] = (v[b0] + v[b1] + v[b2]) / 3;
+      pt[1] = (v[b0 + 1] + v[b1 + 1] + v[b2 + 1]) / 3;
+      pt[2] = (v[b0 + 2] + v[b1 + 2] + v[b2 + 2]) / 3;
+      maximum = Math.max(maximum, index.query(pt, limit));
       if (maximum > limit) return maximum;
     }
     return maximum;
@@ -134,8 +284,9 @@
   function certifyDirected(source, target, limit, maxQueries = 500000,
     index = buildIndex(target)) {
     const vertices = source.vertices, triangles = source.triangles;
-    const distances = new Float64Array(vertices.length / 3);
-    const nearestFaces = new Array(vertices.length / 3);
+    const vertCount = vertices.length / 3;
+    const distances = new Float64Array(vertCount);
+    const nearestFaces = new Int32Array(vertCount).fill(-1);
     distances.fill(NaN);
     let maximum = 0, queries = 0;
     const margin = Math.max(1e-7, limit * 1e-6);
@@ -147,39 +298,50 @@
       maximum = Math.max(maximum, found.distance);
       return found;
     };
-    const edgeLength = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-    const midpoint = (a, b) => a.map((x, i) => (x + b[i]) * 0.5);
     const stack = [];
     for (let face = 0; face < triangles.length / 3; face++) {
-      const ids = [triangles[face * 3], triangles[face * 3 + 1], triangles[face * 3 + 2]];
-      const corners = ids.map(point);
-      const hits = [];
+      const i0 = triangles[face * 3], i1 = triangles[face * 3 + 1], i2 = triangles[face * 3 + 2];
+      const ids = [i0, i1, i2];
+      const corners = [point(i0), point(i1), point(i2)];
+      const hits = new Array(3);
       for (let i = 0; i < 3; i++) {
+        const vid = ids[i];
         let hit;
-        if (Number.isNaN(distances[ids[i]])) {
+        if (Number.isNaN(distances[vid])) {
           hit = nearest(corners[i]);
           if (!hit) return { valid: false, inconclusive: true, deviation: maximum };
-          distances[ids[i]] = hit.distance;
-          nearestFaces[ids[i]] = hit.face;
-        } else hit = { distance: distances[ids[i]], face: nearestFaces[ids[i]] };
+          distances[vid] = hit.distance;
+          nearestFaces[vid] = hit.face == null ? -1 : hit.face;
+        } else {
+          const cachedFace = nearestFaces[vid];
+          hit = { distance: distances[vid], face: cachedFace >= 0 ? cachedFace : null };
+        }
         if (hit.distance > effectiveLimit)
           return { valid: false, deviation: hit.distance };
-        hits.push(hit);
+        hits[i] = hit;
       }
       stack.push({ corners, hits, depth: 0 });
       while (stack.length) {
         const item = stack.pop();
-        const [a, b, c] = item.corners;
-        const [ab, bc, ca] = [edgeLength(a, b), edgeLength(b, c), edgeLength(c, a)];
-        if (Math.max(...item.hits.map(hit => hit.distance)) + Math.max(ab, bc, ca) <= effectiveLimit)
-          continue;
+        const a = item.corners[0], b = item.corners[1], c = item.corners[2];
+        const ab = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+        const bc = Math.hypot(b[0] - c[0], b[1] - c[1], b[2] - c[2]);
+        const ca = Math.hypot(c[0] - a[0], c[1] - a[1], c[2] - a[2]);
+        const maxD = Math.max(item.hits[0].distance, item.hits[1].distance, item.hits[2].distance);
+        const maxEdge = ab > bc ? (ab > ca ? ab : ca) : (bc > ca ? bc : ca);
+        if (maxD + maxEdge <= effectiveLimit) continue;
         // Distance to one fixed target triangle is convex. If all source
         // corners lie within the limit of that same triangle, its entire
         // interior is certified, even when the meshes have different tessellation.
-        const witnesses = item.hits.map(hit => hit.face).filter(Boolean);
         let certified = false;
-        for (const witness of witnesses) {
-          if (item.corners.every(corner => index.distanceToFace(corner, witness) <= effectiveLimit)) {
+        for (let k = 0; k < 3; k++) {
+          const witness = item.hits[k].face;
+          if (witness == null || witness < 0) continue;
+          if (k === 1 && witness === item.hits[0].face) continue;
+          if (k === 2 && (witness === item.hits[0].face || witness === item.hits[1].face)) continue;
+          if (index.distanceToFace(a, witness) <= effectiveLimit &&
+              index.distanceToFace(b, witness) <= effectiveLimit &&
+              index.distanceToFace(c, witness) <= effectiveLimit) {
             certified = true;
             break;
           }
@@ -187,27 +349,38 @@
         if (certified) continue;
         if (item.depth >= 12 || queries >= maxQueries)
           return { valid: false, inconclusive: true, deviation: maximum };
-        const edge = ab >= bc && ab >= ca ? [0, 1, 2]
-          : bc >= ca ? [1, 2, 0] : [2, 0, 1];
-        const middle = midpoint(item.corners[edge[0]], item.corners[edge[1]]);
+        const e0 = ab >= bc && ab >= ca ? 0 : (bc >= ca ? 1 : 2);
+        const e1 = e0 === 2 ? 0 : e0 + 1;
+        const e2 = e1 === 2 ? 0 : e1 + 1;
+        const p0 = item.corners[e0], p1 = item.corners[e1], opposite = item.corners[e2];
+        const middle = [(p0[0] + p1[0]) * 0.5, (p0[1] + p1[1]) * 0.5, (p0[2] + p1[2]) * 0.5];
         const middleHit = nearest(middle);
         if (!middleHit) return { valid: false, inconclusive: true, deviation: maximum };
         if (middleHit.distance > effectiveLimit)
           return { valid: false, deviation: middleHit.distance };
-        const opposite = item.corners[edge[2]], oppositeHit = item.hits[edge[2]];
-        stack.push({ corners: [middle, item.corners[edge[1]], opposite],
-          hits: [middleHit, item.hits[edge[1]], oppositeHit], depth: item.depth + 1 });
-        stack.push({ corners: [item.corners[edge[0]], middle, opposite],
-          hits: [item.hits[edge[0]], middleHit, oppositeHit], depth: item.depth + 1 });
+        const oppositeHit = item.hits[e2];
+        stack.push({ corners: [middle, p1, opposite],
+          hits: [middleHit, item.hits[e1], oppositeHit], depth: item.depth + 1 });
+        stack.push({ corners: [p0, middle, opposite],
+          hits: [item.hits[e0], middleHit, oppositeHit], depth: item.depth + 1 });
       }
     }
     return { valid: true, deviation: maximum };
   }
 
   function meshData(mesh) {
-    const vertices = new Float32Array(mesh.vertProperties.length / mesh.numProp * 3);
-    for (let i = 0, at = 0; i < mesh.vertProperties.length; i += mesh.numProp, at += 3)
-      vertices.set(mesh.vertProperties.subarray(i, i + 3), at);
+    const vp = mesh.vertProperties;
+    let vertices;
+    if (mesh.numProp === 3) {
+      vertices = new Float32Array(vp);
+    } else {
+      vertices = new Float32Array((vp.length / mesh.numProp) * 3);
+      for (let i = 0, at = 0; i < vp.length; i += mesh.numProp) {
+        vertices[at++] = vp[i];
+        vertices[at++] = vp[i + 1];
+        vertices[at++] = vp[i + 2];
+      }
+    }
     return { vertices, triangles: Uint32Array.from(mesh.triVerts) };
   }
 

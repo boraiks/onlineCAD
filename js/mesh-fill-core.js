@@ -9,15 +9,17 @@
   // the original mesh, so the outside keeps its full detail.
 
   function bounds(vertices) {
-    const min = [Infinity, Infinity, Infinity];
-    const max = [-Infinity, -Infinity, -Infinity];
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
     for (let i = 0; i < vertices.length; i += 3) {
-      for (let axis = 0; axis < 3; axis++) {
-        min[axis] = Math.min(min[axis], vertices[i + axis]);
-        max[axis] = Math.max(max[axis], vertices[i + axis]);
-      }
+      const x = vertices[i], y = vertices[i + 1], z = vertices[i + 2];
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
     }
-    return { min, max, extent: Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]) };
+    const min = [minX, minY, minZ];
+    const max = [maxX, maxY, maxZ];
+    return { min, max, extent: Math.max(maxX - minX, maxY - minY, maxZ - minZ) };
   }
 
   function makeGrid(source, resolution, closeGap) {
@@ -26,8 +28,12 @@
     const voxel = box.extent / resolution;
     const radius = Math.max(0, Math.ceil(closeGap / 2 / voxel));
     const pad = radius + 3;
-    const origin = box.min.map(value => value - pad * voxel);
-    const size = [0, 1, 2].map(axis => Math.ceil((box.max[axis] - box.min[axis]) / voxel) + pad * 2 + 1);
+    const origin = [box.min[0] - pad * voxel, box.min[1] - pad * voxel, box.min[2] - pad * voxel];
+    const size = [
+      Math.ceil((box.max[0] - box.min[0]) / voxel) + pad * 2 + 1,
+      Math.ceil((box.max[1] - box.min[1]) / voxel) + pad * 2 + 1,
+      Math.ceil((box.max[2] - box.min[2]) / voxel) + pad * 2 + 1,
+    ];
     const count = size[0] * size[1] * size[2];
     if (count > 40_000_000) throw new Error('The fill grid is too large; lower the detail or the opening size.');
     return { voxel, radius, origin, size, count };
@@ -39,24 +45,46 @@
     const wall = new Uint8Array(grid.count);
     const v = source.vertices;
     const t = source.triangles;
-    const sx = size[0], sxy = size[0] * size[1];
-    const mark = (x, y, z) => {
-      const i = Math.floor((x - origin[0]) / voxel);
-      const j = Math.floor((y - origin[1]) / voxel);
-      const k = Math.floor((z - origin[2]) / voxel);
-      wall[i + j * sx + k * sxy] = 1;
-    };
+    const sx = size[0], sy = size[1], sxy = sx * sy;
+    const ox = origin[0], oy = origin[1], oz = origin[2];
+    const invVoxel = 1 / voxel;
+
     for (let f = 0; f < t.length; f += 3) {
       const a = t[f] * 3, b = t[f + 1] * 3, c = t[f + 2] * 3;
-      const ab = [v[b] - v[a], v[b + 1] - v[a + 1], v[b + 2] - v[a + 2]];
-      const ac = [v[c] - v[a], v[c + 1] - v[a + 1], v[c + 2] - v[a + 2]];
-      const longest = Math.max(Math.hypot(...ab), Math.hypot(...ac),
-        Math.hypot(ab[0] - ac[0], ab[1] - ac[1], ab[2] - ac[2]));
-      const steps = Math.max(1, Math.ceil(longest / (voxel * 0.5)));
+      const vxA = v[a], vyA = v[a + 1], vzA = v[a + 2];
+      const vxB = v[b], vyB = v[b + 1], vzB = v[b + 2];
+      const vxC = v[c], vyC = v[c + 1], vzC = v[c + 2];
+
+      const abx = (vxB - vxA) * invVoxel, aby = (vyB - vyA) * invVoxel, abz = (vzB - vzA) * invVoxel;
+      const acx = (vxC - vxA) * invVoxel, acy = (vyC - vyA) * invVoxel, acz = (vzC - vzA) * invVoxel;
+      const bcx = abx - acx, bcy = aby - acy, bcz = abz - acz;
+
+      const longestVoxelSq = Math.max(
+        abx * abx + aby * aby + abz * abz,
+        acx * acx + acy * acy + acz * acz,
+        bcx * bcx + bcy * bcy + bcz * bcz
+      );
+      const steps = Math.max(1, Math.ceil(Math.sqrt(longestVoxelSq) * 2));
+      const invSteps = 1 / steps;
+      const ax = (vxA - ox) * invVoxel;
+      const ay = (vyA - oy) * invVoxel;
+      const az = (vzA - oz) * invVoxel;
+      const stepAbX = abx * invSteps, stepAbY = aby * invSteps, stepAbZ = abz * invSteps;
+      const stepAcX = acx * invSteps, stepAcY = acy * invSteps, stepAcZ = acz * invSteps;
+
       for (let i = 0; i <= steps; i++) {
-        for (let j = 0; i + j <= steps; j++) {
-          const s = i / steps, u = j / steps;
-          mark(v[a] + ab[0] * s + ac[0] * u, v[a + 1] + ab[1] * s + ac[1] * u, v[a + 2] + ab[2] * s + ac[2] * u);
+        const bx = ax + stepAbX * i;
+        const by = ay + stepAbY * i;
+        const bz = az + stepAbZ * i;
+        const maxJ = steps - i;
+        for (let j = 0; j <= maxJ; j++) {
+          const px = bx + stepAcX * j;
+          const py = by + stepAcY * j;
+          const pz = bz + stepAcZ * j;
+          const gx = px >= 0 ? (px | 0) : Math.floor(px);
+          const gy = py >= 0 ? (py | 0) : Math.floor(py);
+          const gz = pz >= 0 ? (pz | 0) : Math.floor(pz);
+          wall[gx + gy * sx + gz * sxy] = 1;
         }
       }
     }
@@ -66,63 +94,131 @@
   // Cube dilation by `radius` voxels, done as three 1D passes with a running count.
   function dilate(grid, mask, radius) {
     if (radius <= 0) return mask;
-    const [nx, ny, nz] = grid.size;
-    const strides = [1, nx, nx * ny];
-    let current = mask;
-    for (let axis = 0; axis < 3; axis++) {
-      const next = new Uint8Array(grid.count);
-      const length = grid.size[axis];
-      const stride = strides[axis];
-      const others = [0, 1, 2].filter(other => other !== axis);
-      for (let p = 0; p < grid.size[others[0]]; p++) {
-        for (let q = 0; q < grid.size[others[1]]; q++) {
-          const base = p * strides[others[0]] + q * strides[others[1]];
-          let inWindow = 0;
-          for (let i = 0; i < Math.min(radius, length); i++) inWindow += current[base + i * stride];
-          for (let i = 0; i < length; i++) {
-            const enter = i + radius;
-            const leave = i - radius - 1;
-            if (enter < length) inWindow += current[base + enter * stride];
-            if (leave >= 0) inWindow -= current[base + leave * stride];
-            next[base + i * stride] = inWindow > 0 ? 1 : 0;
-          }
+    const nx = grid.size[0], ny = grid.size[1], nz = grid.size[2];
+    const sxy = nx * ny;
+    const count = grid.count;
+    const bufA = new Uint8Array(count);
+    const bufB = new Uint8Array(count);
+
+    // X-pass: mask -> bufA
+    const xWarm = radius < nx ? radius : nx;
+    for (let row = 0; row < count; row += nx) {
+      let inWindow = 0;
+      for (let x = 0; x < xWarm; x++) inWindow += mask[row + x];
+      for (let x = 0; x < nx; x++) {
+        const enter = x + radius;
+        const leave = x - radius - 1;
+        if (enter < nx) inWindow += mask[row + enter];
+        if (leave >= 0) inWindow -= mask[row + leave];
+        bufA[row + x] = inWindow > 0 ? 1 : 0;
+      }
+    }
+
+    // Y-pass: bufA -> bufB
+    const yWarm = radius < ny ? radius : ny;
+    for (let z = 0; z < count; z += sxy) {
+      for (let x = 0; x < nx; x++) {
+        const base = z + x;
+        let inWindow = 0;
+        for (let y = 0; y < yWarm; y++) inWindow += bufA[base + y * nx];
+        for (let y = 0; y < ny; y++) {
+          const enter = y + radius;
+          const leave = y - radius - 1;
+          if (enter < ny) inWindow += bufA[base + enter * nx];
+          if (leave >= 0) inWindow -= bufA[base + leave * nx];
+          bufB[base + y * nx] = inWindow > 0 ? 1 : 0;
         }
       }
-      current = next;
     }
-    return current;
+
+    // Z-pass: bufB -> bufA
+    const zWarm = radius < nz ? radius : nz;
+    for (let y = 0; y < sxy; y += nx) {
+      for (let x = 0; x < nx; x++) {
+        const base = y + x;
+        let inWindow = 0;
+        for (let z = 0; z < zWarm; z++) inWindow += bufB[base + z * sxy];
+        for (let z = 0; z < nz; z++) {
+          const enter = z + radius;
+          const leave = z - radius - 1;
+          if (enter < nz) inWindow += bufB[base + enter * sxy];
+          if (leave >= 0) inWindow -= bufB[base + leave * sxy];
+          bufA[base + z * sxy] = inWindow > 0 ? 1 : 0;
+        }
+      }
+    }
+
+    return bufA;
   }
 
   // 6-connected flood fill of the free space, seeded from the padded border.
   function floodOutside(grid, blocked) {
-    const [nx, ny, nz] = grid.size;
+    const nx = grid.size[0], ny = grid.size[1], nz = grid.size[2];
+    const sxy = nx * ny;
     const outside = new Uint8Array(grid.count);
     const queue = new Int32Array(grid.count);
     let head = 0, tail = 0;
-    const push = index => {
+
+    const trySeed = index => {
       if (!blocked[index] && !outside[index]) {
         outside[index] = 1;
         queue[tail++] = index;
       }
     };
-    for (let z = 0; z < nz; z++) {
-      for (let y = 0; y < ny; y++) {
-        for (let x = 0; x < nx; x++) {
-          if (x === 0 || y === 0 || z === 0 || x === nx - 1 || y === ny - 1 || z === nz - 1)
-            push(x + y * nx + z * nx * ny);
-        }
+
+    // z = 0 and z = nz - 1 faces
+    for (let i = 0; i < sxy; i++) trySeed(i);
+    if (nz > 1) {
+      const topStart = (nz - 1) * sxy;
+      for (let i = 0; i < sxy; i++) trySeed(topStart + i);
+    }
+    // Interior z slices: y borders and x borders
+    for (let z = 1; z < nz - 1; z++) {
+      const zBase = z * sxy;
+      for (let x = 0; x < nx; x++) trySeed(zBase + x);
+      if (ny > 1) {
+        const yMaxBase = zBase + (ny - 1) * nx;
+        for (let x = 0; x < nx; x++) trySeed(yMaxBase + x);
+      }
+      for (let y = 1; y < ny - 1; y++) {
+        const row = zBase + y * nx;
+        trySeed(row);
+        if (nx > 1) trySeed(row + nx - 1);
       }
     }
-    const sxy = nx * ny;
+
+    const nx1 = nx - 1, ny1 = ny - 1, nz1 = nz - 1;
     while (head < tail) {
       const index = queue[head++];
-      const x = index % nx, y = Math.floor(index / nx) % ny, z = Math.floor(index / sxy);
-      if (x > 0) push(index - 1);
-      if (x < nx - 1) push(index + 1);
-      if (y > 0) push(index - nx);
-      if (y < ny - 1) push(index + nx);
-      if (z > 0) push(index - sxy);
-      if (z < nz - 1) push(index + sxy);
+      const z = (index / sxy) | 0;
+      const rem = index - z * sxy;
+      const y = (rem / nx) | 0;
+      const x = rem - y * nx;
+
+      if (x > 0) {
+        const ni = index - 1;
+        if (!blocked[ni] && !outside[ni]) { outside[ni] = 1; queue[tail++] = ni; }
+      }
+      if (x < nx1) {
+        const ni = index + 1;
+        if (!blocked[ni] && !outside[ni]) { outside[ni] = 1; queue[tail++] = ni; }
+      }
+      if (y > 0) {
+        const ni = index - nx;
+        if (!blocked[ni] && !outside[ni]) { outside[ni] = 1; queue[tail++] = ni; }
+      }
+      if (y < ny1) {
+        const ni = index + nx;
+        if (!blocked[ni] && !outside[ni]) { outside[ni] = 1; queue[tail++] = ni; }
+      }
+      if (z > 0) {
+        const ni = index - sxy;
+        if (!blocked[ni] && !outside[ni]) { outside[ni] = 1; queue[tail++] = ni; }
+      }
+      if (z < nz1) {
+        const ni = index + sxy;
+        if (!blocked[ni] && !outside[ni]) { outside[ni] = 1; queue[tail++] = ni; }
+      }
     }
     return outside;
   }
@@ -133,60 +229,189 @@
     const outside = floodOutside(grid, dilate(grid, wall, grid.radius));
     const reach = dilate(grid, outside, grid.radius + shrink);
     const inside = new Uint8Array(grid.count);
-    const [nx, ny] = grid.size;
-    const low = [Infinity, Infinity, Infinity], high = [-Infinity, -Infinity, -Infinity];
+    const nx = grid.size[0], ny = grid.size[1], nz = grid.size[2];
+    let lowX = Infinity, lowY = Infinity, lowZ = Infinity;
+    let highX = -Infinity, highY = -Infinity, highZ = -Infinity;
     let filled = 0;
-    for (let i = 0; i < grid.count; i++) {
-      if (reach[i]) continue;
-      inside[i] = 1;
-      filled++;
-      const cell = [i % nx, Math.floor(i / nx) % ny, Math.floor(i / (nx * ny))];
-      for (let axis = 0; axis < 3; axis++) {
-        low[axis] = Math.min(low[axis], cell[axis]);
-        high[axis] = Math.max(high[axis], cell[axis]);
+    let i = 0;
+    for (let z = 0; z < nz; z++) {
+      for (let y = 0; y < ny; y++) {
+        for (let x = 0; x < nx; x++, i++) {
+          if (reach[i]) continue;
+          inside[i] = 1;
+          filled++;
+          if (x < lowX) lowX = x; if (x > highX) highX = x;
+          if (y < lowY) lowY = y; if (y > highY) highY = y;
+          if (z < lowZ) lowZ = z; if (z > highZ) highZ = z;
+        }
       }
     }
-    return { grid, inside, filled, cells: { low, high } };
+    return {
+      grid, inside, filled,
+      cells: { low: [lowX, lowY, lowZ], high: [highX, highY, highZ] },
+    };
   }
 
   // Signed field for levelSet: +1 inside, -1 outside, box-blurred once so the
   // reconstructed surface is smooth instead of stair-stepped.
-  function smoothField(grid, inside) {
-    const [nx, ny, nz] = grid.size;
-    let field = new Float32Array(grid.count);
-    for (let i = 0; i < grid.count; i++) field[i] = inside[i] ? 1 : -1;
-    const strides = [1, nx, nx * ny];
-    for (let axis = 0; axis < 3; axis++) {
-      const next = new Float32Array(grid.count);
-      const stride = strides[axis];
-      const length = grid.size[axis];
-      for (let i = 0; i < grid.count; i++) {
-        const position = Math.floor(i / stride) % length;
-        const before = position > 0 ? field[i - stride] : -1;
-        const after = position < length - 1 ? field[i + stride] : -1;
-        next[i] = (before + field[i] * 2 + after) / 4;
-      }
-      field = next;
+  function smoothField(grid, inside, cells = null) {
+    const fullNx = grid.size[0], fullNy = grid.size[1], fullNz = grid.size[2];
+    const fullSxy = fullNx * fullNy;
+    let x0 = 0, x1 = fullNx - 1;
+    let y0 = 0, y1 = fullNy - 1;
+    let z0 = 0, z1 = fullNz - 1;
+    if (cells && Number.isFinite(cells.low[0])) {
+      x0 = Math.max(0, cells.low[0] - 3);
+      x1 = Math.min(fullNx - 1, cells.high[0] + 3);
+      y0 = Math.max(0, cells.low[1] - 3);
+      y1 = Math.min(fullNy - 1, cells.high[1] + 3);
+      z0 = Math.max(0, cells.low[2] - 3);
+      z1 = Math.min(fullNz - 1, cells.high[2] + 3);
     }
-    return field;
+
+    const nx = x1 - x0 + 1, ny = y1 - y0 + 1, nz = z1 - z0 + 1;
+    const sxy = nx * ny;
+    const count = sxy * nz;
+    const subGrid = {
+      voxel: grid.voxel,
+      origin: [
+        grid.origin[0] + x0 * grid.voxel,
+        grid.origin[1] + y0 * grid.voxel,
+        grid.origin[2] + z0 * grid.voxel,
+      ],
+      size: [nx, ny, nz],
+      count,
+    };
+
+    const field = new Float32Array(count);
+    const scratch = new Float32Array(count);
+
+    if (x0 === 0 && x1 === fullNx - 1 && y0 === 0 && y1 === fullNy - 1 && z0 === 0 && z1 === fullNz - 1) {
+      for (let i = 0; i < count; i++) field[i] = inside[i] ? 1 : -1;
+    } else {
+      let dst = 0;
+      for (let z = z0; z <= z1; z++) {
+        const zBase = z * fullSxy;
+        for (let y = y0; y <= y1; y++) {
+          const rowBase = zBase + y * fullNx + x0;
+          for (let x = 0; x < nx; x++, dst++) {
+            field[dst] = inside[rowBase + x] ? 1 : -1;
+          }
+        }
+      }
+    }
+
+    // X-blur: field -> scratch
+    if (nx === 1) {
+      for (let i = 0; i < count; i++) scratch[i] = (field[i] * 2 - 2) * 0.25;
+    } else {
+      const nxLast = nx - 1;
+      for (let row = 0; row < count; row += nx) {
+        scratch[row] = (-1 + field[row] * 2 + field[row + 1]) * 0.25;
+        for (let x = 1; x < nxLast; x++) {
+          scratch[row + x] = (field[row + x - 1] + field[row + x] * 2 + field[row + x + 1]) * 0.25;
+        }
+        scratch[row + nxLast] = (field[row + nxLast - 1] + field[row + nxLast] * 2 - 1) * 0.25;
+      }
+    }
+
+    // Y-blur: scratch -> field (row-sequential)
+    if (ny === 1) {
+      for (let i = 0; i < count; i++) field[i] = (scratch[i] * 2 - 2) * 0.25;
+    } else {
+      const nyLast = ny - 1;
+      for (let z = 0; z < count; z += sxy) {
+        for (let x = 0; x < nx; x++) {
+          const i = z + x;
+          field[i] = (-1 + scratch[i] * 2 + scratch[i + nx]) * 0.25;
+        }
+        for (let y = 1; y < nyLast; y++) {
+          const row = z + y * nx;
+          for (let x = 0; x < nx; x++) {
+            const i = row + x;
+            field[i] = (scratch[i - nx] + scratch[i] * 2 + scratch[i + nx]) * 0.25;
+          }
+        }
+        const topRow = z + nyLast * nx;
+        for (let x = 0; x < nx; x++) {
+          const i = topRow + x;
+          field[i] = (scratch[i - nx] + scratch[i] * 2 - 1) * 0.25;
+        }
+      }
+    }
+
+    // Z-blur: field -> scratch (slice-sequential)
+    if (nz === 1) {
+      for (let i = 0; i < count; i++) scratch[i] = (field[i] * 2 - 2) * 0.25;
+    } else {
+      for (let i = 0; i < sxy; i++) {
+        scratch[i] = (-1 + field[i] * 2 + field[i + sxy]) * 0.25;
+      }
+      const nzLast = nz - 1;
+      for (let z = 1; z < nzLast; z++) {
+        const start = z * sxy, end = start + sxy;
+        for (let i = start; i < end; i++) {
+          scratch[i] = (field[i - sxy] + field[i] * 2 + field[i + sxy]) * 0.25;
+        }
+      }
+      const topStart = nzLast * sxy;
+      for (let i = topStart; i < count; i++) {
+        scratch[i] = (field[i - sxy] + field[i] * 2 - 1) * 0.25;
+      }
+    }
+
+    return { grid: subGrid, field: scratch };
   }
 
   function sampler(grid, field) {
-    const [nx, ny, nz] = grid.size;
-    const at = (x, y, z) => (x < 0 || y < 0 || z < 0 || x >= nx || y >= ny || z >= nz)
-      ? -1 : field[x + y * nx + z * nx * ny];
+    const nx = grid.size[0], ny = grid.size[1], nz = grid.size[2];
+    const nx1 = nx - 1, ny1 = ny - 1, nz1 = nz - 1;
+    const sxy = nx * ny;
+    const ox = grid.origin[0], oy = grid.origin[1], oz = grid.origin[2];
+    const invVoxel = 1 / grid.voxel;
+
     return point => {
       // Voxel centres sit at origin + (index + 0.5) * voxel.
-      const gx = (point[0] - grid.origin[0]) / grid.voxel - 0.5;
-      const gy = (point[1] - grid.origin[1]) / grid.voxel - 0.5;
-      const gz = (point[2] - grid.origin[2]) / grid.voxel - 0.5;
+      const gx = (point[0] - ox) * invVoxel - 0.5;
+      const gy = (point[1] - oy) * invVoxel - 0.5;
+      const gz = (point[2] - oz) * invVoxel - 0.5;
       const x = Math.floor(gx), y = Math.floor(gy), z = Math.floor(gz);
       const fx = gx - x, fy = gy - y, fz = gz - z;
-      const lerp = (a, b, s) => a + (b - a) * s;
-      return lerp(
-        lerp(lerp(at(x, y, z), at(x + 1, y, z), fx), lerp(at(x, y + 1, z), at(x + 1, y + 1, z), fx), fy),
-        lerp(lerp(at(x, y, z + 1), at(x + 1, y, z + 1), fx), lerp(at(x, y + 1, z + 1), at(x + 1, y + 1, z + 1), fx), fy),
-        fz);
+
+      if (x >= 0 && y >= 0 && z >= 0 && x < nx1 && y < ny1 && z < nz1) {
+        const i000 = x + y * nx + z * sxy;
+        const i010 = i000 + nx;
+        const i001 = i000 + sxy;
+        const i011 = i010 + sxy;
+        const c00 = field[i000] + (field[i000 + 1] - field[i000]) * fx;
+        const c10 = field[i010] + (field[i010 + 1] - field[i010]) * fx;
+        const c01 = field[i001] + (field[i001 + 1] - field[i001]) * fx;
+        const c11 = field[i011] + (field[i011 + 1] - field[i011]) * fx;
+        const d0 = c00 + (c10 - c00) * fy;
+        const d1 = c01 + (c11 - c01) * fy;
+        return d0 + (d1 - d0) * fz;
+      }
+
+      const x0In = x >= 0 && x < nx, x1In = x + 1 >= 0 && x + 1 < nx;
+      const y0In = y >= 0 && y < ny, y1In = y + 1 >= 0 && y + 1 < ny;
+      const z0In = z >= 0 && z < nz, z1In = z + 1 >= 0 && z + 1 < nz;
+
+      const v000 = (x0In && y0In && z0In) ? field[x + y * nx + z * sxy] : -1;
+      const v100 = (x1In && y0In && z0In) ? field[x + 1 + y * nx + z * sxy] : -1;
+      const v010 = (x0In && y1In && z0In) ? field[x + (y + 1) * nx + z * sxy] : -1;
+      const v110 = (x1In && y1In && z0In) ? field[x + 1 + (y + 1) * nx + z * sxy] : -1;
+      const v001 = (x0In && y0In && z1In) ? field[x + y * nx + (z + 1) * sxy] : -1;
+      const v101 = (x1In && y0In && z1In) ? field[x + 1 + y * nx + (z + 1) * sxy] : -1;
+      const v011 = (x0In && y1In && z1In) ? field[x + (y + 1) * nx + (z + 1) * sxy] : -1;
+      const v111 = (x1In && y1In && z1In) ? field[x + 1 + (y + 1) * nx + (z + 1) * sxy] : -1;
+
+      const c00 = v000 + (v100 - v000) * fx;
+      const c10 = v010 + (v110 - v010) * fx;
+      const c01 = v001 + (v101 - v001) * fx;
+      const c11 = v011 + (v111 - v011) * fx;
+      const d0 = c00 + (c10 - c00) * fy;
+      const d1 = c01 + (c11 - c01) * fy;
+      return d0 + (d1 - d0) * fz;
     };
   }
 
@@ -232,12 +457,19 @@
       shell.volume += (vertices[a] * (vertices[b + 1] * vertices[c + 2] - vertices[b + 2] * vertices[c + 1]) -
         vertices[a + 1] * (vertices[b] * vertices[c + 2] - vertices[b + 2] * vertices[c]) +
         vertices[a + 2] * (vertices[b] * vertices[c + 1] - vertices[b + 1] * vertices[c])) / 6;
-      for (const index of [a, b, c]) {
-        for (let axis = 0; axis < 3; axis++) {
-          shell.min[axis] = Math.min(shell.min[axis], vertices[index + axis]);
-          shell.max[axis] = Math.max(shell.max[axis], vertices[index + axis]);
-        }
-      }
+      const va = a, vb = b, vc = c;
+      const ax = vertices[va], ay = vertices[va + 1], az = vertices[va + 2];
+      const bx = vertices[vb], by = vertices[vb + 1], bz = vertices[vb + 2];
+      const cx = vertices[vc], cy = vertices[vc + 1], cz = vertices[vc + 2];
+      if (ax < shell.min[0]) shell.min[0] = ax; if (ax > shell.max[0]) shell.max[0] = ax;
+      if (ay < shell.min[1]) shell.min[1] = ay; if (ay > shell.max[1]) shell.max[1] = ay;
+      if (az < shell.min[2]) shell.min[2] = az; if (az > shell.max[2]) shell.max[2] = az;
+      if (bx < shell.min[0]) shell.min[0] = bx; if (bx > shell.max[0]) shell.max[0] = bx;
+      if (by < shell.min[1]) shell.min[1] = by; if (by > shell.max[1]) shell.max[1] = by;
+      if (bz < shell.min[2]) shell.min[2] = bz; if (bz > shell.max[2]) shell.max[2] = bz;
+      if (cx < shell.min[0]) shell.min[0] = cx; if (cx > shell.max[0]) shell.max[0] = cx;
+      if (cy < shell.min[1]) shell.min[1] = cy; if (cy > shell.max[1]) shell.max[1] = cy;
+      if (cz < shell.min[2]) shell.min[2] = cz; if (cz > shell.max[2]) shell.max[2] = cz;
     }
     const list = [...shells.values()];
     const positives = list.filter(shell => shell.volume > 0);
@@ -256,8 +488,11 @@
   }
 
   function solidFrom(module, mesh) {
-    const solid = new module.Manifold(new module.Mesh({ numProp: 3,
-      vertProperties: Float32Array.from(mesh.vertices), triVerts: Uint32Array.from(mesh.triangles) }));
+    const solid = new module.Manifold(new module.Mesh({
+      numProp: 3,
+      vertProperties: mesh.vertices instanceof Float32Array ? mesh.vertices : Float32Array.from(mesh.vertices),
+      triVerts: mesh.triangles instanceof Uint32Array ? mesh.triangles : Uint32Array.from(mesh.triangles),
+    }));
     if (solid.status() === 'NoError' && !solid.isEmpty() && solid.volume() > 0) return solid;
     solid.delete();
     return null;
@@ -312,7 +547,8 @@
       // no inside of its own: the fill then becomes the whole solid.
       const { grid, inside, filled, cells } = interiorMask(source, { resolution, closeGap, shrink: original ? 2 : 0 });
       if (!filled) throw new Error(closeGap > 0 ? GAP_MESSAGE : OPEN_MESSAGE);
-      const sdf = sampler(grid, smoothField(grid, inside));
+      const smoothed = smoothField(grid, inside, cells);
+      const sdf = sampler(smoothed.grid, smoothed.field);
       // Only sample around the interior; the padded grid can be far larger.
       const min = grid.origin.map((value, axis) => value + (cells.low[axis] - 2) * grid.voxel);
       const max = grid.origin.map((value, axis) => value + (cells.high[axis] + 3) * grid.voxel);

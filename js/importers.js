@@ -19,6 +19,83 @@
     return `${Math.round(x * precision)},${Math.round(y * precision)},${Math.round(z * precision)}`;
   }
 
+  function createVertexWelder(estimatedVerts = 256, precision = 1e4) {
+    let cap = 64;
+    const minCap = Math.max(64, estimatedVerts * 2);
+    while (cap < minCap) cap <<= 1;
+    let mask = cap - 1;
+    let buckets = new Int32Array(cap).fill(-1);
+
+    let vCap = Math.max(32, estimatedVerts);
+    let qCoords = new Float64Array(vCap * 3);
+    let verts = new Float32Array(vCap * 3);
+    let count = 0;
+
+    function rehash() {
+      cap <<= 1;
+      mask = cap - 1;
+      buckets = new Int32Array(cap).fill(-1);
+      for (let i = 0; i < count; i++) {
+        const base = i * 3;
+        let h = (Math.imul(qCoords[base] | 0, 73856093) ^
+          Math.imul(qCoords[base + 1] | 0, 19349663) ^
+          Math.imul(qCoords[base + 2] | 0, 83492791)) & mask;
+        while (buckets[h] !== -1) h = (h + 1) & mask;
+        buckets[h] = i;
+      }
+    }
+
+    function add(x, y, z) {
+      let qx = Math.round(x * precision);
+      let qy = Math.round(y * precision);
+      let qz = Math.round(z * precision);
+      if (qx === 0) qx = 0;
+      if (qy === 0) qy = 0;
+      if (qz === 0) qz = 0;
+
+      if (count * 10 >= cap * 7) rehash();
+      let h = (Math.imul(qx | 0, 73856093) ^
+        Math.imul(qy | 0, 19349663) ^
+        Math.imul(qz | 0, 83492791)) & mask;
+      while (true) {
+        const idx = buckets[h];
+        if (idx === -1) break;
+        const base = idx * 3;
+        if (qCoords[base] === qx && qCoords[base + 1] === qy && qCoords[base + 2] === qz) {
+          return idx;
+        }
+        h = (h + 1) & mask;
+      }
+
+      if (count === vCap) {
+        vCap <<= 1;
+        const nextQ = new Float64Array(vCap * 3);
+        nextQ.set(qCoords);
+        qCoords = nextQ;
+        const nextV = new Float32Array(vCap * 3);
+        nextV.set(verts);
+        verts = nextV;
+      }
+
+      const idx = count++;
+      const base = idx * 3;
+      qCoords[base] = qx;
+      qCoords[base + 1] = qy;
+      qCoords[base + 2] = qz;
+      verts[base] = x;
+      verts[base + 1] = y;
+      verts[base + 2] = z;
+      buckets[h] = idx;
+      return idx;
+    }
+
+    function toFloat32Array() {
+      return count * 3 === verts.length ? verts : verts.slice(0, count * 3);
+    }
+
+    return { add, toFloat32Array };
+  }
+
   function cross3(a, b) {
     return [
       a[1] * b[2] - a[2] * b[1],
@@ -200,43 +277,27 @@
     const view = new DataView(buffer);
     const numTriangles = view.getUint32(80, true);
     const byteLength = buffer.byteLength;
+    const maxTris = Math.min(numTriangles, Math.max(0, Math.floor((byteLength - 84) / 50)));
 
-    const vertexMap = new Map();
-    const vertices = [];
-    const triangles = [];
-
-    const getVertexIndex = (x, y, z) => {
-      const key = quantizeKey(x, y, z);
-      let idx = vertexMap.get(key);
-      if (idx === undefined) {
-        idx = vertices.length / 3;
-        vertices.push(x, y, z);
-        vertexMap.set(key, idx);
-      }
-      return idx;
-    };
+    const welder = createVertexWelder(Math.max(64, maxTris >> 1));
+    const triangles = new Uint32Array(maxTris * 3);
+    let triOut = 0;
 
     let offset = 84;
-    for (let i = 0; i < numTriangles && offset + 50 <= byteLength; i++) {
-      // Skip normal (12 bytes)
-      offset += 12;
-      const x1 = view.getFloat32(offset, true);
-      const y1 = view.getFloat32(offset + 4, true);
-      const z1 = view.getFloat32(offset + 8, true);
-      offset += 12;
+    for (let i = 0; i < maxTris; i++) {
+      // Skip normal (12 bytes) + read 3 vertices (36 bytes) + skip attr (2 bytes)
+      const x1 = view.getFloat32(offset + 12, true);
+      const y1 = view.getFloat32(offset + 16, true);
+      const z1 = view.getFloat32(offset + 20, true);
 
-      const x2 = view.getFloat32(offset, true);
-      const y2 = view.getFloat32(offset + 4, true);
-      const z2 = view.getFloat32(offset + 8, true);
-      offset += 12;
+      const x2 = view.getFloat32(offset + 24, true);
+      const y2 = view.getFloat32(offset + 28, true);
+      const z2 = view.getFloat32(offset + 32, true);
 
-      const x3 = view.getFloat32(offset, true);
-      const y3 = view.getFloat32(offset + 4, true);
-      const z3 = view.getFloat32(offset + 8, true);
-      offset += 12;
-
-      // Skip attribute byte count (2 bytes)
-      offset += 2;
+      const x3 = view.getFloat32(offset + 36, true);
+      const y3 = view.getFloat32(offset + 40, true);
+      const z3 = view.getFloat32(offset + 44, true);
+      offset += 50;
 
       if (!Number.isFinite(x1) || !Number.isFinite(y1) || !Number.isFinite(z1) ||
           !Number.isFinite(x2) || !Number.isFinite(y2) || !Number.isFinite(z2) ||
@@ -244,37 +305,35 @@
         continue;
       }
 
-      const i1 = getVertexIndex(x1, y1, z1);
-      const i2 = getVertexIndex(x2, y2, z2);
-      const i3 = getVertexIndex(x3, y3, z3);
+      const i1 = welder.add(x1, y1, z1);
+      const i2 = welder.add(x2, y2, z2);
+      const i3 = welder.add(x3, y3, z3);
 
       if (i1 !== i2 && i2 !== i3 && i3 !== i1) {
-        triangles.push(i1, i2, i3);
+        triangles[triOut++] = i1;
+        triangles[triOut++] = i2;
+        triangles[triOut++] = i3;
       }
     }
 
-    return computeMeshSummary(vertices, triangles, 'STL (Binary)');
+    return computeMeshSummary(
+      welder.toFloat32Array(),
+      triOut === triangles.length ? triangles : triangles.slice(0, triOut),
+      'STL (Binary)'
+    );
   }
 
   function parseAsciiSTL(text) {
-    const vertexMap = new Map();
-    const vertices = [];
-    const triangles = [];
-
-    const getVertexIndex = (x, y, z) => {
-      const key = quantizeKey(x, y, z);
-      let idx = vertexMap.get(key);
-      if (idx === undefined) {
-        idx = vertices.length / 3;
-        vertices.push(x, y, z);
-        vertexMap.set(key, idx);
-      }
-      return idx;
-    };
+    const estTris = Math.max(64, Math.floor(text.length / 260));
+    const welder = createVertexWelder(Math.max(64, estTris >> 1));
+    let triCap = estTris * 3;
+    let triangles = new Uint32Array(triCap);
+    let triOut = 0;
 
     const vertexRegex = /vertex\s+([-\d.eE+]+)\s+([-\d.eE+]+)\s+([-\d.eE+]+)/g;
     let match;
-    const triVerts = [];
+    let corner = 0;
+    let v0 = 0, v1 = 0;
 
     while ((match = vertexRegex.exec(text)) !== null) {
       const x = parseFloat(match[1]);
@@ -282,16 +341,35 @@
       const z = parseFloat(match[3]);
       if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
 
-      triVerts.push(getVertexIndex(x, y, z));
-      if (triVerts.length === 3) {
-        if (triVerts[0] !== triVerts[1] && triVerts[1] !== triVerts[2] && triVerts[2] !== triVerts[0]) {
-          triangles.push(triVerts[0], triVerts[1], triVerts[2]);
+      const idx = welder.add(x, y, z);
+      if (corner === 0) {
+        v0 = idx;
+        corner = 1;
+      } else if (corner === 1) {
+        v1 = idx;
+        corner = 2;
+      } else {
+        const v2 = idx;
+        corner = 0;
+        if (v0 !== v1 && v1 !== v2 && v2 !== v0) {
+          if (triOut + 3 > triCap) {
+            triCap <<= 1;
+            const next = new Uint32Array(triCap);
+            next.set(triangles);
+            triangles = next;
+          }
+          triangles[triOut++] = v0;
+          triangles[triOut++] = v1;
+          triangles[triOut++] = v2;
         }
-        triVerts.length = 0;
       }
     }
 
-    return computeMeshSummary(vertices, triangles, 'STL (ASCII)');
+    return computeMeshSummary(
+      welder.toFloat32Array(),
+      triOut === triangles.length ? triangles : triangles.slice(0, triOut),
+      'STL (ASCII)'
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -299,72 +377,103 @@
   // ---------------------------------------------------------------------------
 
   function parseOBJ(text) {
-    const rawVertices = [];
-    const triangles = [];
-    const vertexMap = new Map();
-    const weldedVertices = [];
+    let rawCap = 256;
+    let rawCoords = new Float64Array(rawCap * 3);
+    let rawToWelded = new Int32Array(rawCap).fill(-1);
+    let rawCount = 0;
+
+    const welder = createVertexWelder(Math.max(64, Math.floor(text.length / 180)));
+    let triCap = Math.max(256, Math.floor(text.length / 120)) * 3;
+    let triangles = new Uint32Array(triCap);
+    let triOut = 0;
+
+    const pushTriangle = (a, b, c) => {
+      if (a === b || b === c || c === a) return;
+      if (triOut + 3 > triCap) {
+        triCap <<= 1;
+        const next = new Uint32Array(triCap);
+        next.set(triangles);
+        triangles = next;
+      }
+      triangles[triOut++] = a;
+      triangles[triOut++] = b;
+      triangles[triOut++] = c;
+    };
 
     const getWeldedIndex = (rawIdx) => {
-      const actualIdx = rawIdx < 0 ? rawVertices.length + rawIdx : rawIdx - 1;
-      if (actualIdx < 0 || actualIdx >= rawVertices.length) return null;
-      const pt = rawVertices[actualIdx];
-      const key = quantizeKey(pt[0], pt[1], pt[2]);
-      let idx = vertexMap.get(key);
-      if (idx === undefined) {
-        idx = weldedVertices.length / 3;
-        weldedVertices.push(pt[0], pt[1], pt[2]);
-        vertexMap.set(key, idx);
+      const actualIdx = rawIdx < 0 ? rawCount + rawIdx : rawIdx - 1;
+      if (actualIdx < 0 || actualIdx >= rawCount) return -1;
+      let welded = rawToWelded[actualIdx];
+      if (welded === -1) {
+        const base = actualIdx * 3;
+        welded = welder.add(rawCoords[base], rawCoords[base + 1], rawCoords[base + 2]);
+        rawToWelded[actualIdx] = welded;
       }
-      return idx;
+      return welded;
     };
 
     const lines = text.split(/\r?\n/);
+    const faceIndices = [];
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       const line = lines[lineIndex].trim();
-      if (!line || line.startsWith('#')) continue;
+      if (!line || line.charCodeAt(0) === 35 /* # */) continue;
 
       if (line.startsWith('v ')) {
-        const parts = line.trim().split(/\s+/).slice(1);
-        if (parts.length >= 3) {
-          const x = parseFloat(parts[0]);
-          const y = parseFloat(parts[1]);
-          const z = parseFloat(parts[2]);
+        const parts = line.split(/\s+/);
+        if (parts.length >= 4) {
+          const x = parseFloat(parts[1]);
+          const y = parseFloat(parts[2]);
+          const z = parseFloat(parts[3]);
           if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
-            rawVertices.push([x, y, z]);
+            if (rawCount === rawCap) {
+              rawCap <<= 1;
+              const nextCoords = new Float64Array(rawCap * 3);
+              nextCoords.set(rawCoords);
+              rawCoords = nextCoords;
+              const nextMap = new Int32Array(rawCap).fill(-1);
+              nextMap.set(rawToWelded);
+              rawToWelded = nextMap;
+            }
+            const base = rawCount++ * 3;
+            rawCoords[base] = x;
+            rawCoords[base + 1] = y;
+            rawCoords[base + 2] = z;
           }
         }
       } else if (line.startsWith('f ')) {
-        const parts = line.trim().split(/\s+/).slice(1);
-        if (parts.length < 3) continue;
+        const parts = line.split(/\s+/);
+        if (parts.length < 4) continue;
 
-        const faceIndices = [];
-        for (const part of parts) {
-          const vStr = part.split('/')[0];
-          const vIdx = parseInt(vStr, 10);
+        faceIndices.length = 0;
+        for (let p = 1; p < parts.length; p++) {
+          const part = parts[p];
+          if (!part) continue;
+          const slash = part.indexOf('/');
+          const vIdx = parseInt(slash === -1 ? part : part.slice(0, slash), 10);
           if (!isNaN(vIdx)) {
             const welded = getWeldedIndex(vIdx);
-            if (welded !== null) faceIndices.push(welded);
+            if (welded !== -1) faceIndices.push(welded);
           }
         }
 
         if (faceIndices.length === 3) {
-          if (faceIndices[0] !== faceIndices[1] && faceIndices[1] !== faceIndices[2] && faceIndices[2] !== faceIndices[0]) {
-            triangles.push(faceIndices[0], faceIndices[1], faceIndices[2]);
-          }
+          pushTriangle(faceIndices[0], faceIndices[1], faceIndices[2]);
         } else if (faceIndices.length === 4) {
-          // Quad -> 2 triangles
-          triangles.push(faceIndices[0], faceIndices[1], faceIndices[2]);
-          triangles.push(faceIndices[0], faceIndices[2], faceIndices[3]);
+          pushTriangle(faceIndices[0], faceIndices[1], faceIndices[2]);
+          pushTriangle(faceIndices[0], faceIndices[2], faceIndices[3]);
         } else if (faceIndices.length > 4) {
-          // N-gon fan triangulation
           for (let k = 1; k < faceIndices.length - 1; k++) {
-            triangles.push(faceIndices[0], faceIndices[k], faceIndices[k + 1]);
+            pushTriangle(faceIndices[0], faceIndices[k], faceIndices[k + 1]);
           }
         }
       }
     }
 
-    return computeMeshSummary(weldedVertices, triangles, 'OBJ');
+    return computeMeshSummary(
+      welder.toFloat32Array(),
+      triOut === triangles.length ? triangles : triangles.slice(0, triOut),
+      'OBJ'
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -581,20 +690,10 @@
     }
 
     // Extract faces (ADVANCED_FACE, FACE_SURFACE, FACE)
-    const meshVertices = [];
     const meshTriangles = [];
-    const weldedMap = new Map();
+    const stepWelder = createVertexWelder(Math.max(64, pointsMap.size));
 
-    const getWeldedVertex = (pt) => {
-      const key = quantizeKey(pt[0], pt[1], pt[2]);
-      let idx = weldedMap.get(key);
-      if (idx === undefined) {
-        idx = meshVertices.length / 3;
-        meshVertices.push(pt[0], pt[1], pt[2]);
-        weldedMap.set(key, idx);
-      }
-      return idx;
-    };
+    const getWeldedVertex = (pt) => stepWelder.add(pt[0], pt[1], pt[2]);
 
     let facesParsed = 0;
     for (const [id, ent] of entities.entries()) {
@@ -628,9 +727,9 @@
         const numbers = [...ent.args.matchAll(/([-\d.eE+]+)/g)].map(m => parseFloat(m[1])).filter(Number.isFinite);
         if (numbers.length >= 9) {
           for (let k = 0; k + 8 < numbers.length; k += 9) {
-            const i0 = getWeldedVertex([numbers[k], numbers[k + 1], numbers[k + 2]]);
-            const i1 = getWeldedVertex([numbers[k + 3], numbers[k + 4], numbers[k + 5]]);
-            const i2 = getWeldedVertex([numbers[k + 6], numbers[k + 7], numbers[k + 8]]);
+            const i0 = stepWelder.add(numbers[k], numbers[k + 1], numbers[k + 2]);
+            const i1 = stepWelder.add(numbers[k + 3], numbers[k + 4], numbers[k + 5]);
+            const i2 = stepWelder.add(numbers[k + 6], numbers[k + 7], numbers[k + 8]);
             if (i0 !== i1 && i1 !== i2 && i2 !== i0) {
               meshTriangles.push(i0, i1, i2);
             }
@@ -665,7 +764,7 @@
       throw new Error('No triangulated solid faces or boundary loops could be resolved in this STEP file.');
     }
 
-    const summary = computeMeshSummary(meshVertices, meshTriangles, 'STEP');
+    const summary = computeMeshSummary(stepWelder.toFloat32Array(), meshTriangles, 'STEP');
     summary.faceCount = facesParsed;
     return summary;
   }
@@ -979,15 +1078,15 @@
       const x = vertices[i];
       const y = vertices[i + 1];
       const z = vertices[i + 2];
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
     }
 
     return {
       format: formatName,
-      vertices: new Float32Array(vertices),
-      triangles: new Uint32Array(triangles),
+      vertices: vertices instanceof Float32Array ? vertices : new Float32Array(vertices),
+      triangles: triangles instanceof Uint32Array ? triangles : new Uint32Array(triangles),
       vertexCount: vertices.length / 3,
       triangleCount: triangles.length / 3,
       bounds: {
@@ -1351,7 +1450,7 @@
     importMeshToBodies,
     importDXFToSketch,
     importFile,
-    stlWorkerSource: [quantizeKey, computeMeshSummary, parseBinarySTL, parseAsciiSTL, parseSTL]
+    stlWorkerSource: [quantizeKey, createVertexWelder, computeMeshSummary, parseBinarySTL, parseAsciiSTL, parseSTL]
       .map(fn => fn.toString()).join('\n'),
   };
 })(window.WebCAD = window.WebCAD || {});

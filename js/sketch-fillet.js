@@ -465,9 +465,15 @@
 
     maximumRadius() {
       const corners = this.chainCorners();
-      return corners.length ? Math.min(...corners.map(corner =>
-        corner.kind === 'circle-circle' || corner.kind === 'line-circle' || corner.kind === 'curve-curve' ? corner.rMax :
-          Math.min(corner.len1, corner.len2) * (this.chainSelection ? 0.45 : 0.9) * Math.tan(corner.theta / 2))) : 0;
+      if (!corners.length) return 0;
+      let minRadius = Infinity;
+      for (const corner of corners) {
+        const limit = corner.kind === 'circle-circle' || corner.kind === 'line-circle' || corner.kind === 'curve-curve'
+          ? corner.rMax
+          : Math.min(corner.len1, corner.len2) * (this.chainSelection ? 0.45 : 0.9) * Math.tan(corner.theta / 2);
+        if (limit < minRadius) minRadius = limit;
+      }
+      return minRadius;
     }
 
     onPointerMove(event) {

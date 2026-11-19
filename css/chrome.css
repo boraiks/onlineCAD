@@ -581,13 +581,11 @@
 .tool-button svg.cad-icon {
     width: 24px;
     height: 24px;
-    filter: drop-shadow(0 1px 1px rgba(20, 45, 65, 0.08));
-    transition: transform 0.15s ease, filter 0.15s ease;
+    transition: transform 0.15s ease;
 }
 
 .tool-button:hover svg.cad-icon {
-    transform: translateY(-1px) scale(1.06);
-    filter: drop-shadow(0 2px 4px rgba(20, 45, 65, 0.16));
+    transform: translateY(-1px) scale(1.05);
 }
 
 .tool-button:active svg.cad-icon {
@@ -676,23 +674,19 @@
 #distanceTool,
 #angleTool,
 #midpointTool {
-    background: rgba(220, 53, 69, 0.08);
-    border-color: rgba(220, 53, 69, 0.28);
-    color: #c92a2a;
+    background: rgba(220, 53, 69, 0.07);
+    border-color: rgba(220, 53, 69, 0.24);
+    color: #b91c1c;
     font-weight: 700;
     box-shadow: none;
 }
 
-.tool-button.tool-button-inspect svg,
-#distanceTool svg,
-#angleTool svg,
-#midpointTool svg {
+.tool-button.tool-button-inspect svg:not(.cad-icon),
+#distanceTool svg:not(.cad-icon),
+#angleTool svg:not(.cad-icon),
+#midpointTool svg:not(.cad-icon) {
     stroke: #c92a2a;
     stroke-width: 1.8;
-}
-
-#distanceTool svg circle {
-    fill: #c92a2a;
 }
 
 .tool-button.tool-button-inspect:hover,
@@ -703,25 +697,9 @@
 #angleTool:focus-visible,
 #midpointTool:hover,
 #midpointTool:focus-visible {
-    background: rgba(220, 53, 69, 0.16);
-    border-color: rgba(220, 53, 69, 0.48);
-    color: #b02525;
-}
-
-.tool-button.tool-button-inspect:hover svg,
-.tool-button.tool-button-inspect:focus-visible svg,
-#distanceTool:hover svg,
-#distanceTool:focus-visible svg,
-#angleTool:hover svg,
-#angleTool:focus-visible svg,
-#midpointTool:hover svg,
-#midpointTool:focus-visible svg {
-    stroke: #b02525;
-}
-
-.tool-button.tool-button-inspect:hover svg circle,
-#distanceTool:hover svg circle {
-    fill: #b02525;
+    background: rgba(220, 53, 69, 0.14);
+    border-color: rgba(220, 53, 69, 0.45);
+    color: #991b1b;
 }
 
 .tool-button.tool-button-inspect.selected,
@@ -732,26 +710,10 @@
 #angleTool[aria-pressed="true"],
 #midpointTool.selected,
 #midpointTool[aria-pressed="true"] {
-    background: rgba(220, 53, 69, 0.22);
-    border-color: rgba(220, 53, 69, 0.7);
-    color: #991b1b;
+    background: rgba(220, 53, 69, 0.20);
+    border-color: rgba(220, 53, 69, 0.65);
+    color: #7f1d1d;
     box-shadow: inset 0 1px 3px rgba(185, 28, 28, 0.15);
-}
-
-.tool-button.tool-button-inspect.selected svg,
-.tool-button.tool-button-inspect[aria-pressed="true"] svg,
-#distanceTool.selected svg,
-#distanceTool[aria-pressed="true"] svg,
-#angleTool.selected svg,
-#angleTool[aria-pressed="true"] svg,
-#midpointTool.selected svg,
-#midpointTool[aria-pressed="true"] svg {
-    stroke: #991b1b;
-}
-
-.tool-button.tool-button-inspect.selected svg circle,
-#distanceTool.selected svg circle {
-    fill: #991b1b;
 }
 
 /* Soft Tinted Green Action Button: FINISH SKETCH */
@@ -764,12 +726,6 @@
     box-shadow: none;
 }
 
-.tool-button.tool-button-finish svg,
-#finishSketch svg {
-    stroke: #1a7f37;
-    stroke-width: 2.2;
-}
-
 .tool-button.tool-button-finish:hover,
 .tool-button.tool-button-finish:focus-visible,
 #finishSketch:hover,
@@ -779,24 +735,12 @@
     color: #146c2e;
 }
 
-.tool-button.tool-button-finish:hover svg,
-.tool-button.tool-button-finish:focus-visible svg,
-#finishSketch:hover svg,
-#finishSketch:focus-visible svg {
-    stroke: #146c2e;
-}
-
 .tool-button.tool-button-finish:active,
 #finishSketch:active {
     background: rgba(46, 160, 67, 0.28);
     border-color: rgba(46, 160, 67, 0.75);
     color: #0f5323;
     box-shadow: inset 0 1px 3px rgba(20, 108, 46, 0.2);
-}
-
-.tool-button.tool-button-finish:active svg,
-#finishSketch:active svg {
-    stroke: #0f5323;
 }
 
 /* Position Split View cleanly next to Finish Sketch */

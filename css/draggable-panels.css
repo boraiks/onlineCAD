@@ -1,0 +1,111 @@
+/* Unified draggable header bar and viewport clamping for floating tool dialogs */
+.extrude-panel,
+.solid-bevel-panel,
+.body-move-panel,
+.pattern-palette {
+  max-height: calc(100% - 68px);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.extrude-panel.is-panel-dragged,
+.solid-bevel-panel.is-panel-dragged,
+.body-move-panel.is-panel-dragged,
+.pattern-palette.is-panel-dragged {
+  max-height: calc(100% - 16px);
+}
+
+.panel-drag-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: -3px -3px 8px -3px;
+  padding: 3px 3px 8px 3px;
+  border-bottom: 1px solid #d9e7ee;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.panel-drag-bar:hover {
+  border-bottom-color: #b7d2e0;
+}
+
+.panel-drag-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 12px;
+  height: 14px;
+  color: #88a4b4;
+  transition: color 0.15s ease;
+}
+
+.panel-drag-grip svg {
+  width: 10px;
+  height: 14px;
+  display: block;
+}
+
+.panel-drag-bar:hover .panel-drag-grip,
+.is-panel-dragging .panel-drag-grip {
+  color: #1674ab;
+}
+
+.panel-drag-title {
+  margin: 0 !important;
+  flex: 1;
+  min-width: 0;
+  font: 700 13px/1.2 Arial, sans-serif;
+  letter-spacing: 0.06em;
+  color: #263e4c;
+  pointer-events: none;
+}
+
+.panel-drag-reset {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #6b8899;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.panel-drag-reset[hidden] {
+  display: none !important;
+}
+
+.panel-drag-reset svg {
+  width: 12px;
+  height: 12px;
+}
+
+.panel-drag-reset:hover {
+  border-color: #bad3e2;
+  background: #eaf4fa;
+  color: #1674ab;
+}
+
+.is-panel-dragging {
+  z-index: 26 !important;
+  border-color: #1984b8 !important;
+  box-shadow: 0 14px 32px rgba(18, 45, 65, 0.28) !important;
+}
+
+.is-panel-dragging .panel-drag-bar {
+  cursor: grabbing;
+}
+
+body.is-dragging-dialog {
+  cursor: grabbing !important;
+  user-select: none;
+  -webkit-user-select: none;
+}

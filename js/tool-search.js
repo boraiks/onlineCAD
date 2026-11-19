@@ -2,31 +2,40 @@
   'use strict';
 
   const ICONS = {
-    sketch: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 22,7 12,12 2,7" fill="rgba(56,189,248,0.2)" stroke="#38bdf8"/><path d="M7 4.5l10 5M17 4.5l-10 5" stroke="#38bdf8" stroke-dasharray="2 2"/><circle cx="17" cy="17" r="4.5" fill="#22c55e" stroke="#fff" stroke-width="1.5"/><path d="M17 15v4M15 17h4" stroke="#fff" stroke-width="1.5"/></svg>`,
-    extrude: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,4 18,8 10,12 2,8" fill="rgba(56,189,248,0.3)" stroke="#38bdf8"/><polygon points="2,8 10,12 10,20 2,16" fill="rgba(14,165,233,0.4)" stroke="#0284c7"/><polygon points="10,12 18,8 18,16 10,20" fill="rgba(2,132,199,0.5)" stroke="#0369a1"/><path d="M19 14V4M16 7l3-3 3 3" stroke="#00e5ff" stroke-width="2"/></svg>`,
-    revolve: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="2" x2="6" y2="22" stroke="#f59e0b" stroke-width="1.6" stroke-dasharray="2 2"/><path d="M9 5h8a3 1.5 0 0 1 0 3H9Z" fill="rgba(56,189,248,0.3)" stroke="#38bdf8"/><path d="M9 5h8v12H9Z" fill="rgba(14,165,233,0.4)" stroke="#0284c7"/><path d="M19 8a7 5 0 1 1-7 11" stroke="#00e5ff" stroke-width="1.8"/><polygon points="12 17 9 20 13 22" fill="#00e5ff" stroke="none"/></svg>`,
-    hole: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,3 20,7 12,11 4,7" fill="rgba(148,163,184,0.3)" stroke="#94a3b8"/><polygon points="4,7 12,11 12,19 4,15" fill="rgba(100,116,139,0.3)" stroke="#64748b"/><polygon points="12,11 20,7 20,15 12,19" fill="rgba(71,85,105,0.4)" stroke="#475569"/><ellipse cx="12" cy="7" rx="3.5" ry="1.8" fill="#0f172a" stroke="#00e5ff" stroke-width="1.2"/><path d="M8.5 7v4c0 1 1.5 1.8 3.5 1.8s3.5-.8 3.5-1.8V7" stroke="#00e5ff" stroke-width="1.2"/></svg>`,
-    fillet: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V8a4 4 0 0 1 4-4h12" stroke="#64748b"/><path d="M4 20h16V8" stroke="#64748b"/><path d="M4 8q8 8 16 0" fill="none" stroke="#00e5ff" stroke-width="2.2"/><circle cx="12" cy="12" r="1.5" fill="#00e5ff"/></svg>`,
-    chamfer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V11l7-7h9v16H4Z" fill="rgba(251,146,60,0.15)" stroke="#64748b"/><line x1="4" y1="11" x2="11" y2="4" stroke="#f97316" stroke-width="2.2"/><line x1="7.5" y1="7.5" x2="12" y2="12" stroke="#f97316" stroke-dasharray="1.5 1.5"/></svg>`,
-    move: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/><polyline points="16 9 19 12 16 15"/><polyline points="9 16 12 19 15 16"/><polyline points="8 9 5 12 8 15"/><polyline points="9 8 12 5 15 8"/></svg>`,
-    pattern: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1" fill="rgba(56,189,248,0.4)" stroke="#38bdf8"/><rect x="14" y="3" width="7" height="7" rx="1" fill="rgba(56,189,248,0.2)" stroke="#38bdf8"/><rect x="3" y="14" width="7" height="7" rx="1" fill="rgba(56,189,248,0.2)" stroke="#38bdf8"/><rect x="14" y="14" width="7" height="7" rx="1" fill="rgba(56,189,248,0.2)" stroke="#38bdf8"/></svg>`,
-    circPattern: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" stroke="#38bdf8" stroke-dasharray="2 2"/><circle cx="12" cy="12" r="2" fill="#f59e0b"/><circle cx="12" cy="5" r="2" fill="#38bdf8"/><circle cx="19" cy="12" r="2" fill="#38bdf8"/><circle cx="12" cy="19" r="2" fill="#38bdf8"/><circle cx="5" cy="12" r="2" fill="#38bdf8"/></svg>`,
-    line: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="2.2" fill="#38bdf8"/><circle cx="20" cy="4" r="2.2" fill="#38bdf8"/></svg>`,
-    rect: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="1"/><circle cx="4" cy="5" r="1.8" fill="#38bdf8"/><circle cx="20" cy="19" r="1.8" fill="#38bdf8"/></svg>`,
-    circle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.8" fill="#38bdf8"/><line x1="12" y1="12" x2="19.5" y2="8" stroke="#38bdf8" stroke-dasharray="1.5 1.5"/></svg>`,
-    point: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5" fill="#38bdf8" stroke="#fff"/></svg>`,
-    trim: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`,
-    offset: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18C8 18 8 6 12 6s4 12 8 12" stroke="#64748b"/><path d="M4 14C8 14 8 2 12 2s4 12 8 12" stroke="#38bdf8"/></svg>`,
-    mirror: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22" stroke="#94a3b8" stroke-dasharray="2 2"/><polygon points="4,7 10,12 4,17" fill="rgba(56,189,248,0.4)" stroke="#38bdf8"/><polygon points="20,7 14,12 20,17" fill="rgba(56,189,248,0.15)" stroke="#38bdf8"/></svg>`,
-    dimension: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="4" y2="20"/><line x1="20" y1="4" x2="20" y2="20"/><line x1="4" y1="12" x2="20" y2="12" stroke="#38bdf8"/><polyline points="8 9 4 12 8 15" stroke="#38bdf8"/><polyline points="16 9 20 12 16 15" stroke="#38bdf8"/></svg>`,
-    angle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="20"/><line x1="4" y1="20" x2="17" y2="6"/><path d="M9 20a6 6 0 0 0 4-4" stroke="#38bdf8" stroke-width="2"/></svg>`,
-    constraint: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="10" rx="2"/><circle cx="9" cy="12" r="2" fill="#38bdf8"/><circle cx="15" cy="12" r="2" fill="#38bdf8"/><line x1="9" y1="12" x2="15" y2="12" stroke="#38bdf8"/></svg>`,
-    construction: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4" stroke="#f59e0b" stroke-dasharray="3 2"/><circle cx="4" cy="20" r="2" fill="#f59e0b"/><circle cx="20" cy="4" r="2" fill="#f59e0b"/></svg>`,
-    finish: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" stroke="#22c55e"/></svg>`,
-    inspect: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16" y2="16"/><line x1="8" y1="11" x2="14" y2="11" stroke="#38bdf8"/></svg>`,
-    zebra: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="7" x2="21" y2="7" stroke="#38bdf8" stroke-width="2"/><line x1="3" y1="12" x2="21" y2="12" stroke="#38bdf8" stroke-width="2"/><line x1="3" y1="17" x2="21" y2="17" stroke="#38bdf8" stroke-width="2"/></svg>`,
-    mesh: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,3 21,8 21,16 12,21 3,16 3,8" fill="rgba(56,189,248,0.15)" stroke="#38bdf8"/><polyline points="3 8 12 13 21 8"/><line x1="12" y1="13" x2="12" y2="21"/><line x1="12" y1="13" x2="3" y2="16"/><line x1="12" y1="13" x2="21" y2="16"/></svg>`,
-    viewFit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><polyline points="21 15 21 21 15 21"/><polyline points="3 9 3 3 9 3"/><circle cx="12" cy="12" r="3" fill="#38bdf8"/></svg>`,
+    sketch: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="11,3 20,7.5 11,12 2,7.5" fill="#e0f2fe" stroke="#1674ab" stroke-width="1.7"/><path d="M4,13.5l7,3.5 5-2.5" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="2 2"/><circle cx="17.5" cy="17.5" r="4.5" fill="#16a34a" stroke="#ffffff" stroke-width="1.2"/><path d="M17.5,15.5v4M15.5,17.5h4" stroke="#ffffff" stroke-width="1.7"/></svg>`,
+    extrude: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="9,5 15,8.5 9,12 3,8.5" fill="#bae6fd" stroke="#1674ab" stroke-width="1.6"/><polygon points="3,8.5 9,12 9,20 3,16.5" fill="#e0f2fe" stroke="#2b4252" stroke-width="1.5"/><polygon points="9,12 15,8.5 15,16.5 9,20" fill="#7dd3fc" stroke="#2b4252" stroke-width="1.5"/><path d="M19,17V5M16,8l3-3 3,3" stroke="#1674ab" stroke-width="2"/></svg>`,
+    revolve: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="5.5" y1="3" x2="5.5" y2="21" stroke="#d97706" stroke-width="1.7" stroke-dasharray="2.5 2.5"/><rect x="9" y="6" width="5" height="10" rx="0.8" fill="#bae6fd" stroke="#2b4252" stroke-width="1.5"/><path d="M16.5,7.5A6.5,4.2 0 1 1 8,18.5" stroke="#1674ab" stroke-width="1.9"/><polyline points="11,17 7.5,18.5 9.5,21.5" stroke="#1674ab" stroke-width="1.8"/></svg>`,
+    hole: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4,9h16v10H4z" fill="#e2e8f0" stroke="#2b4252" stroke-width="1.6"/><rect x="8.5" y="9" width="7" height="10" fill="#ffffff" stroke="#1674ab" stroke-width="1.6"/><path d="M12,2.5v5M9.5,5.5L12,8l2.5-2.5" stroke="#1674ab" stroke-width="1.8"/></svg>`,
+    fillet: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5,4H12M5,4V11" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="2 2"/><path d="M5,20V11A7,7 0 0 1 12,4H20V20H5Z" fill="#e0f2fe" stroke="#2b4252" stroke-width="1.6"/><path d="M5,11A7,7 0 0 1 12,4" stroke="#1674ab" stroke-width="2.4"/></svg>`,
+    chamfer: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5,4H12M5,4V11" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="2 2"/><path d="M5,20V11L12,4H20V20H5Z" fill="#fef3c7" stroke="#2b4252" stroke-width="1.6"/><line x1="5" y1="11" x2="12" y2="4" stroke="#d97706" stroke-width="2.4"/></svg>`,
+    move: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12,3V21M3,12H21" stroke="#2b4252" stroke-width="1.6"/><polyline points="10,5 12,3 14,5" stroke="#2b4252" stroke-width="1.6"/><polyline points="10,19 12,21 14,19" stroke="#2b4252" stroke-width="1.6"/><polyline points="5,10 3,12 5,14" stroke="#2b4252" stroke-width="1.6"/><polyline points="19,10 21,12 19,14" stroke="#2b4252" stroke-width="1.6"/><circle cx="12" cy="12" r="2.2" fill="#1674ab"/></svg>`,
+    pattern: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2" fill="#1674ab" stroke="#1674ab" stroke-width="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2" fill="#e0f2fe" stroke="#2b4252" stroke-width="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2" fill="#e0f2fe" stroke="#2b4252" stroke-width="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.2" fill="#e0f2fe" stroke="#2b4252" stroke-width="1.5"/></svg>`,
+    circPattern: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7.5" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="2.5 2.5"/><circle cx="12" cy="12" r="1.8" fill="#d97706"/><circle cx="12" cy="4.5" r="2.3" fill="#1674ab"/><circle cx="19.5" cy="12" r="2.3" fill="#bae6fd" stroke="#1674ab" stroke-width="1.4"/><circle cx="12" cy="19.5" r="2.3" fill="#bae6fd" stroke="#1674ab" stroke-width="1.4"/><circle cx="4.5" cy="12" r="2.3" fill="#bae6fd" stroke="#1674ab" stroke-width="1.4"/></svg>`,
+    line: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5" stroke="#2b4252" stroke-width="2"/><circle cx="5" cy="19" r="2.2" fill="#e0f2fe" stroke="#1674ab" stroke-width="1.7"/><circle cx="19" cy="5" r="2.2" fill="#e0f2fe" stroke="#1674ab" stroke-width="1.7"/></svg>`,
+    rect: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="6" width="15" height="12" rx="1" fill="#e0f2fe" stroke="#2b4252" stroke-width="1.8"/><circle cx="4.5" cy="6" r="2" fill="#ffffff" stroke="#1674ab" stroke-width="1.6"/><circle cx="19.5" cy="18" r="2" fill="#ffffff" stroke="#1674ab" stroke-width="1.6"/></svg>`,
+    circle: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8" fill="#e0f2fe" stroke="#2b4252" stroke-width="1.8"/><circle cx="12" cy="12" r="1.9" fill="#1674ab"/><line x1="12" y1="12" x2="18.8" y2="8" stroke="#1674ab" stroke-width="1.4" stroke-dasharray="2 1.8"/></svg>`,
+    point: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12,5V8.5M12,15.5V19M5,12H8.5M15.5,12H19" stroke="#2b4252" stroke-width="1.6"/><circle cx="12" cy="12" r="2.6" fill="#1674ab"/></svg>`,
+    trim: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3.5" y1="18" x2="11" y2="18" stroke="#2b4252" stroke-width="1.7"/><line x1="12" y1="18" x2="20.5" y2="18" stroke="#dc2626" stroke-width="1.7" stroke-dasharray="2.2 2"/><circle cx="7" cy="6.5" r="2.3" stroke="#dc2626" stroke-width="1.6"/><circle cx="7" cy="13.5" r="2.3" stroke="#dc2626" stroke-width="1.6"/><path d="M9,7.8L18.5,13.5M9,12.2L18.5,6.5" stroke="#2b4252" stroke-width="1.7"/></svg>`,
+    offset: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5,19V8A3,3 0 0 1 8,5H19" stroke="#2b4252" stroke-width="1.8"/><path d="M10.5,19V11.5A1,1 0 0 1 11.5,10.5H19" stroke="#1674ab" stroke-width="1.8"/></svg>`,
+    mirror: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3.5" x2="12" y2="20.5" stroke="#d97706" stroke-width="1.6" stroke-dasharray="2.5 2"/><polygon points="4,7 9.5,12 4,17" fill="#1674ab" stroke="#1674ab" stroke-width="1.5"/><polygon points="20,7 14.5,12 20,17" fill="#e0f2fe" stroke="#2b4252" stroke-width="1.5"/></svg>`,
+    dimension: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="4.5" y1="4.5" x2="4.5" y2="19.5" stroke="#2b4252" stroke-width="1.7"/><line x1="19.5" y1="4.5" x2="19.5" y2="19.5" stroke="#2b4252" stroke-width="1.7"/><line x1="5.5" y1="12" x2="18.5" y2="12" stroke="#dc2626" stroke-width="1.8"/><polyline points="8.5,9.5 5.5,12 8.5,14.5" stroke="#dc2626" stroke-width="1.8"/><polyline points="15.5,9.5 18.5,12 15.5,14.5" stroke="#dc2626" stroke-width="1.8"/></svg>`,
+    angle: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20,19H4.5L17,6.5" stroke="#2b4252" stroke-width="1.8"/><path d="M12.5,19A8,8 0 0 0 10.2,13.3" stroke="#dc2626" stroke-width="2"/></svg>`,
+    midpoint: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3.5" y1="16" x2="20.5" y2="16" stroke="#2b4252" stroke-width="1.8"/><polygon points="12,7 16.5,15.5 7.5,15.5" fill="#fee2e2" stroke="#dc2626" stroke-width="1.7"/></svg>`,
+    axis: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12" stroke="#1674ab" stroke-width="1.8"/><line x1="12" y1="4" x2="12" y2="20" stroke="#1674ab" stroke-width="1.8"/><line x1="4" y1="9.5" x2="4" y2="14.5" stroke="#2b4252" stroke-width="1.4"/><line x1="20" y1="9.5" x2="20" y2="14.5" stroke="#2b4252" stroke-width="1.4"/></svg>`,
+    tangent: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="13.5" r="5.5" fill="#e0f2fe" stroke="#2b4252" stroke-width="1.8"/><line x1="4" y1="8" x2="20" y2="8" stroke="#1674ab" stroke-width="1.9"/><circle cx="13.5" cy="8" r="1.7" fill="#1674ab"/></svg>`,
+    coincident: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="19" x2="12" y2="12" stroke="#2b4252" stroke-width="1.8"/><line x1="20" y1="19" x2="12" y2="12" stroke="#2b4252" stroke-width="1.8"/><circle cx="12" cy="12" r="2.2" fill="#1674ab"/></svg>`,
+    equal: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="9" x2="19" y2="9" stroke="#1674ab" stroke-width="2.4"/><line x1="5" y1="15" x2="19" y2="15" stroke="#1674ab" stroke-width="2.4"/></svg>`,
+    fix: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8,10.5V7.5A4,4 0 0 1 16,7.5V10.5" stroke="#2b4252" stroke-width="1.8"/><rect x="5.5" y="10.5" width="13" height="9.5" rx="2" fill="#e0f2fe" stroke="#1674ab" stroke-width="1.7"/></svg>`,
+    construction: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="4.5" y1="19.5" x2="19.5" y2="4.5" stroke="#d97706" stroke-width="2" stroke-dasharray="3 2.5"/><circle cx="4.5" cy="19.5" r="1.8" fill="#d97706"/><circle cx="19.5" cy="4.5" r="1.8" fill="#d97706"/></svg>`,
+    finish: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" fill="#16a34a"/><polyline points="8,12.5 11,15.5 16.5,9" stroke="#ffffff" stroke-width="2.2"/></svg>`,
+    inspect: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="11" height="11" rx="1.5" fill="#e0f2fe" stroke="#1674ab" stroke-width="1.6"/><rect x="9.5" y="9.5" width="11" height="11" rx="1.5" fill="#f1f5f9" stroke="#2b4252" stroke-width="1.6"/><rect x="9.5" y="9.5" width="5" height="5" fill="#dc2626"/></svg>`,
+    zebra: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3" fill="#ffffff" stroke="#2b4252" stroke-width="1.6"/><path d="M4.5,11C8.5,8 15.5,8 19.5,11" stroke="#1e293b" stroke-width="2.2"/><path d="M4.5,15.5C8.5,12.5 15.5,12.5 19.5,15.5" stroke="#1674ab" stroke-width="2.2"/></svg>`,
+    mesh: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" fill="#fef3c7" stroke="#d97706" stroke-width="1.6"/><path d="M4,7.5L12,12L20,7.5M12,12V21M4,16.5L12,12L20,16.5" stroke="#d97706" stroke-width="1.3"/></svg>`,
+    meshToSolid: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,3 20,7.5 12,12 4,7.5" fill="#e0f2fe" stroke="#2b4252" stroke-width="1.5"/><polygon points="4,7.5 12,12 12,21 4,16.5" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/><polygon points="12,12 20,7.5 20,16.5 12,21" fill="#7dd3fc" stroke="#1674ab" stroke-width="1.6"/></svg>`,
+    meshFill: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2.5" fill="#ffffff" stroke="#2b4252" stroke-width="1.7"/><rect x="7.5" y="7.5" width="9" height="9" rx="1" fill="#1674ab"/></svg>`,
+    decimate: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="2.5,18 6.5,6 10.5,18" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/><path d="M4.5,12H8.5L6.5,18Z" stroke="#d97706" stroke-width="1.1"/><path d="M11.2,12H14.4M13.2,10.2L15,12L13.2,13.8" stroke="#1674ab" stroke-width="1.6"/><polygon points="15.5,18 18.5,6 21.5,18" fill="#e0f2fe" stroke="#1674ab" stroke-width="1.5"/></svg>`,
+    surfaceFinish: `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12,13C14.5,7 18.5,7.5 20.5,15V19H12Z" fill="#bae6fd"/><polyline points="3.5,15 7.5,8.5 12,13" stroke="#d97706" stroke-width="1.8"/><path d="M12,13C14.5,7 18.5,7.5 20.5,15" stroke="#1674ab" stroke-width="2"/><line x1="3.5" y1="19" x2="20.5" y2="19" stroke="#2b4252" stroke-width="1.4"/></svg>`,
+    viewFit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><polyline points="21 15 21 21 15 21"/><polyline points="3 9 3 3 9 3"/><circle cx="12" cy="12" r="3" fill="#1674ab"/></svg>`,
     undo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
     redo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>`,
     save: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
@@ -73,7 +82,7 @@
         id: 'hole',
         name: 'Hole',
         category: 'Solid · Create',
-        keywords: ['hole, drill, bore, countersink, counterbore, delik, hol'],
+        keywords: ['hole', 'drill', 'bore', 'countersink', 'counterbore', 'delik', 'hol'],
         shortcut: () => 'H',
         icon: ICONS.hole,
         execute: () => document.querySelector('#holeBtn')?.click()
@@ -136,7 +145,8 @@
         icon: ICONS.line,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('line');
-          else document.querySelector('#lineToolBtn')?.click();
+          else if (app.startSketchWithTool) app.startSketchWithTool('line');
+          else document.querySelector('#lineTool')?.click();
         }
       },
       {
@@ -148,7 +158,8 @@
         icon: ICONS.rect,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('rectangle');
-          else document.querySelector('#rectangleToolBtn')?.click();
+          else if (app.startSketchWithTool) app.startSketchWithTool('rectangle');
+          else document.querySelector('#rectangleTool')?.click();
         }
       },
       {
@@ -160,7 +171,8 @@
         icon: ICONS.circle,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('circle');
-          else document.querySelector('#circleToolBtn')?.click();
+          else if (app.startSketchWithTool) app.startSketchWithTool('circle');
+          else document.querySelector('#circleTool')?.click();
         }
       },
       {
@@ -172,7 +184,7 @@
         icon: ICONS.point,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('point');
-          else document.querySelector('#pointToolBtn')?.click();
+          else document.querySelector('#pointTool')?.click();
         }
       },
       {
@@ -184,7 +196,7 @@
         icon: ICONS.fillet,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('fillet');
-          else document.querySelector('#filletToolBtn')?.click();
+          else document.querySelector('#filletTool')?.click();
         }
       },
       {
@@ -196,7 +208,7 @@
         icon: ICONS.trim,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('trim');
-          else document.querySelector('#trimToolBtn')?.click();
+          else document.querySelector('#trimTool')?.click();
         }
       },
       {
@@ -208,7 +220,7 @@
         icon: ICONS.offset,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('offset');
-          else document.querySelector('#offsetToolBtn')?.click();
+          else document.querySelector('#offsetTool')?.click();
         }
       },
       {
@@ -220,7 +232,7 @@
         icon: ICONS.mirror,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('mirror');
-          else document.querySelector('#mirrorToolBtn')?.click();
+          else document.querySelector('#mirrorTool')?.click();
         }
       },
       {
@@ -232,7 +244,7 @@
         icon: ICONS.dimension,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('distance');
-          else document.querySelector('#distanceToolBtn')?.click();
+          else document.querySelector('#distanceTool')?.click();
         }
       },
       {
@@ -244,7 +256,19 @@
         icon: ICONS.angle,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('angle');
-          else document.querySelector('#angleToolBtn')?.click();
+          else document.querySelector('#angleTool')?.click();
+        }
+      },
+      {
+        id: 'sketch-midpoint',
+        name: 'Midpoint',
+        category: 'Sketch · Constraint',
+        keywords: ['midpoint', 'center', 'middle', 'constraint', 'orta'],
+        shortcut: () => '',
+        icon: ICONS.midpoint,
+        execute: (app) => {
+          if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('midpoint');
+          else document.querySelector('#midpointTool')?.click();
         }
       },
       {
@@ -253,10 +277,10 @@
         category: 'Sketch · Constraint',
         keywords: ['horizontal', 'vertical', 'axis', 'align', 'constraint', 'yatay', 'dikey'],
         shortcut: () => cad.shortcuts?.bindings?.axis || 'H',
-        icon: ICONS.constraint,
+        icon: ICONS.axis,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('axis');
-          else document.querySelector('#axisToolBtn')?.click();
+          else document.querySelector('#axisTool')?.click();
         }
       },
       {
@@ -265,10 +289,10 @@
         category: 'Sketch · Constraint',
         keywords: ['tangent', 'smooth', 'constraint', 'curve', 'teget'],
         shortcut: () => cad.shortcuts?.bindings?.tangent || 'G',
-        icon: ICONS.constraint,
+        icon: ICONS.tangent,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('tangent');
-          else document.querySelector('#tangentToolBtn')?.click();
+          else document.querySelector('#tangentTool')?.click();
         }
       },
       {
@@ -277,10 +301,10 @@
         category: 'Sketch · Constraint',
         keywords: ['coincident', 'attach', 'snap', 'point', 'curve', 'constraint', 'cakisik'],
         shortcut: () => '',
-        icon: ICONS.constraint,
+        icon: ICONS.coincident,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('coincident');
-          else document.querySelector('#coincidentToolBtn')?.click();
+          else document.querySelector('#coincidentTool')?.click();
         }
       },
       {
@@ -289,10 +313,10 @@
         category: 'Sketch · Constraint',
         keywords: ['equal', 'same', 'length', 'radius', 'size', 'constraint', 'esit'],
         shortcut: () => '',
-        icon: ICONS.constraint,
+        icon: ICONS.equal,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('equal');
-          else document.querySelector('#equalToolBtn')?.click();
+          else document.querySelector('#equalTool')?.click();
         }
       },
       {
@@ -301,10 +325,10 @@
         category: 'Sketch · Constraint',
         keywords: ['fix', 'lock', 'unfix', 'anchor', 'constraint', 'sabitle'],
         shortcut: () => '',
-        icon: ICONS.constraint,
+        icon: ICONS.fix,
         execute: (app) => {
           if (app.sketchTools?.getActiveSketch?.()) app.sketchTools.setTool('fix');
-          else document.querySelector('#fixToolBtn')?.click();
+          else document.querySelector('#fixTool')?.click();
         }
       },
       {
@@ -326,11 +350,20 @@
         shortcut: () => '',
         icon: ICONS.finish,
         execute: (app) => {
-          document.querySelector('#finishSketchBtn')?.click() || app.closeSketch?.();
+          document.querySelector('#finishSketch')?.click() || app.closeSketch?.();
         }
       },
 
       // Inspect & Utilities
+      {
+        id: 'show-mesh',
+        name: 'Show Mesh Wireframe',
+        category: 'Inspect',
+        keywords: ['mesh', 'wireframe', 'edges', 'triangles', 'show', 'kafes'],
+        shortcut: () => '',
+        icon: ICONS.mesh,
+        execute: () => document.querySelector('#showMeshOption')?.click()
+      },
       {
         id: 'interference-check',
         name: 'Interference Check',
@@ -357,7 +390,7 @@
         category: 'Mesh',
         keywords: ['mesh', 'reduce', 'decimate', 'simplify', 'triangles', 'azalt'],
         shortcut: () => '',
-        icon: ICONS.mesh,
+        icon: ICONS.decimate,
         execute: () => document.querySelector('#meshDecimateBtn')?.click()
       },
       {
@@ -366,7 +399,7 @@
         category: 'Mesh',
         keywords: ['mesh', 'solid', 'convert', 'b-rep', 'manifold', 'kati'],
         shortcut: () => '',
-        icon: ICONS.mesh,
+        icon: ICONS.meshToSolid,
         execute: () => document.querySelector('#meshToSolidBtn')?.click()
       },
       {
@@ -375,7 +408,7 @@
         category: 'Mesh',
         keywords: ['fill', 'hollow', 'shell', 'cavity', 'solidify', 'doldur', 'ici bos'],
         shortcut: () => '',
-        icon: ICONS.mesh,
+        icon: ICONS.meshFill,
         execute: () => document.querySelector('#meshFillBtn')?.click()
       },
       {
@@ -384,7 +417,7 @@
         category: 'Mesh',
         keywords: ['surface', 'finish', 'smooth', 'weld', 'crease', 'polish', 'yuzey'],
         shortcut: () => '',
-        icon: ICONS.mesh,
+        icon: ICONS.surfaceFinish,
         execute: () => document.querySelector('#surfaceFinishBtn')?.click()
       },
 
@@ -405,7 +438,7 @@
         keywords: ['undo', 'revert', 'back', 'geri'],
         shortcut: () => 'Ctrl+Z',
         icon: ICONS.undo,
-        execute: (app) => (app.history || window.cad?.history)?.undo?.()
+        execute: (app) => (app.history || cad.history)?.undo?.()
       },
       {
         id: 'redo',
@@ -414,7 +447,7 @@
         keywords: ['redo', 'repeat', 'forward', 'ileri'],
         shortcut: () => 'Ctrl+Y',
         icon: ICONS.redo,
-        execute: (app) => (app.history || window.cad?.history)?.redo?.()
+        execute: (app) => (app.history || cad.history)?.redo?.()
       },
       {
         id: 'save-project',

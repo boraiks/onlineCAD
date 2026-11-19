@@ -165,13 +165,13 @@
     });
     for (const [vertex, outgoing] of adjacency) {
       const from = coordinates.get(vertex);
-      outgoing.sort((a, b) => {
-        const angle = edge => {
-          const to = coordinates.get(edge.to);
-          return Math.atan2(to[1] - from[1], to[0] - from[0]);
-        };
-        return angle(a) - angle(b);
-      });
+      const fx = from[0], fy = from[1];
+      for (let i = 0; i < outgoing.length; i++) {
+        const edge = outgoing[i];
+        const to = coordinates.get(edge.to);
+        edge._angle = Math.atan2(to[1] - fy, to[0] - fx);
+      }
+      outgoing.sort((a, b) => a._angle - b._angle);
     }
     const visited = new Set();
     const profiles = [];
@@ -199,14 +199,35 @@
     }
     // Independent nested contours bound annular regions. Attach immediate
     // children as holes while leaving each child selectable in its own right.
-    for (const profile of profiles) {
-      const containing = profiles.filter(candidate => candidate !== profile &&
-        areaOf(candidate.points) > areaOf(profile.points) + epsilon &&
-        profile.points.every(point => cad.canvas.pointInPolygon(point, candidate.points)));
-      if (!containing.length) continue;
-      const parent = containing.reduce((smallest, candidate) =>
-        !smallest || areaOf(candidate.points) < areaOf(smallest.points) ? candidate : smallest, null);
-      (parent.holes ||= []).push(profile.points);
+    if (profiles.length > 1) {
+      const meta = profiles.map(profile => {
+        const pts = profile.points;
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (let i = 0; i < pts.length; i++) {
+          const x = pts[i][0], y = pts[i][1];
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+        return { area: areaOf(pts), minX, maxX, minY, maxY };
+      });
+      for (let i = 0; i < profiles.length; i++) {
+        const profile = profiles[i];
+        const pm = meta[i];
+        let parent = null;
+        let parentArea = Infinity;
+        for (let j = 0; j < profiles.length; j++) {
+          if (j === i) continue;
+          const cm = meta[j];
+          if (cm.area <= pm.area + epsilon) continue;
+          if (cm.minX > pm.minX || cm.maxX < pm.maxX || cm.minY > pm.minY || cm.maxY < pm.maxY) continue;
+          const candidate = profiles[j];
+          if (cm.area < parentArea && profile.points.every(point => cad.canvas.pointInPolygon(point, candidate.points))) {
+            parent = candidate;
+            parentArea = cm.area;
+          }
+        }
+        if (parent) (parent.holes ||= []).push(profile.points);
+      }
     }
     return profiles;
   }

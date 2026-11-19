@@ -266,18 +266,23 @@
     }
 
     planeAt(clientX, clientY) {
+      let bounds = null;
+      let point = null;
+      if (this.visibility.origin) {
+        bounds = this.canvas.getBoundingClientRect();
+        point = [clientX - bounds.left, clientY - bounds.top];
+
+        // 1. Direct hit on visible origin plane tiles matches front visual layering
+        for (const area of [...this.hitAreas].reverse()) {
+          if (pointInPolygon(point, area.visible)) return area.name;
+        }
+      }
+
       if (this.getFaceAt) {
         const faceHit = this.getFaceAt(clientX, clientY);
         if (faceHit) return faceHit;
       }
       if (!this.visibility.origin) return null;
-      const bounds = this.canvas.getBoundingClientRect();
-      const point = [clientX - bounds.left, clientY - bounds.top];
-
-      // 1. Direct hit on visible origin plane tiles has top priority
-      for (const area of [...this.hitAreas].reverse()) {
-        if (pointInPolygon(point, area.visible)) return area.name;
-      }
 
       // 2. 3D Ray-cast onto the 3 origin planes (XY, XZ, YZ) across entire workspace
       const [originX, originY] = this.camera.origin(bounds.width, bounds.height);
@@ -461,7 +466,7 @@
       const corners = tileCorners(project, name, size, 0.10);
       const highlighted = this.hoveredPlane === name;
       context.save();
-      context.globalAlpha = highlighted ? 0.92 : 0.65;
+      context.globalAlpha = highlighted ? 0.92 : 0.78;
       context.fillStyle = highlighted ? 'rgba(39, 135, 191, .42)' : plane.fill;
       context.strokeStyle = highlighted ? '#1d87bd' : plane.stroke;
       context.lineWidth = highlighted ? 2.6 : 1.4;
@@ -500,20 +505,33 @@
         }
       }
 
+      if (this.onDrawOverlay) this.onDrawOverlay(context, project);
+
       this.hitAreas = [];
       if (this.visibility.origin) {
         const tileSize = 75 / unit;
-        for (const name of ['XZ', 'YZ', 'XY']) {
-          if (this.picking || this.visibility[name]) {
-            const visible = this.drawTile(context, project, name, tileSize);
-            if (this.picking) {
-              this.hitAreas.push({ name, visible });
-            }
+        const mid = 0.60 * tileSize;
+        const depthVec = this.camera?.depth;
+        const visibleTiles = ['XZ', 'YZ', 'XY'].filter(name => this.picking || this.visibility[name]);
+        visibleTiles.sort((a, b) => {
+          if (a === this.hoveredPlane) return 1;
+          if (b === this.hoveredPlane) return -1;
+          if (!depthVec) return 0;
+          const pa = sketch[a];
+          const pb = sketch[b];
+          const da = ((pa.u[0] + pa.v[0]) * depthVec[0] + (pa.u[1] + pa.v[1]) * depthVec[1] + (pa.u[2] + pa.v[2]) * depthVec[2]) * mid;
+          const db = ((pb.u[0] + pb.v[0]) * depthVec[0] + (pb.u[1] + pb.v[1]) * depthVec[1] + (pb.u[2] + pb.v[2]) * depthVec[2]) * mid;
+          return da - db;
+        });
+        for (const name of visibleTiles) {
+          const visible = this.drawTile(context, project, name, tileSize);
+          if (this.picking) {
+            this.hitAreas.push({ name, visible });
           }
         }
       }
 
-      // Draw center origin point O
+      // Draw center origin point O above tiles so it stays legible over bodies
       if (this.visibility.origin && this.visibility.O) {
         const [originX, originY] = project([0, 0, 0]);
         context.beginPath();
@@ -524,8 +542,6 @@
         context.lineWidth = 1.2;
         context.stroke();
       }
-
-      if (this.onDrawOverlay) this.onDrawOverlay(context, project);
 
       if (settings.cameraPivot && this.drag?.mode === 'orbit') {
         const [pivotX, pivotY] = project(this.camera.pivot);

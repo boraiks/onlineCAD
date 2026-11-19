@@ -44,10 +44,14 @@
   function screenIndex(sketch, project) {
     const items = [];
     const add = (source, points) => {
-      const xs = points.map(point => point[0]);
-      const ys = points.map(point => point[1]);
-      items.push({ source, points, minX: Math.min(...xs), maxX: Math.max(...xs),
-        minY: Math.min(...ys), maxY: Math.max(...ys) });
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const point of points) {
+        if (point[0] < minX) minX = point[0];
+        if (point[0] > maxX) maxX = point[0];
+        if (point[1] < minY) minY = point[1];
+        if (point[1] > maxY) maxY = point[1];
+      }
+      items.push({ source, points, minX, maxX, minY, maxY });
     };
     for (const segment of segments(sketch)) {
       add(segment, [project(segment.start), project(segment.end)]);

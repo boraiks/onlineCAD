@@ -259,7 +259,7 @@
   function targetOf(element) {
     const target = element?.closest?.('button, .tool-button, [data-tooltip-raw], [data-tooltip-title], [title]');
     if (target && target.hasAttribute('title')) prepare(target);
-    return target && document.body.contains(target) && !target.hidden && !target.disabled ? target : null;
+    return target && document.body.contains(target) && !target.hidden && !target.disabled && !target.hasAttribute('data-no-tooltip') ? target : null;
   }
 
   function contentFor(target) {

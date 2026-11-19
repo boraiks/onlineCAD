@@ -1,11 +1,14 @@
 (function (cad) {
   'use strict';
 
-  const dot = (a, b) => a.reduce((sum, value, i) => sum + value * b[i], 0);
-  const sub = (a, b) => a.map((value, i) => value - b[i]);
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
   const cross = cad.math.cross;
-  const length = value => Math.hypot(...value);
-  const unit = value => value.map(component => component / length(value));
+  const length = value => Math.hypot(value[0], value[1], value[2]);
+  const unit = value => {
+    const len = Math.hypot(value[0], value[1], value[2]);
+    return [value[0] / len, value[1] / len, value[2] / len];
+  };
   const keyOf = point => point.map(value => Math.round(value * 1e5)).join(',');
   const edgeKey = (a, b) => a < b ? `${a}:${b}` : `${b}:${a}`;
   const cache = new WeakMap();
@@ -250,6 +253,8 @@
     context.restore();
   }
 
+  let _pickProjected = new Float64Array(0);
+
   // Exact screen-space picking is done on click, using the same display mesh as WebGL.
   // Project vertices once and scan triangle indices without allocating per triangle.
   function pickMeshTriangle(body, screen, camera, width, height, frontOnly = false) {
@@ -264,7 +269,10 @@
     const R = camera.right, U = camera.up, D = camera.depth;
     const baseX = originX - dot(R, pivot) * unit;
     const baseY = originY + dot(U, pivot) * unit;
-    const projected = new Float64Array(vertices.length);
+    if (_pickProjected.length < vertices.length) {
+      _pickProjected = new Float64Array(vertices.length);
+    }
+    const projected = _pickProjected;
     for (let i = 0; i < vertices.length; i += 3) {
       const x = vertices[i], y = vertices[i + 1], z = vertices[i + 2];
       projected[i] = baseX + (R[0] * x + R[1] * y + R[2] * z) * unit;
@@ -466,28 +474,67 @@
       if (!this.extrudeController?.bodies?.length) return null;
       if (event?.ctrlKey || event?.metaKey) return null;
       const bounds = this.canvas.getBoundingClientRect();
-      const screen = [event.clientX - bounds.left, event.clientY - bounds.top];
+      const sx = event.clientX - bounds.left, sy = event.clientY - bounds.top;
+      const screen = [sx, sy];
+      const camera = this.camera;
+      const fastProj = typeof camera.origin === 'function' && typeof camera.unit === 'function' &&
+        camera.right && camera.up && camera.depth;
+      let unit, R, U, D, baseX, baseY;
+      if (fastProj) {
+        const [originX, originY] = camera.origin(bounds.width, bounds.height);
+        unit = camera.unit(bounds.width, bounds.height);
+        const pivot = cad.settings.cameraPivot ? camera.pivot : [0, 0, 0];
+        R = camera.right; U = camera.up; D = camera.depth;
+        baseX = originX - dot(R, pivot) * unit;
+        baseY = originY + dot(U, pivot) * unit;
+      }
       let best = null;
       for (const body of this.extrudeController.bodies) {
         if (body.visible === false || !body.mesh) continue;
         const sBox = this.screenBounds(body, bounds.width, bounds.height);
-        if (sBox && (screen[0] < sBox.minX - 6 || screen[0] > sBox.maxX + 6 || screen[1] < sBox.minY - 6 || screen[1] > sBox.maxY + 6)) {
+        if (sBox && (sx < sBox.minX - 6 || sx > sBox.maxX + 6 || sy < sBox.minY - 6 || sy > sBox.maxY + 6)) {
           continue;
         }
         const bodyPatches = patches(body);
         if (includeFacets && body.meshSource === 'solid' && !bodyPatches.length) {
-          const hit = pickMeshTriangle(body, screen, this.camera, bounds.width, bounds.height, true);
+          const hit = pickMeshTriangle(body, screen, camera, bounds.width, bounds.height, true);
           if (hit && (!best || hit.depth > best.depth)) best = { face: facetFace(hit), depth: hit.depth };
         }
-        for (const face of bodyPatches) {
-          if (dot(face.normal, this.camera.depth) <= 1e-6) continue;
-          for (const triangle of face.triangles) {
-            const projected = triangle.map(point => this.camera.project(point, bounds.width, bounds.height));
-            const weights = projectedTriangle(screen, ...projected);
-            if (!weights) continue;
-            const depth = triangle.reduce((sum, point, index) =>
-              sum + weights[index] * dot(point, this.camera.depth), 0);
-            if (!best || depth > best.depth) best = { face, depth };
+        if (fastProj) {
+          for (const face of bodyPatches) {
+            if (dot(face.normal, D) <= 1e-6) continue;
+            const tris = face.triangles;
+            for (let t = 0; t < tris.length; t++) {
+              const triangle = tris[t];
+              const p0 = triangle[0], p1 = triangle[1], p2 = triangle[2];
+              const ax = baseX + (R[0] * p0[0] + R[1] * p0[1] + R[2] * p0[2]) * unit;
+              const ay = baseY - (U[0] * p0[0] + U[1] * p0[1] + U[2] * p0[2]) * unit;
+              const bx = baseX + (R[0] * p1[0] + R[1] * p1[1] + R[2] * p1[2]) * unit;
+              const by = baseY - (U[0] * p1[0] + U[1] * p1[1] + U[2] * p1[2]) * unit;
+              const cx = baseX + (R[0] * p2[0] + R[1] * p2[1] + R[2] * p2[2]) * unit;
+              const cy = baseY - (U[0] * p2[0] + U[1] * p2[1] + U[2] * p2[2]) * unit;
+              const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+              if (Math.abs(area) < 1e-7) continue;
+              const invArea = 1 / area;
+              const w0 = ((bx - sx) * (cy - sy) - (by - sy) * (cx - sx)) * invArea;
+              const w1 = ((cx - sx) * (ay - sy) - (cy - sy) * (ax - sx)) * invArea;
+              const w2 = 1 - w0 - w1;
+              if (!(w0 >= -0.001 && w1 >= -0.001 && w2 >= -0.001)) continue;
+              const depth = w0 * dot(p0, D) + w1 * dot(p1, D) + w2 * dot(p2, D);
+              if (!best || depth > best.depth) best = { face, depth };
+            }
+          }
+        } else {
+          for (const face of bodyPatches) {
+            if (dot(face.normal, camera.depth) <= 1e-6) continue;
+            for (const triangle of face.triangles) {
+              const projected = triangle.map(point => camera.project(point, bounds.width, bounds.height));
+              const weights = projectedTriangle(screen, ...projected);
+              if (!weights) continue;
+              const depth = triangle.reduce((sum, point, index) =>
+                sum + weights[index] * dot(point, camera.depth), 0);
+              if (!best || depth > best.depth) best = { face, depth };
+            }
           }
         }
       }
@@ -497,19 +544,23 @@
     screenBounds(body, width, height) {
       const b = displayBounds(body);
       if (!b) return null;
-      const corners = [
-        [b.minX, b.minY, b.minZ], [b.maxX, b.minY, b.minZ],
-        [b.minX, b.maxY, b.minZ], [b.maxX, b.maxY, b.minZ],
-        [b.minX, b.minY, b.maxZ], [b.maxX, b.minY, b.maxZ],
-        [b.minX, b.maxY, b.maxZ], [b.maxX, b.maxY, b.maxZ]
-      ];
-      const projected = corners.map(c => this.camera.project(c, width, height));
-      return {
-        minX: Math.min(...projected.map(p => p[0])),
-        maxX: Math.max(...projected.map(p => p[0])),
-        minY: Math.min(...projected.map(p => p[1])),
-        maxY: Math.max(...projected.map(p => p[1]))
-      };
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+      const xs = [b.minX, b.maxX];
+      const ys = [b.minY, b.maxY];
+      const zs = [b.minZ, b.maxZ];
+      for (let xi = 0; xi < 2; xi++) {
+        for (let yi = 0; yi < 2; yi++) {
+          for (let zi = 0; zi < 2; zi++) {
+            const p = this.camera.project([xs[xi], ys[yi], zs[zi]], width, height);
+            if (p[0] < minX) minX = p[0];
+            if (p[0] > maxX) maxX = p[0];
+            if (p[1] < minY) minY = p[1];
+            if (p[1] > maxY) maxY = p[1];
+          }
+        }
+      }
+      return { minX, maxX, minY, maxY };
     }
 
     bodyAt(event) {
@@ -567,6 +618,7 @@
     bind() {
       this.canvas.addEventListener('pointermove', event => {
         this.lastPointerEvent = event;
+        if (typeof document !== 'undefined' && document.body?.classList?.contains('is-dragging-dialog')) return;
         if (event.buttons || !this.isAvailable()) {
           if (this.hovered) {
             this.hovered = null;
@@ -663,6 +715,18 @@
 
   function hitPointAt(screen, bodies, camera, bounds, includeFacets = false) {
     if (!bodies?.length) return null;
+    const sx = screen[0], sy = screen[1];
+    const fastProj = typeof camera.origin === 'function' && typeof camera.unit === 'function' &&
+      camera.right && camera.up && camera.depth;
+    let unit, R, U, D, baseX, baseY;
+    if (fastProj) {
+      const [originX, originY] = camera.origin(bounds.width, bounds.height);
+      unit = camera.unit(bounds.width, bounds.height);
+      const pivot = cad.settings.cameraPivot ? camera.pivot : [0, 0, 0];
+      R = camera.right; U = camera.up; D = camera.depth;
+      baseX = originX - dot(R, pivot) * unit;
+      baseY = originY + dot(U, pivot) * unit;
+    }
     let best = null;
     for (const body of bodies) {
       if (body.visible === false || !body.mesh) continue;
@@ -672,24 +736,64 @@
         if (hit && (!best || hit.depth > best.depth)) {
           const face = facetFace(hit);
           const ids = hit.mesh.triangles.slice(hit.triangle * 3, hit.triangle * 3 + 3);
-          const point = [0, 1, 2].map(axis =>
-            hit.weights.reduce((sum, weight, corner) =>
-              sum + weight * hit.mesh.vertices[ids[corner] * 3 + axis], 0));
+          const v = hit.mesh.vertices, w = hit.weights;
+          const a = ids[0] * 3, b = ids[1] * 3, c = ids[2] * 3;
+          const point = [
+            w[0] * v[a] + w[1] * v[b] + w[2] * v[c],
+            w[0] * v[a + 1] + w[1] * v[b + 1] + w[2] * v[c + 1],
+            w[0] * v[a + 2] + w[1] * v[b + 2] + w[2] * v[c + 2],
+          ];
           best = { face, depth: hit.depth, point };
         }
       }
-      for (const face of bodyPatches) {
-        if (dot(face.normal, camera.depth) <= 1e-6) continue;
-        for (const triangle of face.triangles) {
-          const projected = triangle.map(point => camera.project(point, bounds.width, bounds.height));
-          const weights = projectedTriangle(screen, ...projected);
-          if (!weights) continue;
-          const depth = triangle.reduce((sum, point, index) =>
-            sum + weights[index] * dot(point, camera.depth), 0);
-          if (!best || depth > best.depth) {
-            const point = [0, 1, 2].map(axis =>
-              weights[0] * triangle[0][axis] + weights[1] * triangle[1][axis] + weights[2] * triangle[2][axis]);
-            best = { face, depth, point };
+      if (fastProj) {
+        for (const face of bodyPatches) {
+          if (dot(face.normal, D) <= 1e-6) continue;
+          const tris = face.triangles;
+          for (let t = 0; t < tris.length; t++) {
+            const triangle = tris[t];
+            const p0 = triangle[0], p1 = triangle[1], p2 = triangle[2];
+            const ax = baseX + (R[0] * p0[0] + R[1] * p0[1] + R[2] * p0[2]) * unit;
+            const ay = baseY - (U[0] * p0[0] + U[1] * p0[1] + U[2] * p0[2]) * unit;
+            const bx = baseX + (R[0] * p1[0] + R[1] * p1[1] + R[2] * p1[2]) * unit;
+            const by = baseY - (U[0] * p1[0] + U[1] * p1[1] + U[2] * p1[2]) * unit;
+            const cx = baseX + (R[0] * p2[0] + R[1] * p2[1] + R[2] * p2[2]) * unit;
+            const cy = baseY - (U[0] * p2[0] + U[1] * p2[1] + U[2] * p2[2]) * unit;
+            const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+            if (Math.abs(area) < 1e-7) continue;
+            const invArea = 1 / area;
+            const w0 = ((bx - sx) * (cy - sy) - (by - sy) * (cx - sx)) * invArea;
+            const w1 = ((cx - sx) * (ay - sy) - (cy - sy) * (ax - sx)) * invArea;
+            const w2 = 1 - w0 - w1;
+            if (!(w0 >= -0.001 && w1 >= -0.001 && w2 >= -0.001)) continue;
+            const depth = w0 * dot(p0, D) + w1 * dot(p1, D) + w2 * dot(p2, D);
+            if (!best || depth > best.depth) {
+              best = {
+                face,
+                depth,
+                point: [
+                  w0 * p0[0] + w1 * p1[0] + w2 * p2[0],
+                  w0 * p0[1] + w1 * p1[1] + w2 * p2[1],
+                  w0 * p0[2] + w1 * p1[2] + w2 * p2[2],
+                ],
+              };
+            }
+          }
+        }
+      } else {
+        for (const face of bodyPatches) {
+          if (dot(face.normal, camera.depth) <= 1e-6) continue;
+          for (const triangle of face.triangles) {
+            const projected = triangle.map(point => camera.project(point, bounds.width, bounds.height));
+            const weights = projectedTriangle(screen, ...projected);
+            if (!weights) continue;
+            const depth = triangle.reduce((sum, point, index) =>
+              sum + weights[index] * dot(point, camera.depth), 0);
+            if (!best || depth > best.depth) {
+              const point = [0, 1, 2].map(axis =>
+                weights[0] * triangle[0][axis] + weights[1] * triangle[1][axis] + weights[2] * triangle[2][axis]);
+              best = { face, depth, point };
+            }
           }
         }
       }

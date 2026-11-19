@@ -33,12 +33,32 @@
       const originY = Math.round(height / 2);
 
       // Minor grid
-      for (let x = originX % minorPx; x < width; x += minorPx) line(context, [x, 0], [x, height], '#f0f4f7', 0.6);
-      for (let y = originY % minorPx; y < height; y += minorPx) line(context, [0, y], [width, y], '#f0f4f7', 0.6);
+      context.beginPath();
+      for (let x = originX % minorPx; x < width; x += minorPx) {
+        context.moveTo(x, 0);
+        context.lineTo(x, height);
+      }
+      for (let y = originY % minorPx; y < height; y += minorPx) {
+        context.moveTo(0, y);
+        context.lineTo(width, y);
+      }
+      context.strokeStyle = '#f0f4f7';
+      context.lineWidth = 0.6;
+      context.stroke();
 
       // Major grid
-      for (let x = originX % majorPx; x < width; x += majorPx) line(context, [x, 0], [x, height], '#dce5eb', 1);
-      for (let y = originY % majorPx; y < height; y += majorPx) line(context, [0, y], [width, y], '#dce5eb', 1);
+      context.beginPath();
+      for (let x = originX % majorPx; x < width; x += majorPx) {
+        context.moveTo(x, 0);
+        context.lineTo(x, height);
+      }
+      for (let y = originY % majorPx; y < height; y += majorPx) {
+        context.moveTo(0, y);
+        context.lineTo(width, y);
+      }
+      context.strokeStyle = '#dce5eb';
+      context.lineWidth = 1;
+      context.stroke();
 
       // Axes
       line(context, [0, originY], [width, originY], horizontalColor, 1.8);

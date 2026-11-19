@@ -53,7 +53,7 @@
         return false;
       }
 
-      this.generation++;
+      const gen = ++this.generation;
       this.active = true;
       this.mode = mode;
       this.selectedBody = initialBody && visibleBodies.includes(initialBody) ? initialBody : visibleBodies[0] || null;
@@ -66,6 +66,7 @@
 
       try {
         await cad.solidKernel.load();
+        if (gen !== this.generation || !this.active) return false;
         for (const body of this.extrudeController.bodies) {
           if (body.visible !== false && !body.mesh) {
             body.mesh = cad.solidKernel.meshBody(body);
@@ -73,6 +74,7 @@
         }
         this.updatePreview();
       } catch (err) {
+        if (gen !== this.generation || !this.active) return false;
         this.onError?.({
           code: 'CAD-P001',
           title: 'Pattern Error',

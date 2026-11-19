@@ -23,8 +23,12 @@
         `self.onmessage = ({data}) => { try {
           const result = data.type === 'parse' ? parseSTL(data.input)
             : decimateGridClustering(data.mesh, { ratio: data.ratio });
-          const vertices = Float32Array.from(result.vertices);
-          const triangles = Uint32Array.from(result.triangles);
+          const vertices = result.vertices instanceof Float32Array && result.vertices.byteOffset === 0 &&
+            result.vertices.byteLength === result.vertices.buffer.byteLength
+            ? result.vertices : Float32Array.from(result.vertices);
+          const triangles = result.triangles instanceof Uint32Array && result.triangles.byteOffset === 0 &&
+            result.triangles.byteLength === result.triangles.buffer.byteLength
+            ? result.triangles : Uint32Array.from(result.triangles);
           self.postMessage({ ...result, vertices, triangles }, [vertices.buffer, triangles.buffer]);
         } catch(error) { self.postMessage({error: error?.message || String(error)}); } };`;
       blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
@@ -93,57 +97,234 @@
     for (let i = 0; i < rawVertices.length; i += 3) {
       const x = rawVertices[i], y = rawVertices[i + 1], z = rawVertices[i + 2];
       if (!Number.isFinite(x + y + z)) throw new Error('Mesh contains invalid coordinates');
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
     }
     const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
     if (!(maxDim > 0)) return unchanged();
 
-    const buildAt = step => {
-      const cells = new Map();
-      const remap = new Uint32Array(vCount);
-      const sums = [];
+    const remap = new Uint32Array(vCount);
+    const estVerts = Math.max(64, Math.min(vCount, targetTriangles * 2));
+    let cellCap = 64;
+    while (cellCap < estVerts * 2) cellCap <<= 1;
+    let cellMask = cellCap - 1;
+    let cellBuckets = new Int32Array(cellCap);
+    let cellMax = cellCap >> 1;
+    let cellGx = new Int32Array(cellMax);
+    let cellGy = new Int32Array(cellMax);
+    let cellGz = new Int32Array(cellMax);
+
+    let triCap = 64;
+    const estTris = Math.max(64, Math.min(tCount, targetTriangles * 2));
+    while (triCap < estTris * 2) triCap <<= 1;
+    let triMask = triCap - 1;
+    let triBuckets = new Int32Array(triCap);
+    let triMax = triCap >> 1;
+    let triK0 = new Uint32Array(triMax);
+    let triK1 = new Uint32Array(triMax);
+    let triK2 = new Uint32Array(triMax);
+
+    const clusterCells = (step, wantSums) => {
+      const invStep = 1 / step;
+      cellBuckets.fill(-1);
+      let count = 0;
+
+      const rehashCells = () => {
+        cellCap <<= 1;
+        cellMask = cellCap - 1;
+        cellBuckets = new Int32Array(cellCap).fill(-1);
+        for (let k = 0; k < count; k++) {
+          let h = (Math.imul(cellGx[k], 73856093) ^
+            Math.imul(cellGy[k], 19349663) ^
+            Math.imul(cellGz[k], 83492791)) & cellMask;
+          while (cellBuckets[h] !== -1) h = (h + 1) & cellMask;
+          cellBuckets[h] = k;
+        }
+      };
+
+      const growCells = () => {
+        cellMax <<= 1;
+        const nextX = new Int32Array(cellMax); nextX.set(cellGx); cellGx = nextX;
+        const nextY = new Int32Array(cellMax); nextY.set(cellGy); cellGy = nextY;
+        const nextZ = new Int32Array(cellMax); nextZ.set(cellGz); cellGz = nextZ;
+      };
+
+      let sumX = wantSums ? new Float64Array(cellMax) : null;
+      let sumY = wantSums ? new Float64Array(cellMax) : null;
+      let sumZ = wantSums ? new Float64Array(cellMax) : null;
+      let sumN = wantSums ? new Uint32Array(cellMax) : null;
+
       for (let i = 0; i < vCount; i++) {
-        const x = rawVertices[i * 3], y = rawVertices[i * 3 + 1], z = rawVertices[i * 3 + 2];
-        const key = `${Math.floor((x - minX) / step)},${Math.floor((y - minY) / step)},${Math.floor((z - minZ) / step)}`;
-        let index = cells.get(key);
-        if (index === undefined) {
-          index = sums.length;
-          cells.set(key, index);
-          sums.push([x, y, z, 1]);
-        } else {
-          const cell = sums[index];
-          cell[0] += x; cell[1] += y; cell[2] += z; cell[3]++;
+        const at = i * 3;
+        const x = rawVertices[at], y = rawVertices[at + 1], z = rawVertices[at + 2];
+        const gx = Math.floor((x - minX) * invStep);
+        const gy = Math.floor((y - minY) * invStep);
+        const gz = Math.floor((z - minZ) * invStep);
+
+        if (count * 10 >= cellCap * 7) rehashCells();
+        let h = (Math.imul(gx, 73856093) ^ Math.imul(gy, 19349663) ^ Math.imul(gz, 83492791)) & cellMask;
+        let index = -1;
+        while (true) {
+          const slot = cellBuckets[h];
+          if (slot === -1) break;
+          if (cellGx[slot] === gx && cellGy[slot] === gy && cellGz[slot] === gz) {
+            index = slot;
+            break;
+          }
+          h = (h + 1) & cellMask;
+        }
+        if (index === -1) {
+          if (count === cellMax) {
+            growCells();
+            if (wantSums) {
+              const nx = new Float64Array(cellMax); nx.set(sumX); sumX = nx;
+              const ny = new Float64Array(cellMax); ny.set(sumY); sumY = ny;
+              const nz = new Float64Array(cellMax); nz.set(sumZ); sumZ = nz;
+              const nn = new Uint32Array(cellMax); nn.set(sumN); sumN = nn;
+            }
+          }
+          index = count++;
+          cellGx[index] = gx;
+          cellGy[index] = gy;
+          cellGz[index] = gz;
+          cellBuckets[h] = index;
+          if (wantSums) {
+            sumX[index] = x;
+            sumY[index] = y;
+            sumZ[index] = z;
+            sumN[index] = 1;
+          }
+        } else if (wantSums) {
+          sumX[index] += x;
+          sumY[index] += y;
+          sumZ[index] += z;
+          sumN[index]++;
         }
         remap[i] = index;
       }
-      const triangles = [];
-      const seen = new Set();
-      const used = new Int32Array(sums.length).fill(-1);
-      const vertices = [];
-      const compact = index => {
-        if (used[index] < 0) {
-          const c = sums[index];
-          used[index] = vertices.length / 3;
-          vertices.push(c[0] / c[3], c[1] / c[3], c[2] / c[3]);
+      return { cellCount: count, sumX, sumY, sumZ, sumN };
+    };
+
+    const dedupInsert = (s0, s1, s2, countRef) => {
+      if (countRef * 10 >= triCap * 7) {
+        triCap <<= 1;
+        triMask = triCap - 1;
+        triBuckets = new Int32Array(triCap).fill(-1);
+        for (let k = 0; k < countRef; k++) {
+          let h = (Math.imul(triK0[k], 73856093) ^
+            Math.imul(triK1[k], 19349663) ^
+            Math.imul(triK2[k], 83492791)) & triMask;
+          while (triBuckets[h] !== -1) h = (h + 1) & triMask;
+          triBuckets[h] = k;
         }
-        return used[index];
-      };
+      }
+      let h = (Math.imul(s0, 73856093) ^ Math.imul(s1, 19349663) ^ Math.imul(s2, 83492791)) & triMask;
+      while (true) {
+        const slot = triBuckets[h];
+        if (slot === -1) break;
+        if (triK0[slot] === s0 && triK1[slot] === s1 && triK2[slot] === s2) return false;
+        h = (h + 1) & triMask;
+      }
+      if (countRef === triMax) {
+        triMax <<= 1;
+        const n0 = new Uint32Array(triMax); n0.set(triK0); triK0 = n0;
+        const n1 = new Uint32Array(triMax); n1.set(triK1); triK1 = n1;
+        const n2 = new Uint32Array(triMax); n2.set(triK2); triK2 = n2;
+      }
+      triK0[countRef] = s0;
+      triK1[countRef] = s1;
+      triK2[countRef] = s2;
+      triBuckets[h] = countRef;
+      return true;
+    };
+
+    const countAt = step => {
+      clusterCells(step, false);
+      triBuckets.fill(-1);
+      let uniqueCount = 0;
       for (let t = 0; t < tCount; t++) {
-        const a = rawTriangles[t * 3], b = rawTriangles[t * 3 + 1], c = rawTriangles[t * 3 + 2];
+        const base = t * 3;
+        const a = rawTriangles[base], b = rawTriangles[base + 1], c = rawTriangles[base + 2];
         if (a >= vCount || b >= vCount || c >= vCount) continue;
         const i0 = remap[a], i1 = remap[b], i2 = remap[c];
         if (i0 === i1 || i1 === i2 || i2 === i0) continue;
-        const key = [i0, i1, i2].sort((x, y) => x - y).join(':');
-        if (seen.has(key)) continue;
-        seen.add(key);
-        triangles.push(compact(i0), compact(i1), compact(i2));
+        let s0 = i0, s1 = i1, s2 = i2;
+        if (s0 > s1) { const tmp = s0; s0 = s1; s1 = tmp; }
+        if (s1 > s2) { const tmp = s1; s1 = s2; s2 = tmp; }
+        if (s0 > s1) { const tmp = s0; s0 = s1; s1 = tmp; }
+        if (dedupInsert(s0, s1, s2, uniqueCount)) uniqueCount++;
       }
+      return uniqueCount;
+    };
+
+    const buildAt = (step, expectedTris) => {
+      const { cellCount, sumX, sumY, sumZ, sumN } = clusterCells(step, true);
+      triBuckets.fill(-1);
+      const used = new Int32Array(cellCount).fill(-1);
+      const outVerts = new Float32Array(cellCount * 3);
+      const outTris = new Uint32Array(expectedTris * 3);
+      let vertOut = 0;
+      let triOut = 0;
+      let uniqueCount = 0;
+
+      for (let t = 0; t < tCount; t++) {
+        const base = t * 3;
+        const a = rawTriangles[base], b = rawTriangles[base + 1], c = rawTriangles[base + 2];
+        if (a >= vCount || b >= vCount || c >= vCount) continue;
+        const i0 = remap[a], i1 = remap[b], i2 = remap[c];
+        if (i0 === i1 || i1 === i2 || i2 === i0) continue;
+        let s0 = i0, s1 = i1, s2 = i2;
+        if (s0 > s1) { const tmp = s0; s0 = s1; s1 = tmp; }
+        if (s1 > s2) { const tmp = s1; s1 = s2; s2 = tmp; }
+        if (s0 > s1) { const tmp = s0; s0 = s1; s1 = tmp; }
+        if (!dedupInsert(s0, s1, s2, uniqueCount)) continue;
+        uniqueCount++;
+
+        let c0 = used[i0];
+        if (c0 < 0) {
+          c0 = vertOut++;
+          used[i0] = c0;
+          const n = sumN[i0];
+          const vo = c0 * 3;
+          outVerts[vo] = sumX[i0] / n;
+          outVerts[vo + 1] = sumY[i0] / n;
+          outVerts[vo + 2] = sumZ[i0] / n;
+        }
+        let c1 = used[i1];
+        if (c1 < 0) {
+          c1 = vertOut++;
+          used[i1] = c1;
+          const n = sumN[i1];
+          const vo = c1 * 3;
+          outVerts[vo] = sumX[i1] / n;
+          outVerts[vo + 1] = sumY[i1] / n;
+          outVerts[vo + 2] = sumZ[i1] / n;
+        }
+        let c2 = used[i2];
+        if (c2 < 0) {
+          c2 = vertOut++;
+          used[i2] = c2;
+          const n = sumN[i2];
+          const vo = c2 * 3;
+          outVerts[vo] = sumX[i2] / n;
+          outVerts[vo + 1] = sumY[i2] / n;
+          outVerts[vo + 2] = sumZ[i2] / n;
+        }
+
+        outTris[triOut++] = c0;
+        outTris[triOut++] = c1;
+        outTris[triOut++] = c2;
+      }
+
+      const finalVertLen = vertOut * 3;
+      const finalTriCount = triOut / 3;
       return {
-        vertices: Float32Array.from(vertices), triangles: Uint32Array.from(triangles),
-        originalTriangles: tCount, decimatedTriangles: triangles.length / 3,
-        reductionRatio: 1 - triangles.length / 3 / tCount,
+        vertices: finalVertLen === outVerts.length ? outVerts : outVerts.slice(0, finalVertLen),
+        triangles: triOut === outTris.length ? outTris : outTris.slice(0, triOut),
+        originalTriangles: tCount,
+        decimatedTriangles: finalTriCount,
+        reductionRatio: 1 - finalTriCount / tCount,
       };
     };
 
@@ -151,21 +332,22 @@
     // guarantee an exact count, so retain the closest valid result and show it in UI.
     let low = Math.max(maxDim / 65536, 1e-9);
     let high = maxDim / 2;
-    let best = unchanged();
+    let bestStep = null;
+    let bestCount = tCount;
     let bestDistance = Math.abs(tCount - targetTriangles);
     for (let pass = 0; pass < 9; pass++) {
       const step = Math.sqrt(low * high);
-      const candidate = buildAt(step);
-      const count = candidate.decimatedTriangles;
+      const count = countAt(step);
       if (count >= 4 && Math.abs(count - targetTriangles) < bestDistance) {
-        best = candidate;
+        bestStep = step;
+        bestCount = count;
         bestDistance = Math.abs(count - targetTriangles);
       }
       if (bestDistance <= Math.max(2, targetTriangles * 0.02)) break;
       if (count > targetTriangles) low = step;
       else high = step;
     }
-    return best;
+    return bestStep === null ? unchanged() : buildAt(bestStep, bestCount);
   }
 
   /**
@@ -278,7 +460,6 @@
       this.targetCountOutput = panel.querySelector('#meshDecimateTargetCount');
       this.ratioLabel = panel.querySelector('#meshDecimateRatioLabel');
       this.slider = panel.querySelector('#meshDecimateSlider');
-      this.methodSelect = panel.querySelector('#meshDecimateMethod');
       this.cancelBtn = panel.querySelector('#meshDecimateCancel');
       this.okBtn = panel.querySelector('#meshDecimateOk');
       this.presetBtns = panel.querySelectorAll('.decimate-presets .preset-btn');
@@ -537,10 +718,6 @@
             this.updatePreview();
           }
         });
-      });
-
-      this.methodSelect?.addEventListener('change', () => {
-        this.updatePreview();
       });
 
       this.cancelBtn?.addEventListener('click', () => this.close());

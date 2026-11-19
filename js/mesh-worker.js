@@ -9,8 +9,12 @@ self.onmessage = ({ data }) => {
         : data.format === 'obj' ? self.WebCAD.importers.parseOBJ
         : self.WebCAD.importers.parseSTEP;
       const parsed = parser(data.input);
-      const vertices = Float32Array.from(parsed.vertices);
-      const triangles = Uint32Array.from(parsed.triangles);
+      const vertices = parsed.vertices instanceof Float32Array && parsed.vertices.byteOffset === 0 &&
+        parsed.vertices.byteLength === parsed.vertices.buffer.byteLength
+        ? parsed.vertices : Float32Array.from(parsed.vertices);
+      const triangles = parsed.triangles instanceof Uint32Array && parsed.triangles.byteOffset === 0 &&
+        parsed.triangles.byteLength === parsed.triangles.buffer.byteLength
+        ? parsed.triangles : Uint32Array.from(parsed.triangles);
       self.postMessage({
         vertices, triangles, bounds: parsed.bounds,
         vertexCount: vertices.length / 3, triangleCount: triangles.length / 3,

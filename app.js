@@ -69,8 +69,6 @@
   const zebraAnalysisBtn = document.querySelector('#zebraAnalysisBtn');
   const inspectZebraBtn = document.querySelector('#inspectZebraBtn');
   const meshMoveBtn = document.querySelector('#meshMoveBtn');
-  const headerUndoBtn = document.querySelector('#headerUndoBtn');
-  const headerRedoBtn = document.querySelector('#headerRedoBtn');
   const originChildren = document.querySelector('#originChildren');
   const sketchRows = document.querySelector('#sketchRows');
   const sketchCount = document.querySelector('#sketchCount');
@@ -245,8 +243,6 @@
     : { render: () => {} };
 
   function updateUndoRedoUI() {
-    if (headerUndoBtn) headerUndoBtn.disabled = !history.canUndo;
-    if (headerRedoBtn) headerRedoBtn.disabled = !history.canRedo;
     timeline?.render?.();
   }
   history.onStateChange = () => {
@@ -254,22 +250,6 @@
     markDirty();
   };
   updateUndoRedoUI();
-
-  headerUndoBtn?.addEventListener('click', () => {
-    if (history.canUndo) {
-      history.undo();
-      statusText.textContent = 'UNDO';
-      setTimeout(() => { if (statusText.textContent === 'UNDO') statusText.textContent = modeStatus(); }, 1500);
-    }
-  });
-
-  headerRedoBtn?.addEventListener('click', () => {
-    if (history.canRedo) {
-      history.redo();
-      statusText.textContent = 'REDO';
-      setTimeout(() => { if (statusText.textContent === 'REDO') statusText.textContent = modeStatus(); }, 1500);
-    }
-  });
 
   let currentDocumentName = 'Untitled Design';
   const docTitleText = document.querySelector('#documentTitleText');
@@ -328,8 +308,13 @@
     const meshSize = cad.app?.extrudeController.bodies.reduce((sum, body) => sum + (body.mesh?.triangles?.length || 0), 0);
     if (meshSize > 1_500_000) return;
     try {
-      const data = cad.projectIO.serializeProject({ documentName: currentDocumentName, sketchDocument,
-        extrudeController: cad.app?.extrudeController, camera });
+      const data = cad.projectIO.serializeProject({
+        documentName: currentDocumentName,
+        sketchDocument,
+        extrudeController: cad.app?.extrudeController,
+        camera,
+        preserveTypedArrays: true,
+      });
       const write = store.hasContent(data) ? store.put(store.AUTOSAVE_KEY, data) : store.remove(store.AUTOSAVE_KEY);
       write.catch(() => { /* Autosave is best effort. */ });
     } catch { /* Autosave is best effort. */ }
@@ -413,8 +398,25 @@
     viewCube.render();
   }
 
+  const enforcedSketchState = new WeakMap();
+
   function redraw() {
-    for (const sketch of sketchDocument.sketches) cad.sketchConstraints.enforce(sketch);
+    for (const sketch of sketchDocument.sketches) {
+      if (!sketch.constraints?.length) continue;
+      const prev = enforcedSketchState.get(sketch);
+      const rev = sketch.revision;
+      const eLen = sketch.entities.length;
+      const cLen = sketch.constraints.length;
+      if (prev && prev.revision === rev && prev.entities === sketch.entities &&
+          prev.eLen === eLen && prev.cLen === cLen) continue;
+      cad.sketchConstraints.enforce(sketch);
+      enforcedSketchState.set(sketch, {
+        revision: sketch.revision,
+        entities: sketch.entities,
+        eLen: sketch.entities.length,
+        cLen: sketch.constraints.length,
+      });
+    }
     redraw3D();
     sketchView.render();
     const entityCount = sketchDocument.sketches.reduce((sum, sketch) => sum + sketch.entities.length, 0);
@@ -1046,6 +1048,27 @@
     });
   }
 
+  function startSketchWithTool(tool) {
+    if (activeSketch) {
+      sketchTools.setTool(tool);
+      return true;
+    }
+    pendingSketchTool = tool;
+    if (faceSelection?.selected) {
+      const face = faceSelection.selected;
+      faceSelection.clear();
+      startSketch(face);
+      return true;
+    }
+    if (!modelView.picking) {
+      setPicking(true);
+    } else {
+      const toolLabel = tool === 'line' ? 'Line' : tool === 'rectangle' ? 'Rectangle' : tool === 'circle' ? 'Circle' : tool;
+      viewHint.textContent = `Select a plane or body face to start ${toolLabel} (Esc to cancel)`;
+    }
+    return true;
+  }
+
   function closeSketch() {
     if (!activeSketch) return;
     const sketch = activeSketch;
@@ -1098,6 +1121,8 @@
     showMeshOption?.setAttribute('aria-checked', String(active));
     meshShowMeshBtn?.setAttribute('aria-pressed', String(active));
     meshShowMeshBtn?.classList.toggle('selected', active);
+    utilitiesShowMeshBtn?.setAttribute('aria-pressed', String(active));
+    utilitiesShowMeshBtn?.classList.toggle('selected', active);
   };
   try { cad.settings.showMesh = localStorage.getItem('onlinecad.showMesh') === 'true'; }
   catch { /* Local files may have restricted storage. */ }
@@ -1227,10 +1252,10 @@
     canvas: modelCanvas,
     sketchDocument,
     camera,
-    getTool: () => extrudeController?.active || solidRevolve?.active || solidBevel?.active || solidHole?.active || bodyMove?.active || solidPattern?.active || meshDecimate?.active || interference?.active || zebraAnalysis?.active || (!activeSketch && extrudeController?.bodies.length ? 'body-view' : null) ||
+    getTool: () => extrudeController?.active || solidRevolve?.active || solidBevel?.active || solidHole?.active || bodyMove?.active || solidPattern?.active || meshDecimate?.active || meshToSolid?.active || meshFill?.active || surfaceFinish?.active || interference?.active || zebraAnalysis?.active || (!activeSketch && extrudeController?.bodies.length ? 'body-view' : null) ||
       sketchTools.tool || (sketchTools.constructionEnabled ? 'construction' : null),
     isPicking: () => modelView.picking,
-    onChange: requestRedraw,
+    onChange: () => requestRedraw(false),
   });
   modelView.onDrawOverlay = (context, project) => {
     if (interference?.active) {
@@ -1430,10 +1455,7 @@
     canvas: modelCanvas, camera, extrudeController,
     isAvailable: () => !activeSketch && !modelView.picking && !extrudeController.active &&
       !solidRevolve?.active && !solidBevel.active && !solidHole.active && !bodyMove.active && !solidPattern.active && !meshDecimate?.active && !meshToSolid?.active && !meshFill?.active && !surfaceFinish?.active && !interference?.active && !zebraAnalysis?.active && !modelView.navigationMode,
-    onChange: () => {
-      renderBodyTree();
-      requestRedraw(false);
-    },
+    onChange: () => requestRedraw(false),
     onSelect: face => {
       if (face) {
         statusText.textContent = `${face.body.name} · FACE SELECTED`;
@@ -1600,7 +1622,7 @@
       : sketchShortcutHint();
   });
   cad.extrudeController = extrudeController;
-  cad.app = { camera, modelView, sketchView, viewCube, settingsPanel, history, timeline, sketchDocument, sketchTools, annotationInteraction, profileSelection, extrudeController, solidRevolve, solidBevel, solidHole, bodyMove, solidPattern, meshDecimate, meshToSolid, surfaceFinish, interference, zebraAnalysis, faceSelection, redraw, renderBodyTree, startSketch, closeSketch, setPicking, setSplitView, getPendingSketchTool: () => pendingSketchTool, fitToScene: (animate = true) => modelView.fitToScene(animate) };
+  cad.app = { camera, modelView, sketchView, viewCube, settingsPanel, history, timeline, sketchDocument, sketchTools, annotationInteraction, profileSelection, extrudeController, solidRevolve, solidBevel, solidHole, bodyMove, solidPattern, meshDecimate, meshToSolid, meshFill, surfaceFinish, interference, zebraAnalysis, faceSelection, redraw, renderBodyTree, startSketch, closeSketch, setPicking, setSplitView, getPendingSketchTool: () => pendingSketchTool, fitToScene: (animate = true) => modelView.fitToScene(animate) };
   renderBodyTree();
   patternMenu = new cad.ToolbarMenu({
     container: patternMenuContainer,
@@ -1748,6 +1770,7 @@
               sketchDocument,
               extrudeController,
               camera,
+              preserveTypedArrays: true,
             });
             const store = cad.projectStore;
             if (!store) throw new Error('Browser storage is not available in this browser.');
@@ -2763,6 +2786,14 @@
       return;
     }
 
+    if (!isCtrl && !event.altKey && !activeSketch && (event.key === 'v' || event.key === 'V' || event.code === 'KeyV')) {
+      if (!isTextInput) {
+        event.preventDefault();
+        revolveBtn?.click();
+        return;
+      }
+    }
+
     // 'F' shortcut for 3D Fillet in solid mode
     if (!isCtrl && !event.altKey && !activeSketch && (event.key === 'f' || event.key === 'F' || event.code === 'KeyF')) {
       if (!isTextInput) {
@@ -2785,19 +2816,7 @@
       const tool = cad.shortcuts.toolFor(event.key);
       if (['line', 'rectangle', 'circle'].includes(tool)) {
         event.preventDefault();
-        pendingSketchTool = tool;
-        if (faceSelection?.selected) {
-          const face = faceSelection.selected;
-          faceSelection.clear();
-          startSketch(face);
-          return;
-        }
-        if (!modelView.picking) {
-          setPicking(true);
-        } else {
-          const toolLabel = tool === 'line' ? 'Line' : tool === 'rectangle' ? 'Rectangle' : 'Circle';
-          viewHint.textContent = `Select a plane or body face to start ${toolLabel} (Esc to cancel)`;
-        }
+        startSketchWithTool(tool);
         return;
       }
     }
@@ -2819,6 +2838,11 @@
       if (interference?.active) {
         event.preventDefault();
         interference.close();
+        return;
+      }
+      if (surfaceFinish?.active) {
+        event.preventDefault();
+        surfaceFinish.close();
         return;
       }
       if (meshToSolid?.active) {
@@ -2856,6 +2880,11 @@
         bodyMove.close();
         return;
       }
+      if (solidRevolve?.active) {
+        event.preventDefault();
+        solidRevolve.close();
+        return;
+      }
       if (extrudeController.active) {
         event.preventDefault();
         extrudeController.close();
@@ -2870,9 +2899,9 @@
     }
   }, { capture: true });
 
-  new ResizeObserver(() => requestRedraw()).observe(editor);
-  new ResizeObserver(() => requestRedraw()).observe(modelCanvas);
-  window.addEventListener('resize', () => requestRedraw());
+  new ResizeObserver(() => requestRedraw(Boolean(activeSketch && splitView))).observe(editor);
+  new ResizeObserver(() => requestRedraw(Boolean(activeSketch && splitView))).observe(modelCanvas);
+  window.addEventListener('resize', () => requestRedraw(Boolean(activeSketch && splitView)));
   const toolSearch = cad.ToolSearchController ? new cad.ToolSearchController({ app: cad.app }) : null;
   Object.assign(cad.app, {
     camera,
@@ -2899,7 +2928,9 @@
     openSaveDialog,
     handleNewDesign,
     setRibbonWorkspace,
+    startSketchWithTool,
   });
+  cad.initDraggablePanels?.();
   redraw();
 
   // Offer to recover the last autosave when the page opens on an empty workspace.
