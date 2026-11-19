@@ -18,5 +18,6 @@ scratch/
 
 # Temporary / Scratch media
 *.png
+!docs/assets/*.png
 *.mp4
 *.tmp
