@@ -127,7 +127,7 @@ test('BodyRenderer.mesh() invalidates stale finishCache when surfaceFinishAngle 
   assert.equal(rawPrepared.featurePairs, undefined);
 });
 
-test('ModelView.render() draws origin plane tiles (XY/XZ/YZ) and origin point O on top of 3D bodies', () => {
+test('ModelView.render() draws origin plane tiles (XY/XZ/YZ) on top of 3D bodies and origin point O behind them', () => {
   const events = [];
   const makeContext = () => ({
     fillStyle: '', strokeStyle: '', lineWidth: 1, globalAlpha: 1, font: '', textAlign: '', textBaseline: '',
@@ -183,7 +183,7 @@ test('ModelView.render() draws origin plane tiles (XY/XZ/YZ) and origin point O 
     assert.equal(tileIndices.length, 3, 'all 3 origin tiles were drawn');
     assert.ok(tileIndices.every(i => i > overlayIdx), 'origin tiles draw after 3D body overlay');
     assert.equal(tileNames[tileNames.length - 1], 'XZ', 'hovered tile renders last on top of other tiles');
-    assert.ok(originIdx > Math.max(...tileIndices), 'origin dot O draws after origin tiles');
+    assert.ok(originIdx >= 0 && originIdx < overlayIdx, 'origin dot O draws before 3D body overlay');
   } finally {
     document.createElement = prevCreateElement;
   }
@@ -410,4 +410,203 @@ test('BodyFaceSelection & ModelView block curved cylinder wall sketching/occlusi
   assert.equal(view.planeAt(wallPt[0], wallPt[1]), null, 'planeAt refuses curved cylinder side wall outside origin tiles');
   const emptyPt = camera.project([200, 200, 0], width, height);
   assert.ok(typeof view.planeAt(emptyPt[0], emptyPt[1]) === 'string', 'planeAt still picks background origin plane in empty canvas space');
+});
+
+test('bodyFaces.topology() segments planar + curved B-Rep surfaces and tangent seam edges', async () => {
+  const mod = await cad.solidKernel.load();
+
+  const cyl = makeCylinderBody('topo-cyl', 30, 40);
+  const topRim = cad.bodyRenderer.selectableEdges(cyl)
+    .find(e => e.ring && Math.abs((e.ring.center3D?.[2] ?? e.ring.cap) - 40) < 0.1);
+  const filleted = cad.solidKernel.bevelBody(cyl, topRim, 'fillet', 11.663);
+  const botRim = cad.bodyRenderer.selectableEdges(filleted)
+    .find(e => e.ring && Math.abs((e.ring.center3D?.[2] ?? e.ring.cap) - 0) < 0.1);
+  const doubleFillet = cad.solidKernel.bevelBody(filleted, botRim, 'fillet', 6);
+  const chamfered = cad.solidKernel.bevelBody(cyl, topRim, 'chamfer', 11.663);
+
+  const rotCyl = cad.bodyMove.transformBody(cyl, [5, -3, 2], [23, 17, 41]);
+  const rotRim = cad.bodyRenderer.selectableEdges(rotCyl).find(e => e.ring);
+  const rotFilleted = cad.solidKernel.bevelBody(rotCyl, rotRim, 'fillet', 8);
+
+  const box = { id: 'topo-box', plane: 'XY', points: [[0, 0], [30, 0], [30, 30], [0, 30]], holes: [], start: 0, end: 20, normal: [0, 0, 1] };
+  box.mesh = cad.solidKernel.meshBody(box);
+  const boxEdge = cad.bodyRenderer.selectableEdges(box)[0];
+  const boxFillet = cad.solidKernel.bevelBody(box, boxEdge, 'fillet', 5);
+  const boxChamfer = cad.solidKernel.bevelBody(box, boxEdge, 'chamfer', 5);
+
+  const halfCircle = Array.from({ length: 33 }, (_, i) => {
+    const a = -Math.PI / 2 + Math.PI * i / 32;
+    return [Math.max(0, 20 * Math.cos(a)), 20 * Math.sin(a)];
+  });
+  const sphSec = new mod.CrossSection([halfCircle], 'EvenOdd');
+  const sphMan = sphSec.revolve(48);
+  const sphMesh = sphMan.getMesh();
+  const sphere = { id: 'topo-sphere', mesh: { vertices: Array.from(sphMesh.vertProperties), triangles: Array.from(sphMesh.triVerts) } };
+  sphMan.delete(); sphSec.delete();
+
+  for (const [label, body, expP, expC, expT] of [
+    ['plain cylinder', cyl, 2, 1, 0],
+    ['filleted cylinder', filleted, 2, 2, 316],
+    ['double-filleted cylinder', doubleFillet, 2, 3, null],
+    ['chamfered cylinder', chamfered, 2, 2, 0],
+    ['rotated filleted cylinder', rotFilleted, 2, 2, null],
+    ['filleted box', boxFillet, 6, 1, 2],
+    ['chamfered box', boxChamfer, 7, 0, 0],
+    ['sphere', sphere, 0, 1, 0],
+  ]) {
+    const t = cad.bodyFaces.topology(body);
+    assert.equal(t.planarFaces.length, expP, `${label}: planar face count`);
+    assert.equal(t.curvedFaces.length, expC, `${label}: curved face count`);
+    if (expT !== null) assert.equal(t.tangentEdgeKeys.size, expT, `${label}: tangent edge key count`);
+  }
+
+  // Verify double-filleted parametric solid (> 8000 triangles) still keeps feature edges in BodyRenderer
+  assert.ok(doubleFillet.mesh.triangles.length / 3 > 8000, 'double-filleted cylinder exceeds 8k triangles');
+  const dfPrepared = cad.bodyRenderer.mesh(doubleFillet);
+  assert.ok(dfPrepared.edges.length > 0, 'parametric >8k tri body keeps CAD feature edges');
+});
+
+test('BodyFaceSelection.surfaceAt() isolates individual curved faces while faceAt() stays planar-only', async () => {
+  await cad.solidKernel.load();
+  const cyl = makeCylinderBody('surf-cyl', 30, 40);
+  cyl.visible = true;
+  const topRim = cad.bodyRenderer.selectableEdges(cyl)
+    .find(e => e.ring && Math.abs((e.ring.center3D?.[2] ?? e.ring.cap) - 40) < 0.1);
+  const filleted = cad.solidKernel.bevelBody(cyl, topRim, 'fillet', 11.663);
+  filleted.id = 'surf-fillet';
+  filleted.visible = true;
+  const chamfered = cad.solidKernel.bevelBody(cyl, topRim, 'chamfer', 11.663);
+  chamfered.id = 'surf-chamfer';
+  chamfered.visible = true;
+
+  const camera = new cad.Camera();
+  camera.selectView('isometric');
+  const D = camera.depth;
+  const dXY = Math.hypot(D[0], D[1]) || 1;
+  const ux = D[0] / dXY, uy = D[1] / dXY;
+  const width = 800, height = 600;
+
+  const makeSel = bodies => new cad.BodyFaceSelection({
+    canvas: {
+      getBoundingClientRect: () => ({ left: 0, top: 0, width, height }),
+      classList: { add() {}, remove() {}, toggle() {} },
+      addEventListener() {},
+    },
+    camera,
+    extrudeController: { bodies },
+    isAvailable: () => true,
+    onChange() {},
+  });
+
+  // 1. Plain cylinder: curved side wall vs flat top cap
+  const cylSel = makeSel([cyl]);
+  const capPt = camera.project([0, 0, 40], width, height);
+  const wallPt = camera.project([30 * ux, 30 * uy, 18], width, height);
+  const capFace = cylSel.surfaceAt({ clientX: capPt[0], clientY: capPt[1] });
+  const wallFace = cylSel.surfaceAt({ clientX: wallPt[0], clientY: wallPt[1] });
+  assert.equal(capFace?.planar, true, 'top cap picks as planar face');
+  assert.equal(wallFace?.planar, false, 'side wall picks as single curved B-Rep surface');
+  assert.notEqual(wallFace?.id, capFace?.id, 'side wall is distinct from cap');
+  assert.equal(cylSel.faceAt({ clientX: wallPt[0], clientY: wallPt[1] }, true), null,
+    'faceAt() remains planar-only on cylinder wall');
+
+  // 2. Filleted cylinder: cap vs fillet band vs side wall
+  const filSel = makeSel([filleted]);
+  const rFilletMid = (30 - 11.663) + 11.663 * Math.SQRT1_2;
+  const zFilletMid = (40 - 11.663) + 11.663 * Math.SQRT1_2;
+  const filCapPt = camera.project([0, 0, 40], width, height);
+  const filArcPt = camera.project([rFilletMid * ux, rFilletMid * uy, zFilletMid], width, height);
+  const filWallPt = camera.project([30 * ux, 30 * uy, 14], width, height);
+
+  const fCap = filSel.surfaceAt({ clientX: filCapPt[0], clientY: filCapPt[1] });
+  const fArc = filSel.surfaceAt({ clientX: filArcPt[0], clientY: filArcPt[1] });
+  const fWall = filSel.surfaceAt({ clientX: filWallPt[0], clientY: filWallPt[1] });
+  assert.equal(fCap?.planar, true);
+  assert.equal(fArc?.planar, false);
+  assert.equal(fWall?.planar, false);
+  assert.notEqual(fArc?.id, fWall?.id, 'fillet arc surface is separate from vertical cylinder wall');
+  assert.equal(filSel.faceAt({ clientX: filArcPt[0], clientY: filArcPt[1] }), null);
+
+  // 3. Chamfered cylinder: cap vs chamfer cone vs side wall
+  const chSel = makeSel([chamfered]);
+  const rConeMid = 30 - 11.663 * 0.5;
+  const zConeMid = 40 - 11.663 * 0.5;
+  const chCapPt = camera.project([0, 0, 40], width, height);
+  const chConePt = camera.project([rConeMid * ux, rConeMid * uy, zConeMid], width, height);
+  const chWallPt = camera.project([30 * ux, 30 * uy, 14], width, height);
+
+  const cCap = chSel.surfaceAt({ clientX: chCapPt[0], clientY: chCapPt[1] });
+  const cCone = chSel.surfaceAt({ clientX: chConePt[0], clientY: chConePt[1] });
+  const cWall = chSel.surfaceAt({ clientX: chWallPt[0], clientY: chWallPt[1] });
+  assert.equal(cCap?.planar, true);
+  assert.equal(cCone?.planar, false);
+  assert.equal(cWall?.planar, false);
+  assert.notEqual(cCone?.id, cWall?.id, 'chamfer cone surface is separate from cylinder wall');
+  assert.equal(chSel.faceAt({ clientX: chConePt[0], clientY: chConePt[1] }), null);
+});
+
+test('BodyRenderer draws fillet tangent seam edges and GPU single-surface highlight pass', async () => {
+  await cad.solidKernel.load();
+  const cyl = makeCylinderBody('gpu-fillet-cyl', 30, 40);
+  const topRim = cad.bodyRenderer.selectableEdges(cyl)
+    .find(e => e.ring && Math.abs((e.ring.center3D?.[2] ?? e.ring.cap) - 40) < 0.1);
+  const filleted = cad.solidKernel.bevelBody(cyl, topRim, 'fillet', 11.663);
+  filleted.id = 'gpu-fillet';
+  filleted.visible = true;
+
+  const renderer = cad.bodyRenderer;
+  const prior = {
+    gl: renderer.gl,
+    canvas: renderer.canvas,
+    lastKey: renderer.lastKey,
+    faceHighlightBuffer: renderer.faceHighlightBuffer,
+    showMesh: cad.settings.showMesh,
+    displayStyle: cad.settings.displayStyle,
+    app: cad.app,
+  };
+  const draws = [];
+  const gl = new Proxy({
+    createBuffer: () => ({}),
+    deleteBuffer() {},
+    drawArrays: (mode, first, count) => draws.push({ mode, count }),
+  }, {
+    get(target, name) { return target[name] ?? (() => {}); },
+  });
+  gl.TRIANGLES = 'triangles';
+  gl.LINES = 'lines';
+  gl.LEQUAL = 'lequal';
+  gl.LESS = 'less';
+
+  try {
+    renderer.gl = gl;
+    renderer.canvas = { width: 800, height: 600 };
+    renderer.lastKey = null;
+    renderer.faceHighlightBuffer = null;
+    cad.settings.showMesh = false;
+    cad.settings.displayStyle = 'shaded-edges';
+
+    const curvedFace = cad.bodyFaces.topology(filleted).curvedFaces[0];
+    cad.app = { ...(prior.app || {}), faceSelection: { selected: curvedFace, hovered: null, selectedBody: null } };
+
+    const context = {
+      canvas: { width: 800, height: 600, getBoundingClientRect: () => ({ width: 800, height: 600 }) },
+      drawImage() {},
+    };
+    assert.equal(renderer.render(context, null, new cad.Camera(), [filleted]), true);
+
+    const prepared = renderer.mesh(filleted);
+    // 122 bottom cap sharp edges + 316 tangent seam edges (122 top cap + 194 wall ring) = 438 lines -> 876 line vertices
+    assert.equal(prepared.lineVbo.count, 876, 'renders bottom rim plus inner and outer fillet tangent rings');
+    const faceDraw = draws.find(d => d.mode === 'triangles' && d.count === curvedFace.triIndices.length * 3);
+    assert.ok(faceDraw, 'renders depth-tested GPU triangle highlight pass for selected curved face');
+  } finally {
+    renderer.releaseBody(filleted);
+    renderer.gl = prior.gl;
+    renderer.canvas = prior.canvas;
+    renderer.lastKey = prior.lastKey;
+    renderer.faceHighlightBuffer = prior.faceHighlightBuffer;
+    cad.settings.showMesh = prior.showMesh;
+    cad.settings.displayStyle = prior.displayStyle;
+    cad.app = prior.app;
+  }
 });

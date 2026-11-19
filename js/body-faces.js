@@ -46,21 +46,32 @@
     return Math.min(first, second, third) >= -0.001 ? [first, second, third] : null;
   }
 
-  function patches(body) {
-    if (!body?.mesh) return [];
+  function emptyTopology() {
+    return { planarFaces: [], curvedFaces: [], allFaces: [], triToFace: null, tangentEdgeKeys: null };
+  }
+
+  function topology(body) {
+    if (!body?.mesh) return emptyTopology();
     const stored = cache.get(body);
-    if (stored?.mesh === body.mesh) return stored.patches;
+    if (stored?.mesh === body.mesh) return stored.topology;
     const coordinates = body.mesh.vertices;
+    const rawTriCount = Math.floor((body.mesh.triangles?.length || 0) / 3);
     if (body.meshSource === 'import' ||
         (body.meshSource === 'solid' &&
-          (coordinates.length / 3 > 8000 || body.mesh.triangles.length / 3 > 2000))) {
-      return [];
+          (coordinates.length / 3 > 8000 || rawTriCount > 2000))) {
+      const empty = emptyTopology();
+      cache.set(body, { mesh: body.mesh, topology: empty });
+      return empty;
     }
-    const unique = new Map(), points = [], indexMap = [];
+    const unique = new Map(), points = [], pointKeys = [], indexMap = [];
     for (let index = 0; index < coordinates.length; index += 3) {
       const point = coordinates.slice(index, index + 3);
       const key = keyOf(point);
-      if (!unique.has(key)) { unique.set(key, points.length); points.push(point); }
+      if (!unique.has(key)) {
+        unique.set(key, points.length);
+        points.push(point);
+        pointKeys.push(key);
+      }
       indexMap.push(unique.get(key));
     }
     const triangles = [], edgeToTriangles = new Map();
@@ -71,7 +82,7 @@
       const area2 = length(normal);
       if (area2 < 1e-9) continue;
       const unitNormal = [normal[0] / area2, normal[1] / area2, normal[2] / area2];
-      const triangle = { ids, normal: unitNormal, offset: dot(unitNormal, points[ids[0]]), area: area2 * 0.5 };
+      const triangle = { ids, normal: unitNormal, offset: dot(unitNormal, points[ids[0]]), area: area2 * 0.5, rawTriIndex: index / 3 };
       const number = triangles.length;
       triangles.push(triangle);
       for (let side = 0; side < 3; side++) {
@@ -131,22 +142,25 @@
       rawPatches.push({ idx: patchIdx, normal: first.normal, group, vertIds: [...vertSet], boundary, totalArea });
     }
 
-    // Filter out tessellated curved-surface facets (cylinders, cones, fillets, spheres)
-    // while keeping genuine planar faces (including filleted caps and flat walls).
+    // Separate tessellated curved-surface facets (cylinders, cones, fillets, spheres)
+    // from genuine planar CAD faces.
     const SMOOTH_COS = 0.965;
     const smoothAdj = rawPatches.map(() => []);
-    const smoothEdgeList = rawPatches.map(() => []);
+    const smoothEdges = [];
+    const seenSmooth = new Set();
     for (const p of rawPatches) {
       for (const [key, [a, b]] of p.boundary.entries()) {
+        if (seenSmooth.has(key)) continue;
+        seenSmooth.add(key);
         const owners = edgeToTriangles.get(key);
         if (!owners || owners.length !== 2) continue;
         const p0 = triToPatch[owners[0]], p1 = triToPatch[owners[1]];
-        const otherIdx = p0 === p.idx ? p1 : p0;
-        if (otherIdx === -1 || otherIdx === p.idx) continue;
-        const d = dot(p.normal, rawPatches[otherIdx].normal);
+        if (p0 === -1 || p1 === -1 || p0 === p1) continue;
+        const d = dot(rawPatches[p0].normal, rawPatches[p1].normal);
         if (d >= SMOOTH_COS && d < 0.99999) {
-          smoothAdj[p.idx].push(otherIdx);
-          smoothEdgeList[p.idx].push({ otherIdx, a, b });
+          smoothAdj[p0].push(p1);
+          smoothAdj[p1].push(p0);
+          smoothEdges.push({ p0, p1, a, b, d });
         }
       }
     }
@@ -165,20 +179,17 @@
       return hi - lo;
     };
     const curvedCandidate = new Uint8Array(rawPatches.length);
-    for (const p of rawPatches) {
-      if (!smoothEdgeList[p.idx].length) continue;
-      for (const { otherIdx, a, b } of smoothEdgeList[p.idx]) {
-        const edgeVec = sub(points[b], points[a]);
-        const el = length(edgeVec);
-        if (el < 1e-7) continue;
-        const eDir = [edgeVec[0] / el, edgeVec[1] / el, edgeVec[2] / el];
-        const sp = spanPerp(p, eDir);
-        const sq = spanPerp(rawPatches[otherIdx], eDir);
-        if (sq > 1e-7 && sp <= sq * 2.5) {
-          curvedCandidate[p.idx] = 1;
-          break;
-        }
-      }
+    for (const e of smoothEdges) {
+      const edgeVec = sub(points[e.b], points[e.a]);
+      const el = length(edgeVec);
+      if (el < 1e-7) continue;
+      const eDir = [edgeVec[0] / el, edgeVec[1] / el, edgeVec[2] / el];
+      const s0 = spanPerp(rawPatches[e.p0], eDir);
+      const s1 = spanPerp(rawPatches[e.p1], eDir);
+      if (s1 > 1e-7 && s0 <= s1 * 2.5) curvedCandidate[e.p0] = 1;
+      if (s0 > 1e-7 && s1 <= s0 * 2.5) curvedCandidate[e.p1] = 1;
+      e.s0 = s0;
+      e.s1 = s1;
     }
     const compVisited = new Uint8Array(rawPatches.length);
     const isCurved = new Uint8Array(rawPatches.length);
@@ -201,7 +212,11 @@
       }
     }
 
-    const result = [];
+    const patchToFace = new Int32Array(rawPatches.length).fill(-1);
+    const planarFaces = [];
+    const curvedFaces = [];
+    const allFaces = [];
+
     for (const raw of rawPatches) {
       if (isCurved[raw.idx] || raw.totalArea < 1e-4) continue;
       const { boundary, group, normal } = raw;
@@ -241,12 +256,129 @@
       if (Math.abs(area(outer)) < 1e-4) continue;
       const origin = [0, 1, 2].map(axis => outer.reduce((sum, id) => sum + points[id][axis], 0) / outer.length);
       const local = loop => loop.map(id => [dot(sub(points[id], origin), u), dot(sub(points[id], origin), v)]);
-      result.push({ body, id: `${body.id || 'body'}:face-${result.length}`, normal, origin, u, v,
+      const faceIndex = allFaces.length;
+      const face = {
+        body,
+        id: `${body.id || 'body'}:face-${planarFaces.length}`,
+        planar: true,
+        faceIndex,
+        normal,
+        origin,
+        u,
+        v,
+        triIndices: group.map(index => triangles[index].rawTriIndex),
         triangles: group.map(index => triangles[index].ids.map(id => points[id])),
-        points: local(outer), holes: loops.slice(1).map(local) });
+        points: local(outer),
+        holes: loops.slice(1).map(local),
+      };
+      patchToFace[raw.idx] = faceIndex;
+      planarFaces.push(face);
+      allFaces.push(face);
     }
-    cache.set(body, { mesh: body.mesh, patches: result });
+
+    // Group curved patches into individual B-Rep curved faces (cylinder wall, fillet band, cone, sphere)
+    // breaking across tangent curvature jumps where adjacent facet widths diverge.
+    const sameSurfaceAdj = rawPatches.map(() => []);
+    for (const e of smoothEdges) {
+      if (!isCurved[e.p0] || !isCurved[e.p1]) continue;
+      const s0 = e.s0 || 0, s1 = e.s1 || 0;
+      const lo = Math.min(s0, s1), hi = Math.max(s0, s1);
+      if (lo > 1e-7 && hi / lo <= 2.5) {
+        sameSurfaceAdj[e.p0].push(e.p1);
+        sameSurfaceAdj[e.p1].push(e.p0);
+      }
+    }
+
+    const patchToComp = new Int32Array(rawPatches.length).fill(-1);
+    const curvedComps = [];
+    for (const raw of rawPatches) {
+      if (!isCurved[raw.idx] || patchToComp[raw.idx] !== -1) continue;
+      const compIdx = curvedComps.length;
+      const comp = [], triIndices = [], queue = [raw.idx];
+      let area = 0;
+      patchToComp[raw.idx] = compIdx;
+      while (queue.length) {
+        const cur = queue.pop();
+        comp.push(cur);
+        const rp = rawPatches[cur];
+        area += rp.totalArea;
+        for (const ti of rp.group) triIndices.push(triangles[ti].rawTriIndex);
+        for (const nxt of sameSurfaceAdj[cur]) {
+          if (patchToComp[nxt] === -1) {
+            patchToComp[nxt] = compIdx;
+            queue.push(nxt);
+          }
+        }
+      }
+      curvedComps.push({ comp, triIndices, area, absorbed: false });
+    }
+
+    const isMicroSliver = c => c.area < 1e-2 || (c.comp.length === 1 && c.area < 0.05);
+    for (let cIdx = 0; cIdx < curvedComps.length; cIdx++) {
+      const c = curvedComps[cIdx];
+      if (!isMicroSliver(c)) continue;
+      let bestTarget = -1, bestArea = -1;
+      for (const pIdx of c.comp) {
+        for (const nxt of smoothAdj[pIdx]) {
+          const nComp = patchToComp[nxt];
+          if (nComp >= 0 && nComp !== cIdx && !isMicroSliver(curvedComps[nComp]) &&
+              curvedComps[nComp].area > bestArea) {
+            bestArea = curvedComps[nComp].area;
+            bestTarget = nComp;
+          }
+        }
+      }
+      c.absorbed = true;
+      if (bestTarget >= 0) {
+        const target = curvedComps[bestTarget];
+        for (const pIdx of c.comp) {
+          patchToComp[pIdx] = bestTarget;
+          target.comp.push(pIdx);
+        }
+        for (const rt of c.triIndices) target.triIndices.push(rt);
+        target.area += c.area;
+      } else {
+        for (const pIdx of c.comp) patchToComp[pIdx] = -1;
+      }
+    }
+
+    for (const c of curvedComps) {
+      if (c.absorbed || !c.triIndices.length) continue;
+      const faceIndex = allFaces.length;
+      const face = {
+        body,
+        id: `${body.id || 'body'}:surface-${curvedFaces.length}`,
+        planar: false,
+        faceIndex,
+        area: c.area,
+        triIndices: c.triIndices,
+      };
+      for (const pIdx of c.comp) patchToFace[pIdx] = faceIndex;
+      curvedFaces.push(face);
+      allFaces.push(face);
+    }
+
+    const triToFace = new Int32Array(rawTriCount).fill(-1);
+    for (const face of allFaces) {
+      for (const rt of face.triIndices) triToFace[rt] = face.faceIndex;
+    }
+
+    const tangentEdgeKeys = new Set();
+    for (const e of smoothEdges) {
+      const f0 = patchToFace[e.p0], f1 = patchToFace[e.p1];
+      if (f0 !== f1 && f0 >= 0 && f1 >= 0) {
+        const ka = pointKeys[e.a], kb = pointKeys[e.b];
+        tangentEdgeKeys.add(ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`);
+      }
+    }
+
+    const result = { planarFaces, curvedFaces, allFaces, triToFace, tangentEdgeKeys };
+    cache.set(body, { mesh: body.mesh, topology: result });
     return result;
+  }
+
+  function patches(body) {
+    return topology(body).planarFaces;
   }
 
   function registerPlane(face) {
@@ -264,7 +396,7 @@
 
   function renderFaceHighlight(context, project, face, { fill = 'rgba(33, 137, 227, .42)', stroke = '#0e70b0', lineWidth = 2.0, camera = null } = {}) {
     const cam = camera || window.WebCAD?.app?.camera;
-    if (!face || (cam && dot(face.normal, cam.depth) <= 1e-6)) return;
+    if (!face || !face.normal || !face.points || (cam && dot(face.normal, cam.depth) <= 1e-6)) return;
     context.save();
     context.fillStyle = fill;
     context.strokeStyle = stroke;
@@ -677,6 +809,38 @@
       return best?.face || null;
     }
 
+    surfaceAt(event, includeFacets = false) {
+      if (!this.extrudeController?.bodies?.length) return null;
+      if (event?.ctrlKey || event?.metaKey) return null;
+      const camera = this.camera;
+      const fastProj = typeof camera?.origin === 'function' && typeof camera?.unit === 'function' &&
+        camera.right && camera.up && camera.depth;
+      if (!fastProj) return this.faceAt(event, includeFacets);
+      const bounds = this.canvas.getBoundingClientRect();
+      const sx = event.clientX - bounds.left, sy = event.clientY - bounds.top;
+      const screen = [sx, sy];
+      let best = null;
+      for (const body of this.extrudeController.bodies) {
+        if (body.visible === false || !body.mesh) continue;
+        const sBox = this.screenBounds(body, bounds.width, bounds.height);
+        if (sBox && (sx < sBox.minX - 6 || sx > sBox.maxX + 6 || sy < sBox.minY - 6 || sy > sBox.maxY + 6)) {
+          continue;
+        }
+        const hit = pickMeshTriangle(body, screen, camera, bounds.width, bounds.height, true);
+        if (hit && (!best || hit.depth > best.depth)) {
+          const topo = topology(body);
+          if (topo.triToFace && topo.triToFace[hit.triangle] >= 0) {
+            best = { face: topo.allFaces[topo.triToFace[hit.triangle]], depth: hit.depth };
+          } else if (includeFacets && body.meshSource === 'solid' && !topo.allFaces.length) {
+            best = { face: facetFace(hit), depth: hit.depth };
+          } else {
+            best = { face: null, depth: hit.depth };
+          }
+        }
+      }
+      return best?.face || null;
+    }
+
     screenBounds(body, width, height) {
       return screenBoundsOf(body, this.camera, width, height);
     }
@@ -706,11 +870,34 @@
       if (!bodies.length) return;
 
       const drawFace = (face, fill, stroke, lineWidth) => {
-        if (!face || face.body.visible === false ||
+        if (!face || !face.normal || face.body.visible === false ||
           !bodies.includes(face.body) ||
           dot(face.normal, this.camera.depth) <= 1e-6) return;
         renderFaceHighlight(context, project, face, { fill, stroke, lineWidth, camera: this.camera });
       };
+
+      const gpuActive = Boolean(cad.bodyRenderer && !cad.bodyRenderer.failed && cad.bodyRenderer.gl);
+      if (gpuActive) {
+        // Depth-tested shaded GPU highlights render directly on WebGL triangles; keep 2D fallback only
+        // for facet picks without triIndices or bounding cages on imported meshes.
+        if (this.hovered && !this.hovered.triIndices?.length && this.hovered !== this.selected &&
+            (!this.selectedBody || this.hovered.body !== this.selectedBody)) {
+          drawFace(this.hovered, 'rgba(45, 156, 219, .22)', 'rgba(30, 130, 200, .75)', 1.4);
+        }
+        if (this.selectedBody && this.selectedBody.meshSource === 'import' &&
+            this.selectedBody.visible !== false && bodies.includes(this.selectedBody)) {
+          renderBodyHighlight(context, project, this.selectedBody, {
+            fill: 'rgba(33, 137, 227, .38)',
+            stroke: '#0e70b0',
+            lineWidth: 2.0,
+            camera: this.camera
+          });
+        }
+        if (this.selected && !this.selected.triIndices?.length) {
+          drawFace(this.selected, 'rgba(33, 137, 227, .42)', '#0e70b0', 2.2);
+        }
+        return;
+      }
 
       // 1. Hovered face highlight (subtle preview)
       if (this.hovered && this.hovered !== this.selected && (!this.selectedBody || this.hovered.body !== this.selectedBody)) {
@@ -745,7 +932,7 @@
           }
           return;
         }
-        const face = this.faceAt(event);
+        const face = this.surfaceAt(event);
         if (face !== this.hovered) {
           this.hovered = face;
           this.canvas.classList.toggle('over-face', Boolean(face));
@@ -778,7 +965,7 @@
             ctrlKey: false,
             metaKey: false
           };
-          const face = this.faceAt(fake);
+          const face = this.surfaceAt(fake);
           if (face !== this.hovered) {
             this.hovered = face;
             this.canvas.classList.toggle('over-face', Boolean(face));
@@ -796,7 +983,7 @@
             return;
           }
         }
-        const face = this.faceAt(event, true);
+        const face = this.surfaceAt(event, true);
         if (!face) {
           const body = this.bodyAt(event);
           if (body) {
@@ -979,6 +1166,17 @@
     return bestBody ? bodyCenter(bestBody) : null;
   }
 
-  cad.bodyFaces = { patches, registerPlane, projectedTriangle, renderFaceHighlight, renderBodyHighlight, hitPointAt, bodyCenter, closestBodyCenter };
+  cad.bodyFaces = {
+    patches,
+    topology,
+    surfaces: body => topology(body).allFaces,
+    registerPlane,
+    projectedTriangle,
+    renderFaceHighlight,
+    renderBodyHighlight,
+    hitPointAt,
+    bodyCenter,
+    closestBodyCenter,
+  };
   cad.BodyFaceSelection = BodyFaceSelection;
 })(window.WebCAD = window.WebCAD || {});

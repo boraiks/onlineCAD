@@ -57,37 +57,47 @@
       // camera.depth points from the model towards the viewer.
       vec3 V = normalize(uCameraDepth);
 
-      // Broad upper-left studio panel with a tighter polished highlight.
+      vec3 albedo = vBaseColor.rgb;
+      if (uSelectionMix > 0.0) {
+        albedo = mix(albedo, vec3(0.20, 0.50, 0.94), clamp(uSelectionMix, 0.0, 1.0));
+      }
+
+      // Fusion-inspired satin-steel studio environment in camera space.
       vec3 L1 = normalize(uKeyLightDir);
-      float NdotL1 = max(dot(N, L1), 0.0);
-      vec3 H1 = normalize(L1 + V);
-      float NdotH1 = max(dot(N, H1), 0.0);
-      float keySheen = pow(NdotH1, uShininess * 0.19) * (uSpecularStrength * 0.12);
-      float keyHighlight = pow(NdotH1, uShininess) * (uSpecularStrength * 0.43);
-
-      // Weaker opposite panel keeps recesses readable without flattening them.
       vec3 L2 = normalize(uFillLightDir);
-      float NdotL2 = max(dot(N, L2), 0.0);
+      float NdotL1 = max(dot(N, L1) * 0.68 + 0.32, 0.0);
+      float NdotL2 = max(dot(N, L2) * 0.62 + 0.38, 0.0);
+      vec3 H1 = normalize(L1 + V);
       vec3 H2 = normalize(L2 + V);
+      float NdotH1 = max(dot(N, H1), 0.0);
       float NdotH2 = max(dot(N, H2), 0.0);
-      float fillHighlight = pow(NdotH2, uShininess * 0.42) * (uSpecularStrength * 0.12);
-
-      // Neutral environment: upper surfaces are lit, undersides stay darker.
-      float hemi = mix(0.43, 0.54, clamp(N.z * 0.5 + 0.5, 0.0, 1.0));
-
-      float diffuse = NdotL1 * 0.35 + NdotL2 * 0.18;
-
       float NdotV = max(dot(N, V), 0.0);
-      float rim = pow(1.0 - NdotV, 3.0) * 0.055;
 
-      vec3 studioWhite = vec3(0.98, 0.98, 0.95);
-      vec3 litColor = vBaseColor.rgb * (hemi + diffuse) +
-        studioWhite * (keySheen + keyHighlight + fillHighlight + rim);
+      vec3 R = reflect(-V, N);
+      float ry = dot(R, uCameraUp);
+      float ny = dot(N, uCameraUp);
+
+      float softbox = smoothstep(0.08, 0.78, ry) * 0.68;
+      float sidePanel = smoothstep(-0.15, 0.65, dot(R, uCameraRight) * 0.5 + 0.35) * 0.12;
+      float floorBounce = smoothstep(-0.20, -0.80, ry) * 0.34;
+      float horizonBand = exp(-pow((ry + 0.14) * 3.6, 2.0)) * 0.34;
+      float envLum = clamp(0.38 + softbox + sidePanel + floorBounce - horizonBand, 0.10, 1.02);
+
+      float fresnel = 0.06 + 0.28 * pow(1.0 - NdotV, 2.6);
+      float hemi = mix(0.27, 0.43, clamp(ny * 0.5 + 0.5, 0.0, 1.0));
+      float diffuse = NdotL1 * 0.34 + NdotL2 * 0.12;
+
+      float keySheen = pow(NdotH1, 22.0) * (uSpecularStrength * 0.16);
+      float keyHighlight = pow(NdotH1, uShininess) * (uSpecularStrength * 0.72);
+      float fillHighlight = pow(NdotH2, 36.0) * (uSpecularStrength * 0.08);
+
+      vec3 studioWhite = vec3(1.0, 0.99, 0.96);
+      vec3 envTint = mix(albedo * envLum, studioWhite * envLum, 0.28);
+      vec3 litColor = albedo * (hemi + diffuse) + envTint * fresnel +
+        studioWhite * (keySheen + keyHighlight + fillHighlight);
 
       if (uSelectionMix < 0.0) {
         litColor = mix(litColor, vec3(0.96, 0.16, 0.16), -uSelectionMix);
-      } else {
-        litColor = mix(litColor, vec3(0.13, 0.53, 0.86), uSelectionMix);
       }
 
       // Zebra curvature & continuity reflection stripes analysis
@@ -127,7 +137,24 @@
   // Crease threshold: angles < 42° (cos >= 0.743) are smoothed together across vertices;
   // sharp edges >= 42° (e.g. 90° corners, cylinder caps) remain razor-sharp flat creases.
   const COS_CREASE = 0.743;
-  const CAD_MATERIAL = [0.65, 0.64, 0.61, 1];
+  const CAD_MATERIAL = [0.64, 0.63, 0.59, 1];
+
+  function buildFaceTriData(prepared, face) {
+    const indices = face?.triIndices;
+    const src = prepared?.triData;
+    if (!indices?.length || !src?.length) return null;
+    const triCount = Math.floor(src.length / 30);
+    const out = new Float32Array(indices.length * 30);
+    let ptr = 0;
+    for (let i = 0; i < indices.length; i++) {
+      const t = indices[i];
+      if (t < 0 || t >= triCount) continue;
+      const offset = t * 30;
+      out.set(src.subarray(offset, offset + 30), ptr);
+      ptr += 30;
+    }
+    return ptr === out.length ? out : out.subarray(0, ptr);
+  }
 
   function maxAbsDiff(values, mean) {
     let best = 0;
@@ -312,8 +339,8 @@
     const triCount = Math.floor(triangles.length / 3);
     const triNormals = [];
     const triValid = new Uint8Array(triCount);
-    const isDenseMesh = triCount > 8000;
-    const isImportedDense = isDenseMesh && (body.meshSource === 'import' || body.meshSource === 'solid');
+    const isImportedDense = triCount > 8000 && (body.meshSource === 'import' || body.meshSource === 'solid');
+    const isDenseMesh = isImportedDense || triCount > 30000;
 
     for (let t = 0; t < triCount; t++) {
       const i0 = triangles[t * 3], i1 = triangles[t * 3 + 1], i2 = triangles[t * 3 + 2];
@@ -422,7 +449,7 @@
           for (let corner = 0; corner < 3; corner++) {
             const from = ids[corner], to = ids[(corner + 1) % 3];
             const key = edgeKey(pointKeys[from], pointKeys[to]);
-            if (!edges.has(key)) edges.set(key, { from, to, normals: [], sides: [] });
+            if (!edges.has(key)) edges.set(key, { key, from, to, normals: [], sides: [] });
             const edge = edges.get(key);
             edge.normals.push(unitNormal);
             edge.sides.push({ normal: unitNormal, opposite: points[ids[(corner + 2) % 3]] });
@@ -488,6 +515,8 @@
       this.finishCache = new WeakMap();
       this.finishJobs = new WeakMap();
       this.vboCache = new WeakMap();
+      this.faceTriCache = new WeakMap();
+      this.faceHighlightBuffer = null;
       this.residentBodies = new Set();
       this.failed = false;
       this.lastKey = null;
@@ -524,6 +553,8 @@
           this.vboCache = new WeakMap();
           this.meshCache = new WeakMap();
           this.featureMeshCache = new WeakMap();
+          this.faceTriCache = new WeakMap();
+          this.faceHighlightBuffer = null;
           this.residentBodies.clear();
           this.lastKey = null;
           cad.app?.requestRedraw?.(false);
@@ -664,6 +695,21 @@
         this.meshCache.set(body, cached);
       }
       return cached;
+    }
+
+    faceTriData(prepared, face) {
+      if (!prepared || prepared.mesh !== face?.body?.mesh || !face?.triIndices?.length) return null;
+      let byFace = this.faceTriCache.get(prepared);
+      if (!byFace) {
+        byFace = new WeakMap();
+        this.faceTriCache.set(prepared, byFace);
+      }
+      let data = byFace.get(face);
+      if (!data) {
+        data = buildFaceTriData(prepared, face);
+        if (data) byFace.set(face, data);
+      }
+      return data;
     }
 
     projectionMatrix(camera, width, height, near, far) {
@@ -929,11 +975,19 @@
         (movePreview && movePreview === body) ||
         (moveSelected && moveSelected === body)
       );
+      const rawSelectedFace = cad.app?.faceSelection?.selected || null;
+      const rawHoveredFace = cad.app?.faceSelection?.hovered || null;
+      const selectedFace = rawSelectedFace && !isBodySelected(rawSelectedFace.body) ? rawSelectedFace : null;
+      const hoveredFace = rawHoveredFace && rawHoveredFace !== selectedFace && !isBodySelected(rawHoveredFace.body)
+        ? rawHoveredFace : null;
+      const pickingFace = cad.app?.modelView?.picking && typeof cad.app.modelView.hoveredPlane === 'object'
+        ? cad.app.modelView.hoveredPlane : null;
       const key = [bounds.width, bounds.height, this.canvas.width, this.canvas.height,
         camera.zoom, camera.panX, camera.panY, ...camera.right, ...camera.up,
         ...camera.depth, ...camera.pivot, cad.settings?.cameraPivot,
         cad.settings?.displayStyle, inspectMesh,
         zebraActive, zebraRepeats, zebraDir, zebraOpacity, zebraTargetId,
+        selectedFace?.id || '', hoveredFace?.id || '', pickingFace?.id || '',
         ...visible.map(body => body.isInterference ? 3 : body.convertSelected ? 2 : isBodySelected(body) ? 1 : 0)].join('|');
 
       if (this.lastKey === key && visible.length === this.lastBodies.length &&
@@ -954,8 +1008,8 @@
       gl.useProgram(this.program);
 
       // Camera-relative studio panels keep the material readable while orbiting.
-      const keyLight = studioDirection(camera, -1.05, 0.80, 0.20);
-      const fillLight = studioDirection(camera, 0.90, 0.20, 0.60);
+      const keyLight = studioDirection(camera, -0.78, 0.86, 0.58);
+      const fillLight = studioDirection(camera, 0.85, -0.15, 0.55);
       gl.uniform3f(this.uKeyLightDir, ...keyLight);
       gl.uniform3f(this.uFillLightDir, ...fillLight);
       gl.uniform3f(this.uCameraDepth, camera.depth[0], camera.depth[1], camera.depth[2]);
@@ -964,8 +1018,8 @@
       gl.uniform1f(this.uZebraRepeats, zebraRepeats);
       gl.uniform1f(this.uZebraDirection, zebraDir);
       gl.uniform1f(this.uZebraOpacity, zebraOpacity);
-      gl.uniform1f(this.uSpecularStrength, 0.50);
-      gl.uniform1f(this.uShininess, 96.0);
+      gl.uniform1f(this.uSpecularStrength, 0.54);
+      gl.uniform1f(this.uShininess, 132.0);
 
       // 1. Calculate depth bounds near/far from body bounding boxes
       let near = Infinity, far = -Infinity;
@@ -1033,6 +1087,32 @@
         gl.drawArrays(gl.TRIANGLES, 0, vbo.count);
       }
 
+      // 3b. Render Depth-Tested Shaded Single-Surface Highlights (Fusion 360 cobalt tint)
+      const faceHighlights = [];
+      for (const [face, mixVal] of [[hoveredFace, 0.38], [pickingFace, 0.50], [selectedFace, 0.78]]) {
+        if (!face || !face.triIndices?.length || !visible.includes(face.body) || face.body.isInterference) continue;
+        const triData = this.faceTriData(this.mesh(face.body), face);
+        if (triData?.length) faceHighlights.push([triData, mixVal]);
+      }
+      if (faceHighlights.length) {
+        this.faceHighlightBuffer = this.faceHighlightBuffer || gl.createBuffer();
+        gl.depthFunc(gl.LEQUAL);
+        gl.depthMask(false);
+        gl.uniform1f(this.uDepthBias, 0.00009);
+        gl.uniform1f(this.uZebraActive, 0.0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.faceHighlightBuffer);
+        for (const [triData, mixVal] of faceHighlights) {
+          gl.uniform1f(this.uSelectionMix, mixVal);
+          gl.bufferData(gl.ARRAY_BUFFER, triData, gl.DYNAMIC_DRAW);
+          gl.vertexAttribPointer(this.position, 3, gl.FLOAT, false, STRIDE, 0);
+          gl.vertexAttribPointer(this.normal, 3, gl.FLOAT, false, STRIDE, 12);
+          gl.vertexAttribPointer(this.color, 4, gl.FLOAT, false, STRIDE, 24);
+          gl.drawArrays(gl.TRIANGLES, 0, triData.length / 10);
+        }
+        gl.depthMask(true);
+        gl.depthFunc(gl.LESS);
+      }
+
       // 4. Render Feature Edges and Wireframe
       if (!inspectMesh) {
         for (const body of visible) {
@@ -1064,10 +1144,16 @@
                 : featureLineData(mesh.mesh, mesh.featurePairs);
             } else {
               const lineArr = [];
-              const color = inspectMesh ? [0.18, 0.39, 0.51, 1] : [0.08, 0.10, 0.14, 1];
+              const tangentKeys = !inspectMesh ? cad.bodyFaces?.topology?.(body)?.tangentEdgeKeys : null;
+              const sharpColor = inspectMesh ? [0.18, 0.39, 0.51, 1] : [0.08, 0.10, 0.14, 1];
+              const tangentColor = [0.11, 0.13, 0.17, 1];
               for (const edge of mesh.edges) {
+                let color = sharpColor;
                 if (!inspectMesh) {
-                  if (isSmoothFeatureEdge(edge.normals)) continue;
+                  const smooth = isSmoothFeatureEdge(edge.normals);
+                  const tangent = smooth && Boolean(edge.key && tangentKeys?.has(edge.key));
+                  if (smooth && !tangent) continue;
+                  if (tangent) color = tangentColor;
                 }
                 const a = mesh.points[edge.from], b = mesh.points[edge.to];
                 lineArr.push(a[0], a[1], a[2], 0, 0, 0, color[0], color[1], color[2], 1);

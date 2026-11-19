@@ -123,7 +123,7 @@ Run the full test suite with Node.js (zero npm install required):
 node --test tests/*.test.mjs
 ```
 
-All `229` automated tests cover the Manifold solid kernel, 2D constraint and profile solver, STL/OBJ/STEP/DXF/3MF I/O, mesh repair and feature fit, planar face filtering, circular bevel edge generation, draggable dialogs, and optimization invariants.
+All `232` automated tests cover the Manifold solid kernel, 2D constraint and profile solver, STL/OBJ/STEP/DXF/3MF I/O, mesh repair and feature fit, B-Rep surface selection, tangent seam rendering, draggable dialogs, and optimization invariants.
 
 ---
 

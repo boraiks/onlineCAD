@@ -1057,8 +1057,10 @@
     if (faceSelection?.selected) {
       const face = faceSelection.selected;
       faceSelection.clear();
-      startSketch(face);
-      return true;
+      if (face.planar !== false) {
+        startSketch(face);
+        return true;
+      }
     }
     if (!modelView.picking) {
       setPicking(true);
@@ -1314,7 +1316,8 @@
       if (extrudeController?.bodies.length) {
         extrudeController.render(context, project);
         faceSelection?.render(context, project);
-        if (modelView.picking && modelView.hoveredPlane && typeof modelView.hoveredPlane === 'object') {
+        if (modelView.picking && modelView.hoveredPlane && typeof modelView.hoveredPlane === 'object' &&
+            !(cad.bodyRenderer && !cad.bodyRenderer.failed && cad.bodyRenderer.gl && modelView.hoveredPlane.triIndices?.length)) {
           cad.bodyFaces.renderFaceHighlight(context, project, modelView.hoveredPlane, {
             fill: 'rgba(39, 135, 191, .42)', stroke: '#1d87bd', lineWidth: 2.6
           });
@@ -1459,8 +1462,13 @@
     onChange: () => requestRedraw(false),
     onSelect: face => {
       if (face) {
-        statusText.textContent = `${face.body.name} · FACE SELECTED`;
-        viewHint.textContent = 'Selected face · Sketch: draw on face · Extrude: extend face';
+        if (face.planar === false) {
+          statusText.textContent = `${face.body.name} · CURVED FACE SELECTED`;
+          viewHint.textContent = 'Selected curved surface · Double-click to select whole body · Esc to deselect';
+        } else {
+          statusText.textContent = `${face.body.name} · FACE SELECTED`;
+          viewHint.textContent = 'Selected face · Sketch: draw on face · Extrude: extend face';
+        }
       } else if (faceSelection?.selectedBody) {
         const body = faceSelection.selectedBody;
         statusText.textContent = `${body.name} · BODY SELECTED`;
@@ -1633,7 +1641,10 @@
   sketchTools.wheel = new cad.SketchWheel({ canvas: modelCanvas, onSelect: tool => sketchTools.setTool(tool) });
 
   openSketchButton.addEventListener('click', () => {
-    if (faceSelection.selected) { startSketch(faceSelection.selected); return; }
+    if (faceSelection.selected) {
+      if (faceSelection.selected.planar !== false) { startSketch(faceSelection.selected); return; }
+      faceSelection.clear();
+    }
     if (!modelView.picking) pendingSketchTool = null;
     setPicking(!modelView.picking);
   });
@@ -2288,8 +2299,10 @@
       if (faceSelection.selected) {
         const face = faceSelection.selected;
         faceSelection.clear();
-        extrudeController.openFace(face);
-        return;
+        if (face.planar !== false) {
+          extrudeController.openFace(face);
+          return;
+        }
       }
       if (extrudeController.active) extrudeController.close();
       else if (!extrudeController.open()) statusText.textContent = 'EXTRUDE · Select a planar body face or finish a sketch first';
@@ -2374,7 +2387,7 @@
       surfaceFinish?.close();
       interference?.close();
       zebraAnalysis?.close();
-      const targetFace = faceSelection?.selected || null;
+      const targetFace = faceSelection?.selected?.planar !== false ? (faceSelection?.selected || null) : null;
       faceSelection?.clear();
       solidHole.open(targetFace);
     });

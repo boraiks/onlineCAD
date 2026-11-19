@@ -509,6 +509,18 @@
         }
       }
 
+      // Draw center origin point O behind 3D bodies so it never floats on top of solids
+      if (this.visibility.origin && this.visibility.O) {
+        const [originX, originY] = project([0, 0, 0]);
+        context.beginPath();
+        context.arc(originX, originY, 3, 0, Math.PI * 2);
+        context.fillStyle = '#ffffff';
+        context.fill();
+        context.strokeStyle = '#5a7080';
+        context.lineWidth = 1.2;
+        context.stroke();
+      }
+
       if (this.onDrawOverlay) this.onDrawOverlay(context, project);
 
       this.hitAreas = [];
@@ -533,18 +545,6 @@
             this.hitAreas.push({ name, visible });
           }
         }
-      }
-
-      // Draw center origin point O above tiles so it stays legible over bodies
-      if (this.visibility.origin && this.visibility.O) {
-        const [originX, originY] = project([0, 0, 0]);
-        context.beginPath();
-        context.arc(originX, originY, 3, 0, Math.PI * 2);
-        context.fillStyle = '#ffffff';
-        context.fill();
-        context.strokeStyle = '#5a7080';
-        context.lineWidth = 1.2;
-        context.stroke();
       }
 
       if (settings.cameraPivot && this.drag?.mode === 'orbit') {
